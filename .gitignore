@@ -1,0 +1,10 @@
+# IntelliJ IDEA
+.idea/
+
+# Maven / Java
+target/
+*.class
+
+# OS files
+.DS_Store
+Thumbs.db

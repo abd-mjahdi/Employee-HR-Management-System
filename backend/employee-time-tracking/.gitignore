@@ -30,3 +30,11 @@ build/
 
 ### VS Code ###
 .vscode/
+### progress ###
+detailsApp.md
+tasksApp.md
+features.txt
+basicLayout.md
+### data model ###
+entities.txt
+

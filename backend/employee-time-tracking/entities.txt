@@ -1,0 +1,39 @@
+users
+departments
+time_entries
+leave_requests
+leave_types
+leave_policies
+leave_balances
+projects
+audit_logs
+
+
+
+entity attributs:
+users
+id, username, email, password_hash, first_name, last_name, role, department_id, manager_id, is_active, created_at, updated_at
+
+departments
+id, department_name, department_code, is_active, created_at
+
+time_entries
+id, user_id, entry_date, clock_in_time, clock_out_time, total_hours, project_id, description, status, approved_by, approved_at, created_at, updated_at
+
+leave_requests
+id, user_id, leave_type_id, start_date, end_date, total_days, reason, status, manager_approval_status, manager_approved_by, manager_approved_at, manager_notes, hr_approval_status, hr_approved_by, hr_approved_at, hr_notes, created_at, updated_at
+
+leave_types
+id, type_name, description, is_active, created_at
+
+leave_policies
+id, leave_type_id, annual_allocation, accrual_method, allows_negative_balance, max_rollover_days, requires_manager_approval, requires_hr_approval, min_notice_days, created_at, updated_at
+
+leave_balances
+id, user_id, leave_type_id, year, current_balance, last_accrual_date, created_at, updated_at
+
+projects
+id, project_name, project_code, description, is_active, created_at
+
+audit_logs
+id, user_id, action_type, table_name, record_id, old_values, new_values, ip_address, timestamp

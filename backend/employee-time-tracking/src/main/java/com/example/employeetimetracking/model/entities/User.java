@@ -3,10 +3,11 @@ package com.example.employeetimetracking.model.entities;
 import com.example.employeetimetracking.model.enums.UserRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Setter
@@ -17,8 +18,8 @@ import lombok.Setter;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name="users")
-    private Integer Id;
+    @Column(name="id")
+    private Integer id;
 
     @NotNull
     @Column(name="username",length=50 ,unique = true ,nullable = false)
@@ -44,4 +45,27 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name="user_role" ,nullable = false)
     private UserRole userRole;
+
+    @ManyToOne
+    @NotNull
+    @JoinColumn(name="department_id" ,nullable = false)
+    private Department department;
+
+    @ManyToOne
+    @JoinColumn(name="manager_id")
+    private User manager;
+
+    @OneToMany(mappedBy = "manager")
+    private List<User> teamMembers;
+
+    @NotNull
+    private Boolean isActive = true;
+
+    @CreationTimestamp
+    @Column(name = "created_at" ,nullable = false ,updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at" ,nullable = false)
+    private LocalDateTime updatedAt;
+
 }

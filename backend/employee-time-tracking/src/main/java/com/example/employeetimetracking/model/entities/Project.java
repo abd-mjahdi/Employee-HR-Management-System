@@ -24,7 +24,7 @@ public class Project {
     @Column(name="project_name" , length=50 ,nullable = false)
     private String projectName;
 
-    @Column(name="project_code" , length=50 ,nullable = false)
+    @Column(name="project_code" , length=50 ,nullable = false ,unique = true)
     private String projectCode;
 
     @Column(name="description")

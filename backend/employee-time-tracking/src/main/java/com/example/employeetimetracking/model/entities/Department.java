@@ -25,7 +25,7 @@ public class Department {
     @Column(name="department_name" , length=50 ,nullable = false)
     private String departmentName;
 
-    @Column(name="department_code" , length=50 ,nullable = false)
+    @Column(name="department_code" , length=50 ,nullable = false ,unique = true)
     private String departmentCode;
 
     @Column(name="is_active")

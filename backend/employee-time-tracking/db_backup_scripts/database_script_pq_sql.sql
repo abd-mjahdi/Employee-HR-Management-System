@@ -40,7 +40,7 @@ CREATE TABLE time_entries (
                               total_hours     NUMERIC(5,2) NOT NULL,
                               project_id      INT NOT NULL REFERENCES projects(id),
                               description     TEXT,
-                              status          TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+                              status          TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied')),
                               approved_by     INT REFERENCES users(id),
                               approved_at     TIMESTAMP,
                               created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

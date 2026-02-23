@@ -59,7 +59,7 @@ CREATE TABLE leave_policies (
                                 id                          SERIAL PRIMARY KEY,
                                 leave_type_id               INT NOT NULL UNIQUE REFERENCES leave_types(id),
                                 annual_allocation           NUMERIC(4,1) NOT NULL,
-                                accrual_method              VARCHAR(20) NOT NULL CHECK (accrual_method IN ('MONTHLY', 'ANNUAL')),
+                                accrual_method              VARCHAR(20) NOT NULL CHECK (accrual_method IN ('monthly', 'annual')),
                                 allows_negative_balance     BOOLEAN NOT NULL DEFAULT FALSE,
                                 max_rollover_days           NUMERIC(4,1) NOT NULL DEFAULT 0,
                                 requires_manager_approval   BOOLEAN NOT NULL DEFAULT TRUE,
@@ -154,7 +154,17 @@ CREATE TRIGGER set_updated_at
 
 
 
+DROP TABLE audit_logs CASCADE;
+DROP TABLE leave_requests CASCADE;
+DROP TABLE leave_balances CASCADE;
+DROP TABLE time_entries CASCADE;
+DROP TABLE leave_policies CASCADE;
+DROP TABLE leave_types CASCADE;
+DROP TABLE projects CASCADE;
+DROP TABLE users CASCADE;
+DROP TABLE departments CASCADE;
 
+DROP FUNCTION IF EXISTS update_timestamp() CASCADE;
 
 
 

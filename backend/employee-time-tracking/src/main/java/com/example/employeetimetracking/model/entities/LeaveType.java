@@ -33,4 +33,7 @@ public class LeaveType {
     @CreationTimestamp
     @Column(name = "created_at" ,nullable = false ,updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToOne(mappedBy = "leaveType")
+    private LeavePolicy leavePolicy;
 }

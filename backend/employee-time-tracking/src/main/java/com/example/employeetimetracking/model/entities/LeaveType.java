@@ -38,8 +38,11 @@ public class LeaveType {
     @OneToOne(mappedBy = "leaveType")
     private LeavePolicy leavePolicy;
 
-    @OneToMany(mappedBy = "LeaveBalance")
+    @OneToMany(mappedBy = "LeaveType")
     private List<LeaveBalance> leaveBalanceList;
+
+    @OneToMany(mappedBy = "LeaveType")
+    private List<LeaveRequest> leaveRequestList;
 
 
 }

@@ -1,7 +1,7 @@
 package com.example.employeetimetracking.model.enums;
 
 public enum UserRole {
-    employee,
-    manager,
-    hr_admin
+    EMPLOYEE,
+    MANAGER,
+    HR_ADMIN
 }

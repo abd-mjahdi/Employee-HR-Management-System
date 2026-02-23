@@ -71,4 +71,16 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<LeaveBalance> leaveBalanceList;
 
+    @OneToMany(mappedBy = "user")
+    private List<LeaveRequest> leaveRequestList;
+
+    @OneToMany(mappedBy = "managerApprovedBy")
+    private List<LeaveRequest> managerApprovedLeaveRequests;
+
+    @OneToMany(mappedBy = "hrApprovedBy")
+    private List<LeaveRequest> hrApprovedLeaveRequests;
+
+    @OneToMany(mappedBy = "user")
+    private List<AuditLog> auditLogList;
+
 }

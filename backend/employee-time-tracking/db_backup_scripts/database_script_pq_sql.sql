@@ -1,5 +1,5 @@
 CREATE TABLE departments (
-                             id                  SERIAL PRIMARY KEY,
+                             id                  BIGSERIAL PRIMARY KEY,
                              department_name     VARCHAR(50) NOT NULL,
                              department_code     VARCHAR(50) NOT NULL UNIQUE,
                              is_active           BOOLEAN NOT NULL DEFAULT TRUE,
@@ -8,7 +8,7 @@ CREATE TABLE departments (
 );
 
 CREATE TABLE users (
-                       id              SERIAL PRIMARY KEY,
+                       id              BIGSERIAL PRIMARY KEY,
                        username        VARCHAR(50) NOT NULL UNIQUE,
                        email           VARCHAR(255) NOT NULL UNIQUE,
                        password_hash   TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE projects (
-                          id              SERIAL PRIMARY KEY,
+                          id              BIGSERIAL PRIMARY KEY,
                           project_name    VARCHAR(50) NOT NULL,
                           project_code    VARCHAR(50) NOT NULL UNIQUE,
                           description     TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE projects (
 );
 
 CREATE TABLE time_entries (
-                              id              SERIAL PRIMARY KEY,
+                              id              BIGSERIAL PRIMARY KEY,
                               user_id         INT NOT NULL REFERENCES users(id),
                               entry_date      DATE NOT NULL,
                               clock_in_time   TIME NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE time_entries (
 );
 
 CREATE TABLE leave_types (
-                             id              SERIAL PRIMARY KEY,
+                             id              BIGSERIAL PRIMARY KEY,
                              type_name       VARCHAR(50) NOT NULL UNIQUE,
                              description     TEXT,
                              is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -56,7 +56,7 @@ CREATE TABLE leave_types (
 );
 
 CREATE TABLE leave_policies (
-                                id                          SERIAL PRIMARY KEY,
+                                id                          BIGSERIAL PRIMARY KEY,
                                 leave_type_id               INT NOT NULL UNIQUE REFERENCES leave_types(id),
                                 annual_allocation           NUMERIC(4,1) NOT NULL,
                                 accrual_method              VARCHAR(20) NOT NULL CHECK (accrual_method IN ('MONTHLY', 'ANNUAL')),
@@ -70,7 +70,7 @@ CREATE TABLE leave_policies (
 );
 
 CREATE TABLE leave_balances (
-                                id                  SERIAL PRIMARY KEY,
+                                id                  BIGSERIAL PRIMARY KEY,
                                 user_id             INT NOT NULL REFERENCES users(id),
                                 leave_type_id       INT NOT NULL REFERENCES leave_types(id),
                                 year                SMALLINT NOT NULL,
@@ -82,7 +82,7 @@ CREATE TABLE leave_balances (
 );
 
 CREATE TABLE leave_requests (
-                                id                      SERIAL PRIMARY KEY,
+                                id                      BIGSERIAL PRIMARY KEY,
                                 user_id                 INT NOT NULL REFERENCES users(id),
                                 leave_type_id           INT NOT NULL REFERENCES leave_types(id),
                                 start_date              DATE NOT NULL,
@@ -103,7 +103,7 @@ CREATE TABLE leave_requests (
 );
 
 CREATE TABLE audit_logs (
-                            id          BIGSERIAL PRIMARY KEY,
+                            id          BIGBIGSERIAL PRIMARY KEY,
                             user_id     BIGINT REFERENCES users(id) ON DELETE SET NULL,
                             action_type VARCHAR(10) NOT NULL CHECK (action_type IN ('CREATE', 'UPDATE', 'DELETE')),
                             table_name  VARCHAR(50) NOT NULL,

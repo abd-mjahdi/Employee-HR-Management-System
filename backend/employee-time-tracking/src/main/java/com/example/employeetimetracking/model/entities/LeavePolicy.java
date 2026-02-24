@@ -21,7 +21,7 @@ public class LeavePolicy {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
-    private Integer id;
+    private Long id;
 
     @OneToOne
     @JoinColumn(name="leave_type_id")

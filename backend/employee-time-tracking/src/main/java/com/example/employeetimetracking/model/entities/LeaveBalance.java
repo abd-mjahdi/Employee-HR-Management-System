@@ -21,7 +21,7 @@ public class LeaveBalance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
-    private Integer id;
+    private Long id;
 
     @ManyToOne
     @JoinColumn(name="user_id")
@@ -32,7 +32,7 @@ public class LeaveBalance {
     private LeaveType leaveType;
 
     @Column(name = "year")
-    private int year;
+    private short year;
 
     @Column(name = "current_balance")
     private BigDecimal currentBalance;

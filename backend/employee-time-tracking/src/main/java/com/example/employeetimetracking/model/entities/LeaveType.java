@@ -20,7 +20,7 @@ public class LeaveType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
-    private Integer id;
+    private Long id;
 
     @Column(name = "type_name" ,unique = true ,nullable = false)
     private String typeName;
@@ -38,10 +38,10 @@ public class LeaveType {
     @OneToOne(mappedBy = "leaveType")
     private LeavePolicy leavePolicy;
 
-    @OneToMany(mappedBy = "LeaveType")
+    @OneToMany(mappedBy = "leaveType")
     private List<LeaveBalance> leaveBalanceList;
 
-    @OneToMany(mappedBy = "LeaveType")
+    @OneToMany(mappedBy = "leaveType")
     private List<LeaveRequest> leaveRequestList;
 
 

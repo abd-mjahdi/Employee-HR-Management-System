@@ -1,6 +1,6 @@
 CREATE TABLE departments (
                              id                  BIGSERIAL PRIMARY KEY,
-                             department_name     VARCHAR(50) NOT NULL,
+                             department_name     VARCHAR(50) NOT NULL UNIQUE,
                              department_code     VARCHAR(50) NOT NULL UNIQUE,
                              is_active           BOOLEAN NOT NULL DEFAULT TRUE,
                              created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

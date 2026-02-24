@@ -83,4 +83,11 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<AuditLog> auditLogList;
 
+    @OneToMany(mappedBy = "user")
+    private List<TimeEntry> timeEntryList;
+
+    @OneToMany(mappedBy = "approvedBy")
+    private List<TimeEntry> managerApprovedTimeEntries;
+
+
 }

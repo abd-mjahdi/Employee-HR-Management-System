@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Setter
@@ -36,5 +37,8 @@ public class Project {
     @CreationTimestamp
     @Column(name = "created_at" ,nullable = false ,updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "project")
+    private List<TimeEntry> timeEntryList;
 
 }

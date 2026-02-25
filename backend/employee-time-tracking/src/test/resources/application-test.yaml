@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: EmployeeTimeTracking
+  datasource:
+    url: jdbc:postgresql://localhost:5432/employee_tracking_system
+    username: abd_mjahdi
+    password: mp7ak47p90
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+

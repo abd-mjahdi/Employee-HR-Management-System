@@ -13,7 +13,7 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
     List<TimeEntry> findByUserIdAndStatus(Long userId, Status status);
     List<TimeEntry> findByUserIdAndEntryDateBetween(Long userId, LocalDate startDate, LocalDate endDate);
     List<TimeEntry> findByStatus(Status status);
-    List<TimeEntry> findByApprovedBy(Long approverId);
+    List<TimeEntry> findByApprovedById(Long approverId);
     List<TimeEntry> findByProjectId(Long projectId);
 
 }

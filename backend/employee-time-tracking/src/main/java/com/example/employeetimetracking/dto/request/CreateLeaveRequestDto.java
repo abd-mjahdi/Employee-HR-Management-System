@@ -16,6 +16,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateLeaveRequestDto {
+
     @NotNull
     private Long leaveTypeId;
 

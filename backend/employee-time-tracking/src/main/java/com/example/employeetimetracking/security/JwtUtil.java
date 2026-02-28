@@ -1,8 +1,7 @@
 package com.example.employeetimetracking.security;
 
 import com.example.employeetimetracking.model.enums.UserRole;
-import io.jsonwebtoken.JwtBuilder;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
@@ -21,18 +20,44 @@ public class JwtUtil{
     private String jwtSecret;
 
     public String generateJwtToken(String sub, Long userId, UserRole role){
-        SecretKey secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+
         Date expirationDate = Date.from(Instant.now().plusMillis(expirationDuration));
 
         return Jwts.builder()
-                .setHeaderParam("alg","HS256")
-                .setHeaderParam("typ","JWT")
                 .setSubject(sub)
                 .claim("user_id", userId)
                 .claim("role", role)
                 .setExpiration(expirationDate)
-                .signWith(secretKey)
+                .signWith(getSigningKey())
                 .compact();
+    }
+
+    public SecretKey getSigningKey(){
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+    }
+
+    private Claims extractClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public String extractEmail(String token) {
+        return extractClaims(token).getSubject();
+    }
+
+    public Long extractUserId(String token) {
+        return extractClaims(token).get("user_id", Long.class);
+    }
+
+    public String extractRole(String token) {
+        return extractClaims(token).get("role", String.class);
+    }
+
+    public boolean isTokenExpired(String token) {
+        return extractClaims(token).getExpiration().before(new Date());
     }
 }
 

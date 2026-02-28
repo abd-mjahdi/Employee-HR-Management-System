@@ -21,27 +21,18 @@ public class JwtUtil{
     private String jwtSecret;
 
     public String generateJwtToken(String sub, Long userId, UserRole role){
+        SecretKey secretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        Date expirationDate = Date.from(Instant.now().plusMillis(expirationDuration));
 
-        JwtBuilder jwtToken = Jwts.builder();
-        jwtToken.setHeaderParam("alg","HS256");
-        jwtToken.setHeaderParam("typ","JWT");
-
-
-        Instant expirationInstant = Instant.now().plusMillis(this.expirationDuration);
-        Date expirationDate = Date.from(expirationInstant);
-
-        jwtToken.setSubject(sub);
-        jwtToken.claim("user_id",userId);
-        jwtToken.claim("role",role);
-        jwtToken.setExpiration(expirationDate);
-
-        String secretString = this.jwtSecret;
-        SecretKey secretKey = Keys.hmacShaKeyFor(secretString.getBytes());
-        jwtToken.signWith((secretKey));
-
-        return jwtToken.compact();
-
-
+        return Jwts.builder()
+                .setHeaderParam("alg","HS256")
+                .setHeaderParam("typ","JWT")
+                .setSubject(sub)
+                .claim("user_id", userId)
+                .claim("role", role)
+                .setExpiration(expirationDate)
+                .signWith(secretKey)
+                .compact();
     }
 }
 

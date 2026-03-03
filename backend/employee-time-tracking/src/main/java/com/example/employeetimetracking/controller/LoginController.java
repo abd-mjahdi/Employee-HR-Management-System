@@ -1,13 +1,8 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.LoginRequestDto;
-import com.example.employeetimetracking.dto.response.JwtResponse;
 import com.example.employeetimetracking.dto.response.LoginResponseDto;
-import com.example.employeetimetracking.model.entities.User;
-import com.example.employeetimetracking.repository.UserRepository;
-import com.example.employeetimetracking.service.AuthService;
-import com.example.employeetimetracking.service.LoginResult;
-import com.example.employeetimetracking.service.UserService;
+import com.example.employeetimetracking.service.LoginService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,24 +15,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
-public class AuthController {
-    private final AuthService authService;
+public class LoginController {
+    private final LoginService loginService;
     @Autowired
-    public AuthController(AuthService authService){
-        this.authService = authService;
+    public LoginController(LoginService loginService){
+        this.loginService = loginService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto requestDto){
         try{
-            LoginResult result = authService.login(requestDto);
-            User user = result.getUser();
-            String token = result.getToken();
-            LoginResponseDto response = new LoginResponseDto(true, "Login successful", token, user.getEmail(), user.getUserRole());
-
+            LoginResponseDto response = loginService.login(requestDto);
             return ResponseEntity.ok(response);
         }catch(BadCredentialsException e){
-            LoginResponseDto response = new LoginResponseDto(false, "Invalid credentials", null, null, null);
+            LoginResponseDto response = new LoginResponseDto("Invalid credentials");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
     }

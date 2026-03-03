@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.LoginRequestDto;
+import com.example.employeetimetracking.dto.response.LoginResponseDto;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.JwtUtil;
@@ -9,32 +10,33 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
-public class AuthService {
+public class LoginService {
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    public AuthService(UserRepository userRepository, JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder){
+    public LoginService(UserRepository userRepository, JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
     }
 
-    public LoginResult login(LoginRequestDto loginRequestDto) {
-        User user = userRepository.findByEmail(loginRequestDto.getEmail());
+    public LoginResponseDto login(LoginRequestDto requestDto) {
+        User user = userRepository.findByEmail(requestDto.getEmail());
 
-        if(user == null || !passwordEncoder.matches(loginRequestDto.getPassword(), user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid email or password");
+        if (user == null || !passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
+            throw new BadCredentialsException("Invalid credentials");
         }
 
-        if(!user.getIsActive()) {
-            throw new BadCredentialsException("Account is deactivated");
+        if (!user.getIsActive()) {
+            throw new BadCredentialsException("Account deactivated");
         }
 
-        return new LoginResult(user,jwtUtil.generateJwtToken(user.getEmail(), user.getId(), user.getUserRole()));
+        String token = jwtUtil.generateJwtToken(user.getEmail(), user.getId(), user.getUserRole());
+
+        return new LoginResponseDto(token, user.getEmail(), user.getUserRole());
+
     }
 }

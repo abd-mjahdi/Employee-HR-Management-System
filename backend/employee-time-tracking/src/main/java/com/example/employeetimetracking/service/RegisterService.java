@@ -23,30 +23,51 @@ public class RegisterService {
         this.encoder = encoder;
         this.departmentRepository = departmentRepository;
     }
-    public RegisterResponseDto register(RegisterRequestDto requestDto){
+    public RegisterResponseDto register(RegisterRequestDto requestDto) {
         String email = requestDto.getEmail();
-        if(userRepository.existsByEmail(email)){
+
+
+        Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode());
+        if (dep == null) {
+            throw new IllegalArgumentException("Department doesn't exist");
+        }
+
+
+        if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exists");
-        };
+        }
+
+
+        User manager = userRepository.findById(requestDto.getManagerId())
+                .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+
+
+        UserRole userRole;
+        try {
+            userRole = UserRole.valueOf(requestDto.getUserRole());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid user role");
+        }
+
+
+        String password = requestDto.getPassword();
+        if (password.length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters");
+        }
 
 
         User user = new User();
         user.setEmail(email);
-        String passwordHash = encoder.encode(requestDto.getPassword());
-        user.setPasswordHash(passwordHash);
+        user.setPasswordHash(encoder.encode(password));
         user.setFirstName(requestDto.getFirstName());
         user.setLastName(requestDto.getLastName());
-
-        UserRole userRole = UserRole.valueOf(requestDto.getUserRole());
-
-        Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode());
-        if(dep==null){
-            throw new IllegalArgumentException("Department doesn't exist");
-        }
+        user.setUsername(requestDto.getUsername());
+        user.setManager(manager);
         user.setDepartment(dep);
+        user.setUserRole(userRole);
+
         userRepository.save(user);
-        return new RegisterResponseDto(requestDto.getEmail(), userRole);
 
-
+        return new RegisterResponseDto(email, userRole);
     }
 }

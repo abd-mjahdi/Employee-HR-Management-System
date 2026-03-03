@@ -65,7 +65,7 @@ public class User {
     @Column(name = "created_at" ,nullable = false ,updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "user")

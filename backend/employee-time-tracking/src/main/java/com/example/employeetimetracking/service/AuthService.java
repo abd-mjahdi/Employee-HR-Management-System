@@ -9,6 +9,8 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class AuthService {
     private final UserRepository userRepository;
@@ -22,7 +24,7 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public String login(LoginRequestDto loginRequestDto) {
+    public LoginResult login(LoginRequestDto loginRequestDto) {
         User user = userRepository.findByEmail(loginRequestDto.getEmail());
 
         if(user == null || !passwordEncoder.matches(loginRequestDto.getPassword(), user.getPasswordHash())) {
@@ -33,6 +35,6 @@ public class AuthService {
             throw new BadCredentialsException("Account is deactivated");
         }
 
-        return jwtUtil.generateJwtToken(user.getEmail(), user.getId(), user.getUserRole());
+        return new LoginResult(user,jwtUtil.generateJwtToken(user.getEmail(), user.getId(), user.getUserRole()));
     }
 }

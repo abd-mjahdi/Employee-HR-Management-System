@@ -24,13 +24,8 @@ public class LoginController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto requestDto){
-        try{
-            LoginResponseDto response = loginService.login(requestDto);
-            return ResponseEntity.ok(response);
-        }catch(BadCredentialsException e){
-            LoginResponseDto response = new LoginResponseDto("Invalid credentials");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-        }
+        LoginResponseDto response = loginService.login(requestDto);
+        return ResponseEntity.ok(response);
     }
 
 }

@@ -24,13 +24,9 @@ public class RegisterController {
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto requestDto){
-        try{
-            RegisterResponseDto response = registerService.register(requestDto);
-            return ResponseEntity.ok(response);
-        }catch(IllegalArgumentException e){
-            RegisterResponseDto response = new RegisterResponseDto(e.getMessage());
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-        }
+        RegisterResponseDto response = registerService.register(requestDto);
+        return ResponseEntity.ok(response);
+
     }
 
 }

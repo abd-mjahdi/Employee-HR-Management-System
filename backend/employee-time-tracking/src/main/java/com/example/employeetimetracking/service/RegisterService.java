@@ -2,6 +2,10 @@ package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.RegisterRequestDto;
 import com.example.employeetimetracking.dto.response.RegisterResponseDto;
+import com.example.employeetimetracking.exception.DepartmentNotFoundException;
+import com.example.employeetimetracking.exception.EmailAlreadyRegisteredException;
+import com.example.employeetimetracking.exception.InvalidUserRoleException;
+import com.example.employeetimetracking.exception.WeakPasswordException;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
@@ -29,30 +33,29 @@ public class RegisterService {
 
         Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode());
         if (dep == null) {
-            throw new IllegalArgumentException("Department doesn't exist");
+            throw new DepartmentNotFoundException("Department doesn't exist");
         }
 
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new EmailAlreadyRegisteredException("Email already registered");
         }
 
 
-        User manager = userRepository.findById(requestDto.getManagerId())
-                .orElseThrow(() -> new IllegalArgumentException("Manager not found"));
+        User manager = userRepository.findById(requestDto.getManagerId()).orElse(null);
 
 
         UserRole userRole;
         try {
             userRole = UserRole.valueOf(requestDto.getUserRole());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid user role");
+            throw new InvalidUserRoleException("Invalid user role");
         }
 
 
         String password = requestDto.getPassword();
         if (password.length() < 6) {
-            throw new IllegalArgumentException("Password must be at least 6 characters");
+            throw new WeakPasswordException("Password must be at least 6 characters");
         }
 
 

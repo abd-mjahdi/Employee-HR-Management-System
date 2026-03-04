@@ -1,5 +1,6 @@
 package com.example.employeetimetracking.exception;
 
+import com.example.employeetimetracking.dto.response.ErrorResponseDto;
 import com.example.employeetimetracking.dto.response.LoginResponseDto;
 import com.example.employeetimetracking.dto.response.RegisterResponseDto;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<RegisterResponseDto> handleWeakPassword(WeakPasswordException exception) {
         RegisterResponseDto response = new RegisterResponseDto(exception.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleUserDetailsNotFound(UserNotFoundException exception){
+        ErrorResponseDto response = new ErrorResponseDto("User not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
 }

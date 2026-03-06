@@ -48,17 +48,9 @@ public class JwtUtil{
         return extractClaims(token).getSubject();
     }
 
-    public Long extractUserId(String token) {
-        return extractClaims(token).get("user_id", Long.class);
-    }
-
     public String extractRole(String token) {
         return extractClaims(token).get("role", String.class);
 
-    }
-
-    public boolean isTokenExpired(String token) {
-        return extractClaims(token).getExpiration().before(new Date());
     }
 }
 

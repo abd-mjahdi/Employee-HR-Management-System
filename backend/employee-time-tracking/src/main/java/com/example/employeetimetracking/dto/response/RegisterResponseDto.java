@@ -20,7 +20,7 @@ public class RegisterResponseDto {
     //constructor for success
     public RegisterResponseDto(String email, UserRole role) {
         this.success = true;
-        this.message = "Registration successful";
+        this.message = "User registered successfully";
         this.email = email;
         this.role = role;
     }

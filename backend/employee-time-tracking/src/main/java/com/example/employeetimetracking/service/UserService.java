@@ -2,10 +2,13 @@ package com.example.employeetimetracking.service;
 import com.example.employeetimetracking.dto.response.DepartmentDto;
 import com.example.employeetimetracking.dto.response.UserDto;
 import com.example.employeetimetracking.exception.UserNotFoundException;
+import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -17,6 +20,30 @@ public class UserService {
 
     public User findByEmail(String email){
         return userRepository.findByEmail(email);
+    }
+
+    public User getById(Long id){
+        return userRepository.findById(id).orElse(null);
+    }
+
+    public List<User> getAll(){
+        return userRepository.findAll();
+    }
+
+    public User save(User user){
+        return userRepository.save(user);
+    }
+
+    public void delete(User user){
+        userRepository.delete(user);
+    }
+
+    public void deleteById(Long id){
+        userRepository.deleteById(id);
+    }
+
+    public List<User> getAllByDepartment(Long id , boolean bool){
+        return userRepository.findByDepartmentIdAndIsActive(id,bool);
     }
 
     public UserDto getCurrentUserDetails(String email) {

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserService {
@@ -34,13 +35,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public void delete(User user){
-        userRepository.delete(user);
+    public void deactivateUserById(Long id){
+        User user = userRepository.findById(id)
+                .orElseThrow(()->new UserNotFoundException("User does not exist"));
     }
 
-    public void deleteById(Long id){
-        userRepository.deleteById(id);
-    }
 
     public List<User> getAllByDepartment(Long id , boolean bool){
         return userRepository.findByDepartmentIdAndIsActive(id,bool);

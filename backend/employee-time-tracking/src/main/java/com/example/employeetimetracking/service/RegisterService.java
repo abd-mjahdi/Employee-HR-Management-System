@@ -31,19 +31,14 @@ public class RegisterService {
         String email = requestDto.getEmail();
 
 
-        Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode());
-        if (dep == null) {
-            throw new DepartmentNotFoundException("Department doesn't exist");
-        }
+        Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode()).orElseThrow(()-> new DepartmentNotFoundException("Department doesn't exist"));
 
 
         if (userRepository.existsByEmail(email)) {
             throw new EmailAlreadyRegisteredException("Email already registered");
         }
 
-
         User manager = userRepository.findById(requestDto.getManagerId()).orElse(null);
-
 
         UserRole userRole;
         try {
@@ -52,12 +47,10 @@ public class RegisterService {
             throw new InvalidUserRoleException("Invalid user role");
         }
 
-
         String password = requestDto.getPassword();
         if (password.length() < 6) {
             throw new WeakPasswordException("Password must be at least 6 characters");
         }
-
 
         User user = new User();
         user.setEmail(email);

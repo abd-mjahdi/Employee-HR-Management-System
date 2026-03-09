@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.RepoTest;
 
 
+import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
@@ -34,7 +35,7 @@ public class UserRepoTest {
     @Test
     void testSave(){
 
-        User saved = userRepository.findByUsername("bob.dev");
+        User saved = userRepository.findByUsername("bob.dev").orElseThrow(() -> new UserNotFoundException("User not found"));
 
         System.out.println(saved.getEmail());
     }

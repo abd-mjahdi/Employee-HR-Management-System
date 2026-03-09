@@ -1,15 +1,14 @@
 package com.example.employeetimetracking.service;
+import com.example.employeetimetracking.dto.request.RegisterRequestDto;
 import com.example.employeetimetracking.dto.response.DepartmentDto;
 import com.example.employeetimetracking.dto.response.UserDto;
 import com.example.employeetimetracking.exception.UserNotFoundException;
-import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class UserService {
@@ -20,7 +19,7 @@ public class UserService {
     }
 
     public User findByEmail(String email){
-        return userRepository.findByEmail(email);
+        return userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
     }
 
     public User getById(Long id){
@@ -40,13 +39,12 @@ public class UserService {
                 .orElseThrow(()->new UserNotFoundException("User does not exist"));
     }
 
-
     public List<User> getAllByDepartment(Long id , boolean bool){
         return userRepository.findByDepartmentIdAndIsActive(id,bool);
     }
 
     public UserDto getCurrentUserDetails(String email) {
-        User user = userRepository.findByEmail(email);
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
 
         if(user == null) {
             throw new UserNotFoundException("User not found");

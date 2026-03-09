@@ -18,6 +18,5 @@ public class LoginRequestDto {
     private String email;
 
     @NotBlank
-    @Size(min = 6, max = 20, message = "Password must be between 6 and 20 characters")
     private String password;
 }

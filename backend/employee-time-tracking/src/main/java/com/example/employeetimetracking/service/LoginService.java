@@ -5,6 +5,7 @@ import com.example.employeetimetracking.dto.response.LoginResponseDto;
 import com.example.employeetimetracking.exception.AccountDeactivatedException;
 import com.example.employeetimetracking.exception.AuthenticationException;
 import com.example.employeetimetracking.exception.InvalidCredentialsException;
+import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.JwtUtil;
@@ -27,9 +28,9 @@ public class LoginService {
     }
 
     public LoginResponseDto login(LoginRequestDto requestDto){
-        User user = userRepository.findByEmail(requestDto.getEmail());
+        User user = userRepository.findByEmail(requestDto.getEmail()).orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (user == null || !passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("invalid credentials");
         }
 

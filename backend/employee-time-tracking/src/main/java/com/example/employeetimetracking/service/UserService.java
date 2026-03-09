@@ -6,6 +6,8 @@ import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,8 +28,10 @@ public class UserService {
         return userRepository.findById(id).orElse(null);
     }
 
-    public List<User> getAll(){
-        return userRepository.findAll();
+    public Page<UserDto> getAll(Pageable p){
+        Page<User> pages = userRepository.findAll(p);
+
+        return pages.map(user->convertToDto(user));
     }
 
     public User save(User user){

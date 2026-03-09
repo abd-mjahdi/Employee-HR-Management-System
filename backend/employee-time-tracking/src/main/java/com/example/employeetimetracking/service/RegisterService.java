@@ -38,7 +38,7 @@ public class RegisterService {
             throw new EmailAlreadyRegisteredException("Email already registered");
         }
 
-        User manager = userRepository.findById(requestDto.getManagerId()).orElse(null);
+        User manager = requestDto.getManagerId()==null ? null : userRepository.findById(requestDto.getManagerId()).orElse(null);
 
         UserRole userRole;
         try {

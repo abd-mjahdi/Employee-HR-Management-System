@@ -2,6 +2,8 @@ package com.example.employeetimetracking.repository;
 
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -41,8 +41,8 @@ public class EmployeeTimeTrackingApplication {
 				departmentRepository.save(defaultDepartment);
 
 				User adminUser = new User();
-				adminUser.setUsername("admin");
-				adminUser.setEmail("admin@example.com");
+				adminUser.setUsername("adminadmin");
+				adminUser.setEmail("adminadmin@example.com");
 				adminUser.setPasswordHash(encoder.encode("admin123"));
 				adminUser.setFirstName("Admin");
 				adminUser.setLastName("User");

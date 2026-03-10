@@ -107,6 +107,9 @@ public class UserService {
         } else {
             throw new AccessDeniedException("Not authorized to update this user");
         }
+
+        userRepository.save(wantedUser);
+
         return getUserDetails(wantedUser);
 
     }
@@ -122,17 +125,11 @@ public class UserService {
     }
 
     private void updateManagerAllowedFields(User wantedUser, UserRequestDto userRequestDto){
-        wantedUser.setUsername(userRequestDto.getUsername());
-        wantedUser.setEmail(userRequestDto.getEmail());
         wantedUser.setFirstName(userRequestDto.getFirstName());
         wantedUser.setLastName(userRequestDto.getLastName());
-        wantedUser.setDepartment(departmentService.getById(userRequestDto.getDepartmentId()));
-        wantedUser.setIsActive(userRequestDto.getIsActive());
     }
 
     private void updateSelfAllowedFields(User wantedUser, UserRequestDto userRequestDto){
-        wantedUser.setUsername(userRequestDto.getUsername());
-        wantedUser.setEmail(userRequestDto.getEmail());
         wantedUser.setFirstName(userRequestDto.getFirstName());
         wantedUser.setLastName(userRequestDto.getLastName());
     }

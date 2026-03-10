@@ -2,6 +2,7 @@ package com.example.employeetimetracking.dto.request;
 
 import com.example.employeetimetracking.dto.response.DepartmentDto;
 import com.example.employeetimetracking.model.enums.UserRole;
+import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,6 +19,7 @@ public class UserRequestDto {
     @NotBlank(message = "Username is required")
     private String username;
 
+    @Column(unique = true)
     @Email(message = "Email should be valid")
     @NotBlank(message = "Email is required")
     private String email;

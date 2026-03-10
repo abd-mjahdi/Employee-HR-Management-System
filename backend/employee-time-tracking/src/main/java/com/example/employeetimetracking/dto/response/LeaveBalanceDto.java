@@ -1,7 +1,5 @@
 package com.example.employeetimetracking.dto.response;
 
-import com.example.employeetimetracking.model.entities.LeaveType;
-import com.example.employeetimetracking.model.entities.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,7 +14,7 @@ import java.math.BigDecimal;
 public class LeaveBalanceDto {
 
     private Long id;
-    private UserDto user;
+    private UserResponseDto user;
     private LeaveTypeDto leaveType;
     private short year;
     private BigDecimal currentBalance;

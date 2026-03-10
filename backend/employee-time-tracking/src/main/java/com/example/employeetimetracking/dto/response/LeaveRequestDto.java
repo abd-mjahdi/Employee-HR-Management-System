@@ -1,6 +1,5 @@
 package com.example.employeetimetracking.dto.response;
 
-import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +15,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class LeaveRequestDto {
     private Long id;
-    private UserDto user;
+    private UserResponseDto user;
     private LeaveTypeDto leaveType;
     private LocalDate startDate;
     private LocalDate endDate;

@@ -1,6 +1,6 @@
 package com.example.employeetimetracking.controller;
 
-import com.example.employeetimetracking.dto.response.UserDto;
+import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +20,9 @@ public class MeController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserDto> getUserDetails(){
+    public ResponseEntity<UserResponseDto> getUserDetails(){
         String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        UserDto userDto = userService.getUserDetails(email);
-        return ResponseEntity.ok(userDto);
+        UserResponseDto userResponseDto = userService.getUserDetails(email);
+        return ResponseEntity.ok(userResponseDto);
     }
 }

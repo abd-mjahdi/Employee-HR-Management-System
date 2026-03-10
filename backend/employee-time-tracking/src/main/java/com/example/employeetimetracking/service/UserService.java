@@ -43,7 +43,7 @@ public class UserService {
     public Page<UserResponseDto> getAll(Pageable p){
         Page<User> pages = userRepository.findAll(p);
 
-        return pages.map(user->convertToDto(user));
+        return pages.map(this::convertToDto);
     }
 
     public User save(User user){

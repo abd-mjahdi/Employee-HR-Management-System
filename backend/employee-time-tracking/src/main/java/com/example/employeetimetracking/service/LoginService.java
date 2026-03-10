@@ -16,19 +16,19 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class LoginService {
-    private final UserRepository userRepository;
+    private final UserService userService;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    public LoginService(UserRepository userRepository, JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
+    public LoginService(UserService userService, JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder) {
+        this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
     }
 
     public LoginResponseDto login(LoginRequestDto requestDto){
-        User user = userRepository.findByEmail(requestDto.getEmail()).orElseThrow(() -> new UserNotFoundException("User not found"));
+        User user = userService.getByEmail(requestDto.getEmail());
 
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("invalid credentials");

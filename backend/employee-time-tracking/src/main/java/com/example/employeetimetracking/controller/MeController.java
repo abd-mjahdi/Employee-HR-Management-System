@@ -22,7 +22,7 @@ public class MeController {
     @GetMapping("/me")
     public ResponseEntity<UserDto> getUserDetails(){
         String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        UserDto userDto = userService.getCurrentUserDetails(email);
+        UserDto userDto = userService.getUserDetails(email);
         return ResponseEntity.ok(userDto);
     }
 }

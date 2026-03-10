@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -20,9 +21,11 @@ import java.util.Objects;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final DepartmentService departmentService;
     @Autowired
-    public UserService(UserRepository userRepository){
+    public UserService(UserRepository userRepository ,DepartmentService departmentService){
         this.userRepository = userRepository;
+        this.departmentService = departmentService;
     }
 
     public User getByEmail(String email){
@@ -92,8 +95,42 @@ public class UserService {
         boolean isSameUser = Objects.equals(authenticatedUser.getId(),id);
 
         if(isHrAdmin){
-
+            updateAllFields(wantedUser , userRequestDto);
+        }else if(isManager){
+            updateManagerAllowedFields(wantedUser, userRequestDto);
+        }else if(isSameUser){
+            updateSelfAllowedFields(wantedUser, userRequestDto);
+        } else {
+            throw new AccessDeniedException("Not authorized to update this user");
         }
+        return getUserDetails(wantedUser);
+
+    }
+
+    private void updateAllFields(User wantedUser , UserRequestDto userRequestDto){
+        wantedUser.setUsername(userRequestDto.getUsername());
+        wantedUser.setEmail(userRequestDto.getEmail());
+        wantedUser.setFirstName(userRequestDto.getFirstName());
+        wantedUser.setLastName(userRequestDto.getLastName());
+        wantedUser.setUserRole(userRequestDto.getUserRole());
+        wantedUser.setDepartment(departmentService.getById(userRequestDto.getDepartmentId()));
+        wantedUser.setIsActive(userRequestDto.getIsActive());
+    }
+
+    private void updateManagerAllowedFields(User wantedUser, UserRequestDto userRequestDto){
+        wantedUser.setUsername(userRequestDto.getUsername());
+        wantedUser.setEmail(userRequestDto.getEmail());
+        wantedUser.setFirstName(userRequestDto.getFirstName());
+        wantedUser.setLastName(userRequestDto.getLastName());
+        wantedUser.setDepartment(departmentService.getById(userRequestDto.getDepartmentId()));
+        wantedUser.setIsActive(userRequestDto.getIsActive());
+    }
+
+    private void updateSelfAllowedFields(User wantedUser, UserRequestDto userRequestDto){
+        wantedUser.setUsername(userRequestDto.getUsername());
+        wantedUser.setEmail(userRequestDto.getEmail());
+        wantedUser.setFirstName(userRequestDto.getFirstName());
+        wantedUser.setLastName(userRequestDto.getLastName());
     }
 
     private UserResponseDto convertToDto(User user) {

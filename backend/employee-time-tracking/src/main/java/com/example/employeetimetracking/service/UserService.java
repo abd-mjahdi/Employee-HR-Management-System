@@ -28,6 +28,10 @@ public class UserService {
         this.departmentService = departmentService;
     }
 
+    public boolean existsByEmail(String email){
+        return userRepository.existsByEmail(email);
+    }
+
     public User getByEmail(String email){
         return userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
     }

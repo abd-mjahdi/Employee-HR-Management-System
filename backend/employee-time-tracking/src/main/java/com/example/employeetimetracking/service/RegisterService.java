@@ -9,36 +9,34 @@ import com.example.employeetimetracking.exception.WeakPasswordException;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
-import com.example.employeetimetracking.repository.DepartmentRepository;
-import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RegisterService {
-    private final DepartmentRepository departmentRepository;
+    private final DepartmentService departmentService;
     private final BCryptPasswordEncoder encoder;
-    private final UserRepository userRepository;
+    private final UserService userService;
+
     @Autowired
-    public RegisterService(UserRepository userRepository ,BCryptPasswordEncoder encoder ,DepartmentRepository departmentRepository){
-        this.userRepository = userRepository;
+    public RegisterService(UserService userService,
+                           BCryptPasswordEncoder encoder,
+                           DepartmentService departmentService) {
+        this.userService = userService;
         this.encoder = encoder;
-        this.departmentRepository = departmentRepository;
+        this.departmentService = departmentService;
     }
     public RegisterResponseDto register(RegisterRequestDto requestDto) {
         String email = requestDto.getEmail();
 
+        Department dep = departmentService.getByDepartmentCode(requestDto.getDepartmentCode());
 
-        Department dep = departmentRepository.findByDepartmentCode(requestDto.getDepartmentCode()).orElseThrow(()-> new DepartmentNotFoundException("Department doesn't exist"));
-
-
-        if (userRepository.existsByEmail(email)) {
+        if (userService.existsByEmail(email)) {
             throw new EmailAlreadyRegisteredException("Email already registered");
         }
 
-        User manager = requestDto.getManagerId()==null ? null : userRepository.findById(requestDto.getManagerId()).orElse(null);
+        User manager = requestDto.getManagerId()==null ? null : userService.getById(requestDto.getManagerId());
 
         UserRole userRole;
         try {
@@ -62,7 +60,7 @@ public class RegisterService {
         user.setDepartment(dep);
         user.setUserRole(userRole);
 
-        userRepository.save(user);
+        userService.save(user);
 
         return new RegisterResponseDto(email, userRole);
     }

@@ -40,8 +40,8 @@ public class UserController {
     public ResponseEntity<UserResponseDto> getUser(@PathVariable @Min(1) Long id){
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        UserResponseDto userDto = userService.getUserIfAllowed(id , authenticatedUser , authorities);
-        return ResponseEntity.ok(userDto);
+        UserResponseDto userResponseDto = userService.getUserIfAllowed(id , authenticatedUser , authorities);
+        return ResponseEntity.ok(userResponseDto);
     }
 
     @PutMapping("/{id}")
@@ -50,5 +50,12 @@ public class UserController {
         Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
         UserResponseDto updatedUserDto = userService.updateUserIfAllowed(id , userRequestDto, authenticatedUser , authorities);
         return ResponseEntity.ok(updatedUserDto);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDto> getCurrentUser(){
+        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        UserResponseDto userResponseDto = userService.getUserIfAllowed(authenticatedUser);
+        return ResponseEntity.ok(userResponseDto);
     }
 }

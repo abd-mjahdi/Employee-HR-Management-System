@@ -13,7 +13,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -88,6 +87,10 @@ public class UserService {
             return getUserDetails(wantedUser);
         }
         throw new AccessDeniedException("You cannot access this resource");
+    }
+
+    public UserResponseDto getUserIfAllowed(User authenticatedUser){
+        return getUserDetails(authenticatedUser);
     }
 
     public UserResponseDto updateUserIfAllowed(Long id , UserRequestDto userRequestDto, User authenticatedUser , Collection<? extends GrantedAuthority> authorities){

@@ -13,6 +13,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -115,6 +116,19 @@ public class UserService {
 
         return getUserDetails(wantedUser);
 
+    }
+
+    public List<UserResponseDto> getTeamMembers(User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
+        boolean allowed = authorities.stream().anyMatch(auth ->
+                auth.getAuthority().equals("ROLE_MANAGER") || auth.getAuthority().equals("ROLE_HR_ADMIN")
+        );
+        if(!allowed) {
+            throw new AccessDeniedException("You cannot access this resource");
+        }
+
+        return authenticatedUser.getTeamMembers().stream()
+                .map(this::convertToDto)
+                .toList();
     }
 
     private void updateAllFields(User wantedUser , UserRequestDto userRequestDto){

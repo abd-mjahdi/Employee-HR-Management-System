@@ -17,6 +17,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
+import java.util.List;
 
 @RestController
 @Validated
@@ -57,5 +58,13 @@ public class UserController {
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         UserResponseDto userResponseDto = userService.getUserIfAllowed(authenticatedUser);
         return ResponseEntity.ok(userResponseDto);
+    }
+
+    @GetMapping("/team")
+    public ResponseEntity<List<UserResponseDto>> getTeamMembers(){
+        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
+        List<UserResponseDto> teamMemberList = userService.getTeamMembers(authenticatedUser , authorities);
+        return ResponseEntity.ok(teamMemberList);
     }
 }

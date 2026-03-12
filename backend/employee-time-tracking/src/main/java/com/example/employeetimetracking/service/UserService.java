@@ -131,24 +131,23 @@ public class UserService {
                 .toList();
     }
 
-    private void updateAllFields(User wantedUser , UserRequestDto userRequestDto){
-        wantedUser.setUsername(userRequestDto.getUsername());
-        wantedUser.setEmail(userRequestDto.getEmail());
-        wantedUser.setFirstName(userRequestDto.getFirstName());
-        wantedUser.setLastName(userRequestDto.getLastName());
-        wantedUser.setUserRole(userRequestDto.getUserRole());
-        wantedUser.setDepartment(departmentService.getById(userRequestDto.getDepartmentId()));
-        wantedUser.setIsActive(userRequestDto.getIsActive());
+    private void updateAllFields(User wantedUser, UserRequestDto dto) {
+        if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
+        if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
+        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
+        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
+        if(dto.getUserRole() != null) wantedUser.setUserRole(dto.getUserRole());
+        if(dto.getDepartmentId() != null) wantedUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
     }
 
-    private void updateManagerAllowedFields(User wantedUser, UserRequestDto userRequestDto){
-        wantedUser.setFirstName(userRequestDto.getFirstName());
-        wantedUser.setLastName(userRequestDto.getLastName());
+    private void updateManagerAllowedFields(User wantedUser, UserRequestDto dto) {
+        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
+        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
     }
 
-    private void updateSelfAllowedFields(User wantedUser, UserRequestDto userRequestDto){
-        wantedUser.setFirstName(userRequestDto.getFirstName());
-        wantedUser.setLastName(userRequestDto.getLastName());
+    private void updateSelfAllowedFields(User wantedUser, UserRequestDto dto) {
+        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
+        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
     }
 
     private UserResponseDto convertToDto(User user) {

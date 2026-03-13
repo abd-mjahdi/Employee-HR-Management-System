@@ -114,6 +114,7 @@ public class UserService {
         return getUserDetails(authenticatedUser);
     }
 
+    @Transactional
     public UserResponseDto updateUserIfAllowed(Long id , UserRequestDto userRequestDto, User authenticatedUser , Collection<? extends GrantedAuthority> authorities){
         User wantedUser = getById(id);
         Long managerId = wantedUser.getManager()!=null ? wantedUser.getManager().getId() : null ;
@@ -132,7 +133,7 @@ public class UserService {
             throw new AccessDeniedException("Not authorized to update this user");
         }
 
-        userRepository.save(wantedUser);
+        save(wantedUser);
 
         return getUserDetails(wantedUser);
 
@@ -172,13 +173,14 @@ public class UserService {
         if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
     }
 
+    @Transactional
     public UserCreatedResponse createUser(CreateUserRequestDto requestDto){
 
         validateNewUserData(requestDto);
 
         String tempPassword = generateTemporaryPassword();
         User user = createUserEntity(requestDto,tempPassword);
-        User savedUser = userRepository.save(user);
+        User savedUser = save(user);
         initializeLeaveBalances(savedUser);
 
         return new UserCreatedResponse(convertToDto(savedUser),tempPassword);

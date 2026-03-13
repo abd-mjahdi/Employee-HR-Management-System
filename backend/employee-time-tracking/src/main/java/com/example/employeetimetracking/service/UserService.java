@@ -14,6 +14,7 @@ import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -68,6 +69,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    @Transactional
     public void deactivateUserById(Long id){
         User user = getById(id);
         if(!user.getIsActive()){
@@ -150,13 +152,7 @@ public class UserService {
     }
 
     private void updateAllFields(User wantedUser, UserRequestDto dto) {
-        if(userRepository.existsByEmail(dto.getEmail())){
-            throw new EmailAlreadyRegisteredException("user already exists with that email");
-        }
-        if(userRepository.existsByUsername(dto.getUsername())){
-            throw new UsernameAlreadyExists("username unavailable");
-        }
-
+        validateNewUserData(dto);
 
         if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
         if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
@@ -176,18 +172,9 @@ public class UserService {
         if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
     }
 
-    public UserCreatedResponse createUserIfAllowed(CreateUserRequestDto requestDto ,Collection<? extends GrantedAuthority> authorities){
-        boolean allowed = authorities.stream().anyMatch(authority->authority.getAuthority().equals("ROLE_HR_ADMIN"));
-        if(!allowed){
-            throw new AccessDeniedException("You cannot access this resource");
-        }
+    public UserCreatedResponse createUser(CreateUserRequestDto requestDto){
 
-        return createUser(requestDto);
-    }
-
-    private UserCreatedResponse createUser(CreateUserRequestDto requestDto){
-
-        validateUserCreation(requestDto);
+        validateNewUserData(requestDto);
 
         String tempPassword = generateTemporaryPassword();
         User user = createUserEntity(requestDto,tempPassword);
@@ -233,7 +220,16 @@ public class UserService {
         return user;
     }
 
-    private void validateUserCreation(CreateUserRequestDto requestDto){
+    private void validateNewUserData(CreateUserRequestDto requestDto){
+        if(userRepository.existsByEmail(requestDto.getEmail())){
+            throw new EmailAlreadyRegisteredException("user already exists with that email");
+        }
+        if(userRepository.existsByUsername(requestDto.getUsername())){
+            throw new UsernameAlreadyExists("username unavailable");
+        }
+    }
+
+    private void validateNewUserData(UserRequestDto requestDto){
         if(userRepository.existsByEmail(requestDto.getEmail())){
             throw new EmailAlreadyRegisteredException("user already exists with that email");
         }
@@ -261,6 +257,7 @@ public class UserService {
                 user.getIsActive()
         );
     }
+
 
 
 

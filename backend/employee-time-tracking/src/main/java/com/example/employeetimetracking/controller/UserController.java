@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @Validated
@@ -72,11 +71,17 @@ public class UserController {
         return ResponseEntity.ok(teamMemberList);
     }
 
+    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
     @PostMapping
     public ResponseEntity<UserCreatedResponse> createUser(@Valid @RequestBody CreateUserRequestDto requestDto){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        UserCreatedResponse response = userService.createUserIfAllowed(requestDto , authorities);
+        UserCreatedResponse response = userService.createUser(requestDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<Void> deactivateUser(@PathVariable Long id){
+        userService.deactivateUserById(id);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 }

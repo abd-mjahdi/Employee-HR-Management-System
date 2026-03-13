@@ -22,6 +22,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.ErrorResponseException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -96,19 +97,26 @@ public class UserService {
         return convertToDto(user);
     }
 
-    public UserResponseDto getUserIfAllowed(Long id , User authenticatedUser , Collection<? extends GrantedAuthority> authorities){
-        User wantedUser = getById(id);
-        Long managerId = wantedUser.getManager()!=null ? wantedUser.getManager().getId() : null ;
+    public UserResponseDto getUserIfAllowed(Long id, User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
+        try {
+            User wantedUser = getById(id);
 
-        boolean isHrAdmin = authorities.stream().anyMatch(authority->authority.getAuthority().equals("ROLE_HR_ADMIN"));
-        boolean isManager = Objects.equals(authenticatedUser.getId() , managerId);
-        boolean isSameUser = Objects.equals(authenticatedUser.getId(),id);
+            Long managerId = wantedUser.getManager() != null ? wantedUser.getManager().getId() : null;
+            boolean isHrAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR_ADMIN"));
+            boolean isManager = Objects.equals(authenticatedUser.getId(), managerId);
+            boolean isSameUser = Objects.equals(authenticatedUser.getId(), id);
 
-        if(isHrAdmin || isManager || isSameUser){
-            return getUserDetails(wantedUser);
+            if (isHrAdmin || isManager || isSameUser) {
+                return getUserDetails(wantedUser);
+            }
+
+            throw new AccessDeniedException("You cannot access this resource");
+
+        } catch (UserNotFoundException | AccessDeniedException e) {
+            throw new AccessDeniedException("You cannot access this resource");
         }
-        throw new AccessDeniedException("You cannot access this resource");
     }
+
 
     public UserResponseDto getUserIfAllowed(User authenticatedUser){
         return getUserDetails(authenticatedUser);

@@ -60,4 +60,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
+    @ExceptionHandler(UsernameAlreadyExists.class)
+    public ResponseEntity<ErrorResponseDto> handleUsernameAlreadyExists(UsernameAlreadyExists exception) {
+        ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
 }

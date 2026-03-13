@@ -1,31 +1,49 @@
 package com.example.employeetimetracking.service;
+import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.DepartmentDto;
+import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.exception.AccountDeactivatedException;
+import com.example.employeetimetracking.exception.EmailAlreadyRegisteredException;
 import com.example.employeetimetracking.exception.UserNotFoundException;
+import com.example.employeetimetracking.exception.UsernameAlreadyExists;
+import com.example.employeetimetracking.model.entities.LeaveBalance;
+import com.example.employeetimetracking.model.entities.LeavePolicy;
+import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.*;
 
 @Service
 public class UserService {
+    private final BCryptPasswordEncoder encoder;
     private final UserRepository userRepository;
     private final DepartmentService departmentService;
+    private final LeaveTypeService leaveTypeService;
+    private final LeaveBalanceService leaveBalanceService;
     @Autowired
-    public UserService(UserRepository userRepository ,DepartmentService departmentService){
+    public UserService(UserRepository userRepository ,DepartmentService departmentService, LeaveBalanceService leaveBalanceService, LeaveTypeService leaveTypeService ,BCryptPasswordEncoder encoder){
         this.userRepository = userRepository;
         this.departmentService = departmentService;
+        this.leaveTypeService = leaveTypeService;
+        this.leaveBalanceService = leaveBalanceService;
+        this.encoder = encoder;
+    }
+
+    private String generateTemporaryPassword() {
+        return UUID.randomUUID().toString().substring(0, 12);
     }
 
     public boolean existsByEmail(String email){
@@ -132,6 +150,14 @@ public class UserService {
     }
 
     private void updateAllFields(User wantedUser, UserRequestDto dto) {
+        if(userRepository.existsByEmail(dto.getEmail())){
+            throw new EmailAlreadyRegisteredException("user already exists with that email");
+        }
+        if(userRepository.existsByUsername(dto.getUsername())){
+            throw new UsernameAlreadyExists("username unavailable");
+        }
+
+
         if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
         if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
         if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
@@ -148,6 +174,72 @@ public class UserService {
     private void updateSelfAllowedFields(User wantedUser, UserRequestDto dto) {
         if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
         if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
+    }
+
+    public UserCreatedResponse createUserIfAllowed(CreateUserRequestDto requestDto ,Collection<? extends GrantedAuthority> authorities){
+        boolean allowed = authorities.stream().anyMatch(authority->authority.getAuthority().equals("ROLE_HR_ADMIN"));
+        if(!allowed){
+            throw new AccessDeniedException("You cannot access this resource");
+        }
+
+        return createUser(requestDto);
+    }
+
+    private UserCreatedResponse createUser(CreateUserRequestDto requestDto){
+
+        validateUserCreation(requestDto);
+
+        String tempPassword = generateTemporaryPassword();
+        User user = createUserEntity(requestDto,tempPassword);
+        User savedUser = userRepository.save(user);
+        initializeLeaveBalances(savedUser);
+
+        return new UserCreatedResponse(convertToDto(savedUser),tempPassword);
+
+    }
+
+    private void initializeLeaveBalances(User user){
+        List<LeaveType> leaveTypes = leaveTypeService.getAll();
+
+        for(LeaveType leaveType : leaveTypes){
+            LeavePolicy policy = leaveType.getLeavePolicy();
+            LeaveBalance balance = new LeaveBalance();
+            balance.setUser(user);
+            balance.setLeaveType(leaveType);
+            short year =(short) LocalDate.now().getYear();
+            balance.setYear(year);
+
+            if(policy.getAccrualMethod().equals(AccrualMethod.ANNUAL)){
+                balance.setCurrentBalance(policy.getAnnualAllocation());
+            }else{
+                balance.setCurrentBalance(BigDecimal.ZERO);
+            }
+            balance.setLastAccrualDate(LocalDate.now());
+            leaveBalanceService.save(balance);
+        }
+    }
+
+    private User createUserEntity(CreateUserRequestDto requestDto,String tempPassword){
+        User user = new User();
+        user.setUsername(requestDto.getUsername());
+        user.setEmail(requestDto.getEmail());
+        user.setPasswordHash(encoder.encode(tempPassword));
+        user.setFirstName(requestDto.getFirstName());
+        user.setLastName(requestDto.getLastName());
+        user.setUserRole(requestDto.getUserRole());
+        user.setDepartment(departmentService.getById(requestDto.getDepartmentId()));
+        user.setManager(getById(requestDto.getManagerId()));
+        user.setIsActive(true);
+        return user;
+    }
+
+    private void validateUserCreation(CreateUserRequestDto requestDto){
+        if(userRepository.existsByEmail(requestDto.getEmail())){
+            throw new EmailAlreadyRegisteredException("user already exists with that email");
+        }
+        if(userRepository.existsByUsername(requestDto.getUsername())){
+            throw new UsernameAlreadyExists("username unavailable");
+        }
     }
 
     private UserResponseDto convertToDto(User user) {

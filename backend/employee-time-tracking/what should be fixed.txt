@@ -1,5 +1,5 @@
 what should be fixed :
-employee should not be anyone's manager
+employee should not be anyone's manager - fixed
 i should add activate user endpoint 
 i should be able to update managerId also , so add managerId in UserRequestDto .
 refactor updating user data to throw errors when updating illegal fields.

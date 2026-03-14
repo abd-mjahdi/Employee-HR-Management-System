@@ -4,15 +4,13 @@ import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.DepartmentDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
-import com.example.employeetimetracking.exception.AccountDeactivatedException;
-import com.example.employeetimetracking.exception.EmailAlreadyRegisteredException;
-import com.example.employeetimetracking.exception.UserNotFoundException;
-import com.example.employeetimetracking.exception.UsernameAlreadyExists;
+import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.model.entities.LeaveBalance;
 import com.example.employeetimetracking.model.entities.LeavePolicy;
 import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -216,8 +214,26 @@ public class UserService {
         }
     }
 
+    private void validateManagerAssignment(UserRole userRole , UserRole managerRole){
+        boolean isIdOfManager = managerRole.equals(UserRole.MANAGER);
+        boolean isIdOfHrAdmin = managerRole.equals(UserRole.HR_ADMIN);
+
+        if (userRole == UserRole.EMPLOYEE && !isIdOfManager) {
+            throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
+        }
+        else if (userRole == UserRole.MANAGER && !isIdOfHrAdmin) {
+            throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
+        }
+    }
+
     private User createUserEntity(CreateUserRequestDto requestDto,String tempPassword){
         User user = new User();
+        User manager = getById(requestDto.getManagerId());
+
+        validateManagerAssignment(requestDto.getUserRole(), manager.getUserRole());
+
+        user.setManager(manager);
+
         user.setUsername(requestDto.getUsername());
         user.setEmail(requestDto.getEmail());
         user.setPasswordHash(encoder.encode(tempPassword));
@@ -225,7 +241,7 @@ public class UserService {
         user.setLastName(requestDto.getLastName());
         user.setUserRole(requestDto.getUserRole());
         user.setDepartment(departmentService.getById(requestDto.getDepartmentId()));
-        user.setManager(getById(requestDto.getManagerId()));
+
         user.setIsActive(true);
         return user;
     }

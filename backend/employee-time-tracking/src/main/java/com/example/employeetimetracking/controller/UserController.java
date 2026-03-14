@@ -84,4 +84,12 @@ public class UserController {
         userService.deactivateUserById(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
+
+    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<Void> activateUser(@PathVariable Long id){
+        userService.activateUserById(id);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
 }

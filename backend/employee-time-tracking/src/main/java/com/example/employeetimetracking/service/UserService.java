@@ -77,6 +77,15 @@ public class UserService {
         user.setIsActive(false);
     }
 
+    @Transactional
+    public void activateUserById(Long id){
+        User user = getById(id);
+        if(user.getIsActive()){
+            throw new AccountDeactivatedException("User already activated");
+        }
+        user.setIsActive(true);
+    }
+
     public List<User> getAllByDepartment(Long id , boolean bool){
         return userRepository.findByDepartmentIdAndIsActive(id,bool);
     }
@@ -128,18 +137,12 @@ public class UserService {
         boolean isHrAdmin = authorities.stream().anyMatch(authority->authority.getAuthority().equals("ROLE_HR_ADMIN"));
         boolean isManager = Objects.equals(authenticatedUser.getId() , managerId);
         boolean isSameUser = Objects.equals(authenticatedUser.getId(),id);
-
-        if(isHrAdmin){
-            updateAllFields(wantedUser , userRequestDto);
-        }else if(isManager){
-            updateManagerAllowedFields(wantedUser, userRequestDto);
-        }else if(isSameUser){
-            updateSelfAllowedFields(wantedUser, userRequestDto);
-        } else {
+        if(!isHrAdmin && !isManager && !isSameUser){
             throw new AccessDeniedException("Not authorized to update this user");
         }
-
-        save(wantedUser);
+        if(isHrAdmin) updateAllFields(wantedUser, userRequestDto);
+        if(isManager) updateManagerAllowedFields(wantedUser, userRequestDto);
+        if(isSameUser) updateSelfAllowedFields(wantedUser, userRequestDto);
 
         return getUserDetails(wantedUser);
 
@@ -167,6 +170,11 @@ public class UserService {
         if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
         if(dto.getUserRole() != null) wantedUser.setUserRole(dto.getUserRole());
         if(dto.getDepartmentId() != null) wantedUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
+        if(dto.getManagerId() != null) {
+            User manager = getById(dto.getManagerId());
+            validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
+            wantedUser.setManager(manager);
+        }
     }
 
     private void updateManagerAllowedFields(User wantedUser, UserRequestDto dto) {

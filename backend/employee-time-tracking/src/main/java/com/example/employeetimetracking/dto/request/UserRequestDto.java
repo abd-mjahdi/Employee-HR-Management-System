@@ -28,4 +28,6 @@ public class UserRequestDto {
     private UserRole userRole;
 
     private Long departmentId;
+
+    private Long managerId;
 }

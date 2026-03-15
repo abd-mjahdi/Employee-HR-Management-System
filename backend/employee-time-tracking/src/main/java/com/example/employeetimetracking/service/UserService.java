@@ -12,10 +12,12 @@ import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.specification.UserSpecifications;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -290,6 +292,18 @@ public class UserService {
                 deptDto,
                 user.getIsActive()
         );
+    }
+
+    public List<UserResponseDto> searchUsers(Long departmentId , UserRole role , Boolean active , String name){
+        if (name != null && name.isBlank()) {
+            name = null;
+        }
+        Specification<User> spec = Specification
+                .where(UserSpecifications.hasDepartmentId(departmentId))
+                .and(UserSpecifications.hasRole(role))
+                .and(UserSpecifications.isActive(active))
+                .and(UserSpecifications.hasName(name));
+        return userRepository.findAll(spec).stream().map(this::convertToDto).toList();
     }
 
 

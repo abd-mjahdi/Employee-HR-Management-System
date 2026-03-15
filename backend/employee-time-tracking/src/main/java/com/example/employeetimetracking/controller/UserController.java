@@ -5,6 +5,7 @@ import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -92,4 +93,15 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
+    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @GetMapping("/users/search")
+    public ResponseEntity<List<UserResponseDto>> searchUsers(
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) UserRole role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) String name
+    ) {
+        List<UserResponseDto> results = userService.searchUsers(departmentId, role, active, name);
+        return ResponseEntity.ok(results);
+    }
 }

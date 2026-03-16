@@ -94,7 +94,7 @@ public class UserController {
     }
 
     @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
-    @GetMapping("/users/search")
+    @GetMapping("/search")
     public ResponseEntity<List<UserResponseDto>> searchUsers(
             @RequestParam(required = false) Long departmentId,
             @RequestParam(required = false) UserRole role,

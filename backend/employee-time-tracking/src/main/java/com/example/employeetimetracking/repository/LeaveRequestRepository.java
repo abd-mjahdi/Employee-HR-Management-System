@@ -3,6 +3,8 @@ package com.example.employeetimetracking.repository;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,5 +20,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByHrApprovalStatus(Status status);
     List<LeaveRequest> findByLeaveTypeId(Long leaveTypeId);
     List<LeaveRequest> findByStartDateBetween(LocalDate startDate, LocalDate endDate);
+    Integer countByUserIdAndStatus(Long userId, Status status);
+
+    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status = :status")
+    Integer countByManagerIdAndStatus(@Param("managerId") Long managerId, @Param("status") Status status);
+
+    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status = :status AND :date BETWEEN lr.startDate AND lr.endDate")
+    Integer teamMembersOnLeaveToday(@Param("managerId") Long managerId, @Param("status") Status status, @Param("date") LocalDate date);
+
+    Integer countByManagerApprovalStatusAndHrApprovalStatus(Status managerApprovalStatus , Status hrAdminApprovalStatus);
+
+
+
 
 }

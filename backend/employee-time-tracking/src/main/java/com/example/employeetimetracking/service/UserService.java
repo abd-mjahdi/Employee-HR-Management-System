@@ -1,14 +1,9 @@
 package com.example.employeetimetracking.service;
 import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
-import com.example.employeetimetracking.dto.response.DepartmentDto;
-import com.example.employeetimetracking.dto.response.UserCreatedResponse;
-import com.example.employeetimetracking.dto.response.UserResponseDto;
+import com.example.employeetimetracking.dto.response.*;
 import com.example.employeetimetracking.exception.*;
-import com.example.employeetimetracking.model.entities.LeaveBalance;
-import com.example.employeetimetracking.model.entities.LeavePolicy;
-import com.example.employeetimetracking.model.entities.LeaveType;
-import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
@@ -35,12 +30,22 @@ public class UserService {
     private final DepartmentService departmentService;
     private final LeaveTypeService leaveTypeService;
     private final LeaveBalanceService leaveBalanceService;
+    private final LeaveRequestService leaveRequestService;
+    private final TimeEntryService timeEntryService;
     @Autowired
-    public UserService(UserRepository userRepository ,DepartmentService departmentService, LeaveBalanceService leaveBalanceService, LeaveTypeService leaveTypeService ,BCryptPasswordEncoder encoder){
+    public UserService(UserRepository userRepository ,
+                       DepartmentService departmentService,
+                       LeaveBalanceService leaveBalanceService,
+                       LeaveTypeService leaveTypeService ,
+                       LeaveRequestService leaveRequestService,
+                       TimeEntryService timeEntryService,
+                       BCryptPasswordEncoder encoder){
         this.userRepository = userRepository;
         this.departmentService = departmentService;
         this.leaveTypeService = leaveTypeService;
         this.leaveBalanceService = leaveBalanceService;
+        this.leaveRequestService = leaveRequestService;
+        this.timeEntryService = timeEntryService;
         this.encoder = encoder;
     }
 
@@ -274,7 +279,7 @@ public class UserService {
         }
     }
 
-    private UserResponseDto convertToDto(User user) {
+    public UserResponseDto convertToDto(User user) {
         DepartmentDto deptDto = new DepartmentDto(
                 user.getDepartment().getId(),
                 user.getDepartment().getDepartmentName(),
@@ -304,6 +309,64 @@ public class UserService {
                 .and(UserSpecifications.isActive(active))
                 .and(UserSpecifications.hasName(name));
         return userRepository.findAll(spec).stream().map(this::convertToDto).toList();
+    }
+
+    public UserDashboardDto getDashboardData(User authenticatedUser){
+
+        UserResponseDto userResponseDto = getUserDetails(authenticatedUser);
+        List<LeaveBalanceDto> leaveBalances = authenticatedUser.getLeaveBalanceList().stream().map(leaveBalanceService::convertToDto).toList();
+        List<LeaveRequestDto> upcomingLeave = leaveRequestService.getUpcomingLeave(authenticatedUser);
+
+        // 7 most recent time entries
+        List<TimeEntryDto> recentTimeEntries = timeEntryService.getRecentTimeEntries(authenticatedUser);
+
+        DashboardStatsDto stats = getDashboardStats(authenticatedUser);
+        return new UserDashboardDto(userResponseDto,leaveBalances,upcomingLeave,recentTimeEntries,stats);
+    }
+
+    public Integer getTotalActiveEmployees(){
+        return userRepository.countByIsActive(true);
+    }
+
+    public DashboardStatsDto getDashboardStats(User user){
+        UserRole role = user.getUserRole();
+        Long userId = user.getId();
+
+        if(user.getUserRole().equals(UserRole.EMPLOYEE)){
+            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
+                    timeEntryService.getHoursThisMonth(userId) ,
+                    timeEntryService.getUserPendingCount(userId) ,
+                    leaveRequestService.getUserPendingCount(userId),
+                    null ,
+                    null ,
+                    null ,
+                    null ,
+                    null);
+        }
+        if(user.getUserRole().equals(UserRole.MANAGER)){
+            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
+                    timeEntryService.getHoursThisMonth(userId) ,
+                    timeEntryService.getUserPendingCount(userId) ,
+                    leaveRequestService.getUserPendingCount(userId),
+                    timeEntryService.getPendingTimeApprovalsCount(userId),
+                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
+                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
+                    null,
+                    null);
+        }
+        if(user.getUserRole().equals(UserRole.HR_ADMIN)){
+            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
+                    timeEntryService.getHoursThisMonth(userId) ,
+                    timeEntryService.getUserPendingCount(userId) ,
+                    leaveRequestService.getUserPendingCount(userId),
+                    timeEntryService.getPendingTimeApprovalsCount(userId),
+                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
+                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
+                    userRepository.countByIsActive(true),
+                    leaveRequestService.getPendingHrApprovalsCount());
+        }
+
+
     }
 
 

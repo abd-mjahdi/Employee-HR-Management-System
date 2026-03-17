@@ -23,5 +23,6 @@ public interface UserRepository extends JpaRepository<User,Long> , JpaSpecificat
     List<User> findByIsActive(Boolean isActive);
     List<User> findByDepartmentIdAndIsActive(Long id , Boolean isActive);
     List<User> findByManagerIdAndIsActive(Long id , Boolean isActive);
+    Integer countByIsActive(Boolean isActive);
 
 }

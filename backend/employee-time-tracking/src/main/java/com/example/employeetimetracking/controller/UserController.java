@@ -67,11 +67,11 @@ public class UserController {
         return ResponseEntity.ok(userResponseDto);
     }
 
+    @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_HR_ADMIN')")
     @GetMapping("/team")
     public ResponseEntity<List<UserResponseDto>> getTeamMembers(){
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        List<UserResponseDto> teamMemberList = userService.getTeamMembers(authenticatedUser , authorities);
+        List<UserResponseDto> teamMemberList = userService.getTeamMembers(authenticatedUser);
         return ResponseEntity.ok(teamMemberList);
     }
 

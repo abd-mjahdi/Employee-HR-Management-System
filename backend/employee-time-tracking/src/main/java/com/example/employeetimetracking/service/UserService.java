@@ -134,14 +134,7 @@ public class UserService {
 
     }
 
-    public List<UserResponseDto> getTeamMembers(User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
-        boolean allowed = authorities.stream().anyMatch(auth ->
-                auth.getAuthority().equals("ROLE_MANAGER") || auth.getAuthority().equals("ROLE_HR_ADMIN")
-        );
-        if(!allowed) {
-            throw new AccessDeniedException("You cannot access this resource");
-        }
-
+    public List<UserResponseDto> getTeamMembers(User authenticatedUser) {
         return authenticatedUser.getTeamMembers().stream()
                 .map(userMapper::toDto)
                 .toList();

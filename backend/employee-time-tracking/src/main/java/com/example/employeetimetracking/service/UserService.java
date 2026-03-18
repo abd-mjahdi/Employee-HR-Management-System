@@ -3,10 +3,8 @@ import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.*;
 import com.example.employeetimetracking.exception.*;
-import com.example.employeetimetracking.mapper.LeaveBalanceMapper;
 import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.*;
-import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.specification.UserSpecifications;
@@ -19,42 +17,30 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.ErrorResponseException;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.*;
 
 @Service
 public class UserService {
     private final UserMapper userMapper;
-    private final LeaveBalanceMapper leaveBalanceMapper;
     private final BCryptPasswordEncoder encoder;
     private final UserRepository userRepository;
     private final DepartmentService departmentService;
-    private final LeaveTypeService leaveTypeService;
     private final LeaveBalanceService leaveBalanceService;
-    private final LeaveRequestService leaveRequestService;
-    private final TimeEntryService timeEntryService;
     @Autowired
     public UserService(UserRepository userRepository ,
                        DepartmentService departmentService,
-                       LeaveBalanceService leaveBalanceService,
-                       LeaveTypeService leaveTypeService ,
-                       LeaveRequestService leaveRequestService,
-                       TimeEntryService timeEntryService,
                        BCryptPasswordEncoder encoder,
                        UserMapper userMapper,
-                       LeaveBalanceMapper leaveBalanceMapper){
+                       LeaveBalanceService leaveBalanceService){
         this.userRepository = userRepository;
         this.departmentService = departmentService;
-        this.leaveTypeService = leaveTypeService;
-        this.leaveBalanceService = leaveBalanceService;
-        this.leaveRequestService = leaveRequestService;
-        this.timeEntryService = timeEntryService;
         this.encoder = encoder;
         this.userMapper = userMapper;
-        this.leaveBalanceMapper = leaveBalanceMapper;
+        this.leaveBalanceService = leaveBalanceService;
+    }
+
+    public User save(User user){
+        return userRepository.save(user);
     }
 
     private String generateTemporaryPassword() {
@@ -77,10 +63,6 @@ public class UserService {
         Page<User> pages = userRepository.findAll(p);
 
         return pages.map(userMapper::toDto);
-    }
-
-    public User save(User user){
-        return userRepository.save(user);
     }
 
     @Transactional
@@ -209,33 +191,14 @@ public class UserService {
 
         String tempPassword = generateTemporaryPassword();
         User user = createUserEntity(requestDto,tempPassword);
-        User savedUser = save(user);
-        initializeLeaveBalances(savedUser);
+        User savedUser = userRepository.save(user);
+        leaveBalanceService.initializeLeaveBalances(savedUser);
 
         return new UserCreatedResponse(userMapper.toDto(savedUser),tempPassword);
 
     }
 
-    private void initializeLeaveBalances(User user){
-        List<LeaveType> leaveTypes = leaveTypeService.getAll();
 
-        for(LeaveType leaveType : leaveTypes){
-            LeavePolicy policy = leaveType.getLeavePolicy();
-            LeaveBalance balance = new LeaveBalance();
-            balance.setUser(user);
-            balance.setLeaveType(leaveType);
-            short year =(short) LocalDate.now().getYear();
-            balance.setYear(year);
-
-            if(policy.getAccrualMethod().equals(AccrualMethod.ANNUAL)){
-                balance.setCurrentBalance(policy.getAnnualAllocation());
-            }else{
-                balance.setCurrentBalance(BigDecimal.ZERO);
-            }
-            balance.setLastAccrualDate(LocalDate.now());
-            leaveBalanceService.save(balance);
-        }
-    }
 
     private void validateManagerAssignment(UserRole userRole , UserRole managerRole){
         boolean isIdOfManager = managerRole.equals(UserRole.MANAGER);
@@ -299,63 +262,8 @@ public class UserService {
         return userRepository.findAll(spec).stream().map(userMapper::toDto).toList();
     }
 
-    public UserDashboardDto getDashboardData(User authenticatedUser){
 
-        UserResponseDto userResponseDto = getUserDetails(authenticatedUser);
-        List<LeaveBalanceDto> leaveBalances = authenticatedUser.getLeaveBalanceList().stream().map(leaveBalanceMapper::toDto).toList();
-        List<LeaveRequestDto> upcomingLeave = leaveRequestService.getUpcomingLeave(authenticatedUser);
 
-        // 7 most recent time entries
-        List<TimeEntryDto> recentTimeEntries = timeEntryService.getRecentTimeEntries(authenticatedUser);
-
-        DashboardStatsDto stats = getDashboardStats(authenticatedUser);
-        return new UserDashboardDto(userResponseDto,leaveBalances,upcomingLeave,recentTimeEntries,stats);
-    }
-
-    public Integer getTotalActiveEmployees(){
-        return userRepository.countByIsActive(true);
-    }
-
-    public DashboardStatsDto getDashboardStats(User user){
-        UserRole role = user.getUserRole();
-        Long userId = user.getId();
-
-        if(user.getUserRole().equals(UserRole.EMPLOYEE)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    null ,
-                    null ,
-                    null ,
-                    null ,
-                    null);
-        }
-        if(user.getUserRole().equals(UserRole.MANAGER)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    timeEntryService.getPendingTimeApprovalsCount(userId),
-                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
-                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
-                    null,
-                    null);
-        }
-        if(user.getUserRole().equals(UserRole.HR_ADMIN)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    timeEntryService.getPendingTimeApprovalsCount(userId),
-                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
-                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
-                    userRepository.countByIsActive(true),
-                    leaveRequestService.getPendingHrApprovalsCount());
-        }
-        throw new IllegalArgumentException("Unexpected or unsupported user role");
-
-    }
 
 
 

@@ -2,39 +2,28 @@ package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.*;
 import com.example.employeetimetracking.mapper.LeaveBalanceMapper;
-import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public class DashboardService {
-    private UserService userService;
+    private final UserService userService;
     private final LeaveBalanceMapper leaveBalanceMapper;
     private final UserRepository userRepository;
-    private final DepartmentService departmentService;
-    private final LeaveTypeService leaveTypeService;
-    private final LeaveBalanceService leaveBalanceService;
     private final LeaveRequestService leaveRequestService;
     private final TimeEntryService timeEntryService;
     @Autowired
     public DashboardService(UserRepository userRepository ,
-                       DepartmentService departmentService,
-                       LeaveBalanceService leaveBalanceService,
-                       LeaveTypeService leaveTypeService ,
                        LeaveRequestService leaveRequestService,
                        TimeEntryService timeEntryService,
                        LeaveBalanceMapper leaveBalanceMapper,
                        UserService userService){
         this.userRepository = userRepository;
-        this.departmentService = departmentService;
-        this.leaveTypeService = leaveTypeService;
-        this.leaveBalanceService = leaveBalanceService;
         this.leaveRequestService = leaveRequestService;
         this.timeEntryService = timeEntryService;
         this.leaveBalanceMapper = leaveBalanceMapper;
@@ -57,7 +46,7 @@ public class DashboardService {
         UserRole role = user.getUserRole();
         Long userId = user.getId();
 
-        if(user.getUserRole().equals(UserRole.EMPLOYEE)){
+        if(role.equals(UserRole.EMPLOYEE)){
             return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
                     timeEntryService.getHoursThisMonth(userId) ,
                     timeEntryService.getUserPendingCount(userId) ,
@@ -68,7 +57,7 @@ public class DashboardService {
                     null ,
                     null);
         }
-        if(user.getUserRole().equals(UserRole.MANAGER)){
+        if(role.equals(UserRole.MANAGER)){
             return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
                     timeEntryService.getHoursThisMonth(userId) ,
                     timeEntryService.getUserPendingCount(userId) ,
@@ -79,7 +68,7 @@ public class DashboardService {
                     null,
                     null);
         }
-        if(user.getUserRole().equals(UserRole.HR_ADMIN)){
+        if(role.equals(UserRole.HR_ADMIN)){
             return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
                     timeEntryService.getHoursThisMonth(userId) ,
                     timeEntryService.getUserPendingCount(userId) ,

@@ -7,6 +7,7 @@ import com.example.employeetimetracking.dto.response.UserDashboardDto;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
+import com.example.employeetimetracking.service.DashboardService;
 import com.example.employeetimetracking.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -30,9 +31,12 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
+    private final DashboardService dashboardService;
     @Autowired
-    public UserController(UserService userService){
+    public UserController(UserService userService ,
+                          DashboardService dashboardService){
         this.userService = userService;
+        this.dashboardService = dashboardService;
     }
 
 
@@ -64,13 +68,6 @@ public class UserController {
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         UserResponseDto userResponseDto = userService.getUserIfAllowed(authenticatedUser);
         return ResponseEntity.ok(userResponseDto);
-    }
-
-    @GetMapping("/me/dashboard")
-    public ResponseEntity<UserDashboardDto> getDashboardData(){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        UserDashboardDto userDashboardDto = userService.getDashboardData(authenticatedUser);
-        return ResponseEntity.ok(userDashboardDto);
     }
 
     @GetMapping("/team")

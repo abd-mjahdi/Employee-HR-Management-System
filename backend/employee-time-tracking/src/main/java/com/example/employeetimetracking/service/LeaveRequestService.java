@@ -1,12 +1,10 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
-import com.example.employeetimetracking.dto.response.LeaveTypeDto;
-import com.example.employeetimetracking.dto.response.UserResponseDto;
+import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
-import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,23 +15,19 @@ import java.util.List;
 @Service
 public class LeaveRequestService {
 
-    private final UserService userService;
-    private final LeaveTypeService leaveTypeService;
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveRequestMapper leaveRequestMapper;
     @Autowired
-    public LeaveRequestService( UserService userService ,
-                                LeaveTypeService leaveTypeService,
-                                LeaveRequestRepository leaveRequestRepository){
-        this.userService = userService;
-        this.leaveTypeService = leaveTypeService;
+    public LeaveRequestService(LeaveRequestRepository leaveRequestRepository , LeaveRequestMapper leaveRequestMapper){
         this.leaveRequestRepository = leaveRequestRepository;
+        this.leaveRequestMapper = leaveRequestMapper;
     }
 
     // Self approved leave requests
     public List<LeaveRequestDto> getUpcomingLeave(User user){
         List<LeaveRequest> allLeaveRequests = user.getLeaveRequestList();
         List<LeaveRequest> upcomingLeave = allLeaveRequests.stream().filter(leaveRequest -> leaveRequest.getStatus().equals(Status.APPROVED) && leaveRequest.getStartDate().isAfter(LocalDate.now())).toList();
-        return upcomingLeave.stream().map(this::convertToDto).toList();
+        return upcomingLeave.stream().map(leaveRequestMapper::toDto).toList();
     }
 
     // Count of self pending leave requests
@@ -55,18 +49,5 @@ public class LeaveRequestService {
         return leaveRequestRepository.countByManagerApprovalStatusAndHrApprovalStatus(Status.APPROVED , Status.PENDING);
     }
 
-    public LeaveRequestDto convertToDto(LeaveRequest lr){
 
-        UserResponseDto userResponseDto = userService.convertToDto(lr.getUser());
-        LeaveTypeDto leaveTypeDto = leaveTypeService.convertToDto(lr.getLeaveType());
-
-        return new LeaveRequestDto(lr.getId(),
-                userResponseDto,
-                leaveTypeDto,
-                lr.getStartDate(),
-                lr.getEndDate(),
-                lr.getTotalDays(),
-                lr.getReason(),
-                lr.getStatus());
-    }
 }

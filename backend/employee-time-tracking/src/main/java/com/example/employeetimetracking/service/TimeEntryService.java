@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
+import com.example.employeetimetracking.mapper.TimeEntryMapper;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
@@ -19,14 +20,19 @@ import java.util.Locale;
 @Service
 public class TimeEntryService {
     private final TimeEntryRepository timeEntryRepository;
+    private final TimeEntryMapper timeEntryMapper;
     @Autowired
-    public TimeEntryService(TimeEntryRepository timeEntryRepository){
+    public TimeEntryService(
+                            TimeEntryRepository timeEntryRepository,
+                            TimeEntryMapper timeEntryMapper
+    ){
         this.timeEntryRepository = timeEntryRepository;
+        this.timeEntryMapper = timeEntryMapper;
     }
     public List<TimeEntryDto> getRecentTimeEntries(User user){
         Pageable limit = PageRequest.of(0,8);
         List<TimeEntry> recentTimeEntries = timeEntryRepository.findByUserIdOrderByEntryDateDesc(user.getId(), limit);
-        return recentTimeEntries.stream().map(this::convertToDto).toList();
+        return recentTimeEntries.stream().map(timeEntryMapper::toDto).toList();
     }
 
     public BigDecimal getHoursThisWeek(Long userId){
@@ -67,22 +73,5 @@ public class TimeEntryService {
         return timeEntryRepository.countByUserManagerIdAndStatus(userId , Status.PENDING);
     }
 
-    public TimeEntryDto convertToDto(TimeEntry te) {
-        return new TimeEntryDto(
-                te.getId(),
-                te.getUser().getId(),
-                te.getUser().getFirstName(),
-                te.getUser().getLastName(),
-                te.getEntryDate(),
-                te.getClockInTime(),
-                te.getClockOutTime(),
-                te.getTotalHours(),
-                te.getProject().getId(),
-                te.getProject().getProjectName(),
-                te.getProject().getProjectCode(),
-                te.getDescription(),
-                te.getStatus()
-        );
-    }
 
 }

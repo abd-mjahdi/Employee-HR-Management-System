@@ -15,8 +15,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class LeaveRequestDto {
     private Long id;
-    private UserResponseDto user;
-    private LeaveTypeDto leaveType;
+    private Long userId;
+    private Long leaveTypeId;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal totalDays;

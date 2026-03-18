@@ -3,6 +3,8 @@ import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.*;
 import com.example.employeetimetracking.exception.*;
+import com.example.employeetimetracking.mapper.LeaveBalanceMapper;
+import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.model.enums.UserRole;
@@ -25,6 +27,8 @@ import java.util.*;
 
 @Service
 public class UserService {
+    private final UserMapper userMapper;
+    private final LeaveBalanceMapper leaveBalanceMapper;
     private final BCryptPasswordEncoder encoder;
     private final UserRepository userRepository;
     private final DepartmentService departmentService;
@@ -39,7 +43,9 @@ public class UserService {
                        LeaveTypeService leaveTypeService ,
                        LeaveRequestService leaveRequestService,
                        TimeEntryService timeEntryService,
-                       BCryptPasswordEncoder encoder){
+                       BCryptPasswordEncoder encoder,
+                       UserMapper userMapper,
+                       LeaveBalanceMapper leaveBalanceMapper){
         this.userRepository = userRepository;
         this.departmentService = departmentService;
         this.leaveTypeService = leaveTypeService;
@@ -47,6 +53,8 @@ public class UserService {
         this.leaveRequestService = leaveRequestService;
         this.timeEntryService = timeEntryService;
         this.encoder = encoder;
+        this.userMapper = userMapper;
+        this.leaveBalanceMapper = leaveBalanceMapper;
     }
 
     private String generateTemporaryPassword() {
@@ -68,7 +76,7 @@ public class UserService {
     public Page<UserResponseDto> getAll(Pageable p){
         Page<User> pages = userRepository.findAll(p);
 
-        return pages.map(this::convertToDto);
+        return pages.map(userMapper::toDto);
     }
 
     public User save(User user){
@@ -99,16 +107,16 @@ public class UserService {
 
     public UserResponseDto getUserDetails(String email) {
         User user = getByEmail(email);
-        return convertToDto(user);
+        return userMapper.toDto(user);
     }
 
     public UserResponseDto getUserDetails(Long id){
         User user = getById(id);
-        return convertToDto(user);
+        return userMapper.toDto(user);
     }
 
     public UserResponseDto getUserDetails(User user){
-        return convertToDto(user);
+        return userMapper.toDto(user);
     }
 
     public UserResponseDto getUserIfAllowed(Long id, User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
@@ -164,7 +172,7 @@ public class UserService {
         }
 
         return authenticatedUser.getTeamMembers().stream()
-                .map(this::convertToDto)
+                .map(userMapper::toDto)
                 .toList();
     }
 
@@ -204,7 +212,7 @@ public class UserService {
         User savedUser = save(user);
         initializeLeaveBalances(savedUser);
 
-        return new UserCreatedResponse(convertToDto(savedUser),tempPassword);
+        return new UserCreatedResponse(userMapper.toDto(savedUser),tempPassword);
 
     }
 
@@ -279,26 +287,6 @@ public class UserService {
         }
     }
 
-    public UserResponseDto convertToDto(User user) {
-        DepartmentDto deptDto = new DepartmentDto(
-                user.getDepartment().getId(),
-                user.getDepartment().getDepartmentName(),
-                user.getDepartment().getDepartmentCode(),
-                user.getDepartment().getIsActive()
-        );
-
-        return new UserResponseDto(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getUserRole(),
-                deptDto,
-                user.getIsActive()
-        );
-    }
-
     public List<UserResponseDto> searchUsers(Long departmentId , UserRole role , Boolean active , String name){
         if (name != null && name.isBlank()) {
             name = null;
@@ -308,13 +296,13 @@ public class UserService {
                 .and(UserSpecifications.hasRole(role))
                 .and(UserSpecifications.isActive(active))
                 .and(UserSpecifications.hasName(name));
-        return userRepository.findAll(spec).stream().map(this::convertToDto).toList();
+        return userRepository.findAll(spec).stream().map(userMapper::toDto).toList();
     }
 
     public UserDashboardDto getDashboardData(User authenticatedUser){
 
         UserResponseDto userResponseDto = getUserDetails(authenticatedUser);
-        List<LeaveBalanceDto> leaveBalances = authenticatedUser.getLeaveBalanceList().stream().map(leaveBalanceService::convertToDto).toList();
+        List<LeaveBalanceDto> leaveBalances = authenticatedUser.getLeaveBalanceList().stream().map(leaveBalanceMapper::toDto).toList();
         List<LeaveRequestDto> upcomingLeave = leaveRequestService.getUpcomingLeave(authenticatedUser);
 
         // 7 most recent time entries
@@ -365,7 +353,7 @@ public class UserService {
                     userRepository.countByIsActive(true),
                     leaveRequestService.getPendingHrApprovalsCount());
         }
-
+        throw new IllegalArgumentException("Unexpected or unsupported user role");
 
     }
 

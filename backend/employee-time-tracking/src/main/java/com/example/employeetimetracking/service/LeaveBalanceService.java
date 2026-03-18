@@ -12,25 +12,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class LeaveBalanceService {
     private final LeaveBalanceRepository leaveBalanceRepository;
-    private final UserService userService;
-    private final LeaveTypeService leaveTypeService;
     @Autowired
-    public LeaveBalanceService(LeaveBalanceRepository leaveBalanceRepository , UserService userService ,LeaveTypeService leaveTypeService){
+    public LeaveBalanceService(LeaveBalanceRepository leaveBalanceRepository){
         this.leaveBalanceRepository = leaveBalanceRepository;
-        this.userService = userService;
-        this.leaveTypeService = leaveTypeService;
     }
     public LeaveBalance save(LeaveBalance balance){
         return leaveBalanceRepository.save(balance);
     }
 
-    public LeaveBalanceDto convertToDto(LeaveBalance leaveBalance){
-        UserResponseDto userResponseDto = userService.convertToDto(leaveBalance.getUser());
-        LeaveTypeDto leaveTypeDto = leaveTypeService.convertToDto(leaveBalance.getLeaveType());
-        return new LeaveBalanceDto(leaveBalance.getId() ,
-                userResponseDto,
-                leaveTypeDto,
-                leaveBalance.getYear(),
-                leaveBalance.getCurrentBalance());
-    }
+
 }

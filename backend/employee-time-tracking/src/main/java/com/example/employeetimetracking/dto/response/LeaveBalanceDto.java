@@ -14,8 +14,8 @@ import java.math.BigDecimal;
 public class LeaveBalanceDto {
 
     private Long id;
-    private UserResponseDto user;
-    private LeaveTypeDto leaveType;
+    private Long userId;
+    private Long leaveTypeId;
     private short year;
     private BigDecimal currentBalance;
 

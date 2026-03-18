@@ -19,14 +19,4 @@ public class LeaveTypeService {
         return leaveTypeRepository.findAll();
     }
 
-    public LeaveTypeDto convertToDto(LeaveType leaveType){
-
-        return new LeaveTypeDto(leaveType.getId(),
-                leaveType.getTypeName(),
-                leaveType.getDescription(),
-                leaveType.getIsActive());
-    }
-
-
-
 }

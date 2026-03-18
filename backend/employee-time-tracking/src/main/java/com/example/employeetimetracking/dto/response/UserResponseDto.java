@@ -18,6 +18,6 @@ public class UserResponseDto {
     private String firstName;
     private String lastName;
     private UserRole userRole;
-    private DepartmentDto department;
+    private Long departmentId;
     private Boolean isActive;
 }

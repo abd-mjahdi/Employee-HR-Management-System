@@ -3,7 +3,6 @@ package com.example.employeetimetracking.controller;
 import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
-import com.example.employeetimetracking.dto.response.UserDashboardDto;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
@@ -11,7 +10,6 @@ import com.example.employeetimetracking.service.DashboardService;
 import com.example.employeetimetracking.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -54,12 +52,11 @@ public class UserController {
         UserResponseDto userResponseDto = userService.getUserIfAllowed(id , authenticatedUser , authorities);
         return ResponseEntity.ok(userResponseDto);
     }
-
+    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDto> updateUser(@Valid @RequestBody UserRequestDto userRequestDto, @PathVariable Long id){
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        UserResponseDto updatedUserDto = userService.updateUserIfAllowed(id , userRequestDto, authenticatedUser , authorities);
+        UserResponseDto updatedUserDto = userService.updateUser(id , userRequestDto);
         return ResponseEntity.ok(updatedUserDto);
     }
 

@@ -127,20 +127,9 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponseDto updateUserIfAllowed(Long id , UserRequestDto userRequestDto, User authenticatedUser , Collection<? extends GrantedAuthority> authorities){
+    public UserResponseDto updateUser(Long id , UserRequestDto userRequestDto){
         User wantedUser = getById(id);
-        Long managerId = wantedUser.getManager()!=null ? wantedUser.getManager().getId() : null ;
-
-        boolean isHrAdmin = authorities.stream().anyMatch(authority->authority.getAuthority().equals("ROLE_HR_ADMIN"));
-        boolean isManager = Objects.equals(authenticatedUser.getId() , managerId);
-        boolean isSameUser = Objects.equals(authenticatedUser.getId(),id);
-        if(!isHrAdmin && !isManager && !isSameUser){
-            throw new AccessDeniedException("Not authorized to update this user");
-        }
-        if(isHrAdmin) updateAllFields(wantedUser, userRequestDto);
-        if(isManager) updateManagerAllowedFields(wantedUser, userRequestDto);
-        if(isSameUser) updateSelfAllowedFields(wantedUser, userRequestDto);
-
+        updateAllFields(wantedUser, userRequestDto);
         return getUserDetails(wantedUser);
 
     }
@@ -160,6 +149,8 @@ public class UserService {
 
     private void updateAllFields(User wantedUser, UserRequestDto dto) {
         validateNewUserData(dto);
+        User manager = getById(dto.getManagerId());
+        validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
 
         if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
         if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
@@ -168,20 +159,8 @@ public class UserService {
         if(dto.getUserRole() != null) wantedUser.setUserRole(dto.getUserRole());
         if(dto.getDepartmentId() != null) wantedUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
         if(dto.getManagerId() != null) {
-            User manager = getById(dto.getManagerId());
-            validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
             wantedUser.setManager(manager);
         }
-    }
-
-    private void updateManagerAllowedFields(User wantedUser, UserRequestDto dto) {
-        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
-        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
-    }
-
-    private void updateSelfAllowedFields(User wantedUser, UserRequestDto dto) {
-        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
-        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
     }
 
     @Transactional

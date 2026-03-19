@@ -2,6 +2,7 @@ package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
+import com.example.employeetimetracking.dto.request.UserUpdateDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.model.entities.User;
@@ -107,5 +108,13 @@ public class UserController {
         List<UserResponseDto> results = userService.searchUsers(departmentId, role, active, name);
         return ResponseEntity.ok(results);
     }
+    @PreAuthorize("hasAnyRole('ROLE_MANAGER' , 'ROLE_EMPLOYEE')")
+    @PatchMapping("/me/profile")
+    public ResponseEntity<Void> updateProfile(@RequestBody UserUpdateDto userUpdateDto){
+        String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        userService.updateProfile(email,userUpdateDto);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
 
 }

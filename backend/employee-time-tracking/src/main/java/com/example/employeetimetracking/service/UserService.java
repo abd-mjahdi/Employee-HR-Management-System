@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.service;
 import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.request.UserRequestDto;
+import com.example.employeetimetracking.dto.request.UserUpdateDto;
 import com.example.employeetimetracking.dto.response.*;
 import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.mapper.UserMapper;
@@ -232,6 +233,17 @@ public class UserService {
                 .and(UserSpecifications.isActive(active))
                 .and(UserSpecifications.hasName(name));
         return userRepository.findAll(spec).stream().map(userMapper::toDto).toList();
+    }
+
+    @Transactional
+    public void updateProfile(String email , UserUpdateDto userUpdateDto){
+        User user = getByEmail(email);
+        if(userUpdateDto.getFirstName()!=null){
+            user.setFirstName(userUpdateDto.getFirstName());
+        }
+        if(userUpdateDto.getLastName()!=null){
+            user.setLastName(userUpdateDto.getLastName());
+        }
     }
 
 

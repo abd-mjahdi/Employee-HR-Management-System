@@ -1,8 +1,6 @@
 package com.example.employeetimetracking.dto.request;
 
-import com.example.employeetimetracking.dto.response.DepartmentDto;
 import com.example.employeetimetracking.model.enums.UserRole;
-import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

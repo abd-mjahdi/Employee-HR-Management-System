@@ -30,12 +30,9 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
-    private final DashboardService dashboardService;
     @Autowired
-    public UserController(UserService userService ,
-                          DashboardService dashboardService){
+    public UserController(UserService userService){
         this.userService = userService;
-        this.dashboardService = dashboardService;
     }
 
 

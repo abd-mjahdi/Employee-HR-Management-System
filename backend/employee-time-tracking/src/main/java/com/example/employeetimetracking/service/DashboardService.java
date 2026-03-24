@@ -8,6 +8,7 @@ import com.example.employeetimetracking.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -42,45 +43,43 @@ public class DashboardService {
         return new UserDashboardDto(userResponseDto,leaveBalances,upcomingLeave,recentTimeEntries,stats);
     }
 
-    public DashboardStatsDto getDashboardStats(User user){
+    public DashboardStatsDto getDashboardStats(User user) {
         UserRole role = user.getUserRole();
         Long userId = user.getId();
 
-        if(role.equals(UserRole.EMPLOYEE)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    null ,
-                    null ,
-                    null ,
-                    null ,
-                    null);
-        }
-        if(role.equals(UserRole.MANAGER)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    timeEntryService.getPendingTimeApprovalsCount(userId),
-                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
-                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
-                    null,
-                    null);
-        }
-        if(role.equals(UserRole.HR_ADMIN)){
-            return new DashboardStatsDto(timeEntryService.getHoursThisWeek(userId),
-                    timeEntryService.getHoursThisMonth(userId) ,
-                    timeEntryService.getUserPendingCount(userId) ,
-                    leaveRequestService.getUserPendingCount(userId),
-                    timeEntryService.getPendingTimeApprovalsCount(userId),
-                    leaveRequestService.getPendingLeaveApprovalsCount(userId),
-                    leaveRequestService.getTeamMembersOnLeaveToday(userId),
-                    userRepository.countByIsActive(true),
-                    leaveRequestService.getPendingHrApprovalsCount());
-        }
-        throw new IllegalArgumentException("Unexpected or unsupported user role");
+        BigDecimal hoursWeek = timeEntryService.getHoursThisWeek(userId);
+        BigDecimal hoursMonth = timeEntryService.getHoursThisMonth(userId);
+        Integer userPendingTime = timeEntryService.getUserPendingCount(userId);
+        Integer userPendingLeave = leaveRequestService.getUserPendingCount(userId);
 
+        Integer pendingTimeApprovals = null;
+        Integer pendingLeaveApprovals = null;
+        Integer teamOnLeave = null;
+        Integer activeUsers = null;
+        Integer hrPending = null;
+
+        if (role == UserRole.MANAGER || role == UserRole.HR_ADMIN) {
+            pendingTimeApprovals = timeEntryService.getPendingTimeApprovalsCount(userId);
+            pendingLeaveApprovals = leaveRequestService.getPendingLeaveApprovalsCount(userId);
+            teamOnLeave = leaveRequestService.getTeamMembersOnLeaveToday(userId);
+        }
+
+        if (role == UserRole.HR_ADMIN) {
+            activeUsers = userRepository.countByIsActive(true);
+            hrPending = leaveRequestService.getPendingHrApprovalsCount();
+        }
+
+        return new DashboardStatsDto(
+                hoursWeek,
+                hoursMonth,
+                userPendingTime,
+                userPendingLeave,
+                pendingTimeApprovals,
+                pendingLeaveApprovals,
+                teamOnLeave,
+                activeUsers,
+                hrPending
+        );
     }
 
 

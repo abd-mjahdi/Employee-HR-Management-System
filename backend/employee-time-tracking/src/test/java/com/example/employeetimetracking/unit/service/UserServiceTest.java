@@ -1,4 +1,4 @@
-package com.example.employeetimetracking.service;
+package com.example.employeetimetracking.unit.service;
 
 import com.example.employeetimetracking.dto.request.CreateUserRequestDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
@@ -10,13 +10,15 @@ import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.service.DepartmentService;
+import com.example.employeetimetracking.service.LeaveBalanceService;
+import com.example.employeetimetracking.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
 

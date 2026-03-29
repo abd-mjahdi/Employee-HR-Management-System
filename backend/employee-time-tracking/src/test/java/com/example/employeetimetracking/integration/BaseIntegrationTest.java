@@ -15,6 +15,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
+
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
@@ -24,7 +26,7 @@ public class BaseIntegrationTest {
     protected MockMvc mockMvc;
 
     @Autowired
-    protected UserRepository userRespository;
+    protected UserRepository userRepository;
 
     @Autowired
     protected DepartmentRepository departmentRepository;
@@ -51,33 +53,34 @@ public class BaseIntegrationTest {
         department.setDepartmentCode("ENG");
         department.setDepartmentName("engineering");
         department.setIsActive(true);
+        department.setUpdatedAt(LocalDateTime.now());
         return departmentRepository.save(department);
     }
 
     protected User createHrAdmin(){
         User user =  new User();
         user.setUsername("admin1");
-        user.setEmail("admin1@gmail.com");
+        user.setEmail("admin1@test.com");
         user.setFirstName("admin1");
         user.setLastName("admin1");
         user.setUserRole(UserRole.HR_ADMIN);
         user.setIsActive(true);
         user.setDepartment(defaultDepartment);
-        user.setPasswordHash(encoder.encode("admin123"));
-        return userRespository.save(user);
+        user.setPasswordHash(encoder.encode("password"));
+        return userRepository.save(user);
     }
 
     protected User createEmployee(){
         User user =  new User();
         user.setUsername("emp1");
-        user.setEmail("emp1@gmail.com");
+        user.setEmail("emp1@test.com");
         user.setFirstName("emp1");
         user.setLastName("emp1");
         user.setUserRole(UserRole.EMPLOYEE);
         user.setIsActive(true);
         user.setDepartment(defaultDepartment);
-        user.setPasswordHash(encoder.encode("emp123"));
-        return userRespository.save(user);
+        user.setPasswordHash(encoder.encode("password"));
+        return userRepository.save(user);
     }
 
 }

@@ -33,6 +33,7 @@ public class EmployeeTimeTrackingApplication {
 
 	@Bean
 	CommandLineRunner myInitializer() {
+		System.out.println(encoder.encode("password"));
 		return args -> {
 			if(userRepository.count() == 0) {
 				Department defaultDepartment = new Department();
@@ -43,7 +44,7 @@ public class EmployeeTimeTrackingApplication {
 				User adminUser = new User();
 				adminUser.setUsername("adminadmin");
 				adminUser.setEmail("adminadmin@example.com");
-				adminUser.setPasswordHash(encoder.encode("admin123"));
+				adminUser.setPasswordHash(encoder.encode("password"));
 				adminUser.setFirstName("Admin");
 				adminUser.setLastName("User");
 				adminUser.setUserRole(UserRole.HR_ADMIN);

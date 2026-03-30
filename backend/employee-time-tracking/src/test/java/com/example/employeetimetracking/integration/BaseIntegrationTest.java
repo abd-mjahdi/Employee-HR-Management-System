@@ -53,7 +53,6 @@ public class BaseIntegrationTest {
         department.setDepartmentCode("ENG");
         department.setDepartmentName("engineering");
         department.setIsActive(true);
-        department.setUpdatedAt(LocalDateTime.now());
         return departmentRepository.save(department);
     }
 
@@ -64,6 +63,19 @@ public class BaseIntegrationTest {
         user.setFirstName("admin1");
         user.setLastName("admin1");
         user.setUserRole(UserRole.HR_ADMIN);
+        user.setIsActive(true);
+        user.setDepartment(defaultDepartment);
+        user.setPasswordHash(encoder.encode("password"));
+        return userRepository.save(user);
+    }
+
+    protected User createManager(){
+        User user =  new User();
+        user.setUsername("manager1");
+        user.setEmail("manager1@test.com");
+        user.setFirstName("manager1");
+        user.setLastName("manager1");
+        user.setUserRole(UserRole.MANAGER);
         user.setIsActive(true);
         user.setDepartment(defaultDepartment);
         user.setPasswordHash(encoder.encode("password"));

@@ -56,6 +56,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(LeavePolicyNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleLeavePolicyNotFoundException(LeavePolicyNotFoundException exception) {
+        ErrorResponseDto response = new ErrorResponseDto("Policy not found");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponseDto> handleAccessDenied(AccessDeniedException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

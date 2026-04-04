@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -50,6 +51,13 @@ public class LeaveBalanceService {
             balance.setLastAccrualDate(LocalDate.now());
             save(balance);
         }
+    }
+
+    public void applyMonthlyAccrual(LeaveBalance lb){
+        LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
+        BigDecimal accrualAmount = policy.getAnnualAllocation()
+                .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        lb.setCurrentBalance(lb.getCurrentBalance().add(accrualAmount));
     }
 
 }

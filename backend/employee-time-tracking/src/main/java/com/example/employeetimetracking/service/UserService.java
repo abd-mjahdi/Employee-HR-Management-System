@@ -142,7 +142,7 @@ public class UserService {
     }
 
     private void updateAllFields(User wantedUser, UserRequestDto dto) {
-        validateNewUserData(dto);
+        validateNewUserData(dto , wantedUser.getId());
         User manager = getById(dto.getManagerId());
         validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
 
@@ -214,11 +214,11 @@ public class UserService {
         }
     }
 
-    private void validateNewUserData(UserRequestDto requestDto){
-        if(userRepository.existsByEmail(requestDto.getEmail())){
+    private void validateNewUserData(UserRequestDto requestDto, Long userId){
+        if(userRepository.existsByEmailAndIdNot(requestDto.getEmail(), userId)){
             throw new EmailAlreadyRegisteredException("user already exists with that email");
         }
-        if(userRepository.existsByUsername(requestDto.getUsername())){
+        if(userRepository.existsByUsernameAndIdNot(requestDto.getUsername(), userId)){
             throw new UsernameAlreadyExists("username unavailable");
         }
     }

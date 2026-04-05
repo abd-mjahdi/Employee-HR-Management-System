@@ -143,8 +143,11 @@ public class UserService {
 
     private void updateAllFields(User wantedUser, UserRequestDto dto) {
         validateNewUserData(dto , wantedUser.getId());
-        User manager = getById(dto.getManagerId());
-        validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
+        if(dto.getManagerId() != null) {
+            User manager = getById(dto.getManagerId());
+            validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
+            wantedUser.setManager(manager);
+        }
 
         if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
         if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
@@ -152,9 +155,6 @@ public class UserService {
         if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
         if(dto.getUserRole() != null) wantedUser.setUserRole(dto.getUserRole());
         if(dto.getDepartmentId() != null) wantedUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
-        if(dto.getManagerId() != null) {
-            wantedUser.setManager(manager);
-        }
     }
 
     @Transactional

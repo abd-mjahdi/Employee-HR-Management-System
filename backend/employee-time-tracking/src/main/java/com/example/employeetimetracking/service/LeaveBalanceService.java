@@ -1,9 +1,8 @@
 package com.example.employeetimetracking.service;
 
-import com.example.employeetimetracking.model.entities.LeaveBalance;
-import com.example.employeetimetracking.model.entities.LeavePolicy;
-import com.example.employeetimetracking.model.entities.LeaveType;
-import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.exception.LeaveBalanceNotFoundException;
+import com.example.employeetimetracking.exception.NegativeLeaveBalanceException;
+import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +54,46 @@ public class LeaveBalanceService {
         BigDecimal accrualAmount = policy.getAnnualAllocation()
                 .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
         lb.setCurrentBalance(lb.getCurrentBalance().add(accrualAmount));
+    }
+
+    private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {
+        return leaveBalanceRepository
+                .findByUserIdAndLeaveTypeId(user.getId(), lr.getLeaveType().getId())
+                .orElseThrow(() -> new LeaveBalanceNotFoundException(
+                        "Leave balance not found for userId=" + user.getId() +
+                                " and leaveTypeId=" + lr.getLeaveType().getId()
+                ));
+    }
+
+    public void deductLeaveBalance(LeaveRequest lr ,User user){
+        LeaveBalance lb = getLeaveBalance(user, lr);
+        BigDecimal newBalance = lb.getCurrentBalance().subtract(lr.getTotalDays());
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0 &&
+                !lb.getLeaveType().getLeavePolicy().getAllowsNegativeBalance()) {
+            throw new NegativeLeaveBalanceException("Insufficient leave balance");
+        }
+
+        lb.setCurrentBalance(newBalance);
+
+    }
+
+    public void restoreLeaveBalance(LeaveRequest lr ,User user){
+        LeaveBalance lb = getLeaveBalance(user, lr);
+        lb.setCurrentBalance(lb.getCurrentBalance().add(lr.getTotalDays()));
+    }
+
+    public void setLeaveBalance(LeaveRequest lr ,User user ,BigDecimal value){
+        LeaveBalance lb = getLeaveBalance(user, lr);
+        LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
+
+        if (value.compareTo(BigDecimal.ZERO) < 0 && !policy.getAllowsNegativeBalance()) {
+            throw new NegativeLeaveBalanceException("Negative Balance is not allowed for this leave type");
+        }
+        if (value.compareTo(policy.getAnnualAllocation()) > 0) {
+            lb.setCurrentBalance(policy.getAnnualAllocation());
+            return;
+        }
+        lb.setCurrentBalance(value);
     }
 
 }

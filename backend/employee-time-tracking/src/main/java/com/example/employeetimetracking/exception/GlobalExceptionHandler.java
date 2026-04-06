@@ -43,22 +43,21 @@ public class GlobalExceptionHandler {
             InvalidUserRoleException.class,
             WeakPasswordException.class,
             InvalidEmployeeManagerException.class,
-            InvalidManagerSupervisorException.class
+            InvalidManagerSupervisorException.class,
+            NegativeLeaveBalanceException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleUserNotFound(UserNotFoundException exception) {
-        ErrorResponseDto response = new ErrorResponseDto("User not found");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    @ExceptionHandler(LeavePolicyNotFoundException.class)
-    public ResponseEntity<ErrorResponseDto> handleLeavePolicyNotFoundException(LeavePolicyNotFoundException exception) {
-        ErrorResponseDto response = new ErrorResponseDto("Policy not found");
+    @ExceptionHandler({
+            UserNotFoundException.class,
+            LeavePolicyNotFoundException.class,
+            LeaveBalanceNotFoundException.class
+    })
+    public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
+        ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 

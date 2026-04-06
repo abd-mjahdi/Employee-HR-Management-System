@@ -102,6 +102,7 @@ public class UserService {
         return userMapper.toDto(user);
     }
 
+    // throw AccessDeniedException anyway to prevent enumeration attacks
     public UserResponseDto getUserIfAllowed(Long id, User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
         try {
             User wantedUser = getById(id);

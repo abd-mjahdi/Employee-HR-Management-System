@@ -1,7 +1,9 @@
 package com.example.employeetimetracking.service;
 
+import com.example.employeetimetracking.dto.response.LeaveBalanceDto;
 import com.example.employeetimetracking.exception.LeaveBalanceNotFoundException;
 import com.example.employeetimetracking.exception.NegativeLeaveBalanceException;
+import com.example.employeetimetracking.mapper.LeaveBalanceMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
@@ -11,17 +13,22 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class LeaveBalanceService {
     private final LeaveBalanceRepository leaveBalanceRepository;
     private final LeaveTypeService leaveTypeService;
+    private final LeaveBalanceMapper leaveBalanceMapper;
     @Autowired
     public LeaveBalanceService(LeaveBalanceRepository leaveBalanceRepository,
-                               LeaveTypeService leaveTypeService){
+                               LeaveTypeService leaveTypeService,
+                               LeaveBalanceMapper leaveBalanceMapper
+                               ){
         this.leaveBalanceRepository = leaveBalanceRepository;
         this.leaveTypeService = leaveTypeService;
+        this.leaveBalanceMapper = leaveBalanceMapper;
     }
 
     public LeaveBalance save(LeaveBalance balance){
@@ -94,6 +101,11 @@ public class LeaveBalanceService {
             return;
         }
         lb.setCurrentBalance(value);
+    }
+
+    public List<LeaveBalanceDto> getByUserIdAndYear(Long userId ,int year){
+        List<LeaveBalance> leaveBalances = leaveBalanceRepository.findByUserIdAndYear(userId,year);
+        return leaveBalances.stream().map(leaveBalanceMapper::toDto).toList();
     }
 
 }

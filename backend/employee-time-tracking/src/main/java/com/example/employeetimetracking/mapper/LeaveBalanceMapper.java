@@ -10,6 +10,8 @@ public class LeaveBalanceMapper {
         return new LeaveBalanceDto(leaveBalance.getId() ,
                 leaveBalance.getUser().getId(),
                 leaveBalance.getLeaveType().getId(),
+                leaveBalance.getLeaveType().getTypeName(),
+                leaveBalance.getLastAccrualDate(),
                 leaveBalance.getYear(),
                 leaveBalance.getCurrentBalance());
     }

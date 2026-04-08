@@ -22,5 +22,4 @@ public class LeaveBalanceDto {
     private short year;
     private BigDecimal currentBalance;
 
-
 }

@@ -8,6 +8,7 @@ import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.UserSpecifications;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,17 +104,16 @@ public class UserService {
     }
 
     // throw AccessDeniedException anyway to prevent enumeration attacks
-    public UserResponseDto getUserIfAllowed(Long id, User authenticatedUser, Collection<? extends GrantedAuthority> authorities) {
+    public UserResponseDto getUserIfAllowed(Long id, CustomUserDetails authenticatedUser) {
         try {
-            User wantedUser = getById(id);
-
-            Long managerId = wantedUser.getManager() != null ? wantedUser.getManager().getId() : null;
-            boolean isHrAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR_ADMIN"));
+            User targetUser = getById(id);
+            Long managerId = targetUser.getManager() != null ? targetUser.getManager().getId() : null;
+            boolean isHrAdmin = authenticatedUser.hasRole("HR_ADMIN");
             boolean isManager = Objects.equals(authenticatedUser.getId(), managerId);
             boolean isSameUser = Objects.equals(authenticatedUser.getId(), id);
 
             if (isHrAdmin || isManager || isSameUser) {
-                return getUserDetails(wantedUser);
+                return getUserDetails(targetUser);
             }
 
             throw new AccessDeniedException("You cannot access this resource");
@@ -130,9 +130,9 @@ public class UserService {
 
     @Transactional
     public UserResponseDto updateUser(Long id , UserRequestDto userRequestDto){
-        User wantedUser = getById(id);
-        updateAllFields(wantedUser, userRequestDto);
-        return getUserDetails(wantedUser);
+        User targetUser = getById(id);
+        updateAllFields(targetUser, userRequestDto);
+        return getUserDetails(targetUser);
 
     }
 
@@ -142,20 +142,20 @@ public class UserService {
                 .toList();
     }
 
-    private void updateAllFields(User wantedUser, UserRequestDto dto) {
-        validateNewUserData(dto , wantedUser.getId());
+    private void updateAllFields(User targetUser, UserRequestDto dto) {
+        validateNewUserData(dto , targetUser.getId());
         if(dto.getManagerId() != null) {
             User manager = getById(dto.getManagerId());
-            validateManagerAssignment(wantedUser.getUserRole(),manager.getUserRole());
-            wantedUser.setManager(manager);
+            validateManagerAssignment(targetUser.getUserRole(),manager.getUserRole());
+            targetUser.setManager(manager);
         }
 
-        if(dto.getUsername() != null) wantedUser.setUsername(dto.getUsername());
-        if(dto.getEmail() != null) wantedUser.setEmail(dto.getEmail());
-        if(dto.getFirstName() != null) wantedUser.setFirstName(dto.getFirstName());
-        if(dto.getLastName() != null) wantedUser.setLastName(dto.getLastName());
-        if(dto.getUserRole() != null) wantedUser.setUserRole(dto.getUserRole());
-        if(dto.getDepartmentId() != null) wantedUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
+        if(dto.getUsername() != null) targetUser.setUsername(dto.getUsername());
+        if(dto.getEmail() != null) targetUser.setEmail(dto.getEmail());
+        if(dto.getFirstName() != null) targetUser.setFirstName(dto.getFirstName());
+        if(dto.getLastName() != null) targetUser.setLastName(dto.getLastName());
+        if(dto.getUserRole() != null) targetUser.setUserRole(dto.getUserRole());
+        if(dto.getDepartmentId() != null) targetUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
     }
 
     @Transactional

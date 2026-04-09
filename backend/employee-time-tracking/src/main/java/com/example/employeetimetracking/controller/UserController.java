@@ -7,6 +7,7 @@ import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
+import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.DashboardService;
 import com.example.employeetimetracking.service.UserService;
 import jakarta.validation.Valid;
@@ -18,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -36,21 +38,21 @@ public class UserController {
     }
 
 
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @GetMapping
     public ResponseEntity<Page<UserResponseDto>> getAllUsers(Pageable pageable) {
         Page<UserResponseDto> users = userService.getAll(pageable);
         return ResponseEntity.ok(users);
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER' , 'EMPLOYEE')")
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDto> getUser(@PathVariable @Min(1) Long id){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        Collection<? extends GrantedAuthority> authorities = SecurityContextHolder.getContext().getAuthentication().getAuthorities();
-        UserResponseDto userResponseDto = userService.getUserIfAllowed(id , authenticatedUser , authorities);
+    public ResponseEntity<UserResponseDto> getUser(@PathVariable @Min(1) Long id , @AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        UserResponseDto userResponseDto = userService.getUserIfAllowed(id , authenticatedUser);
         return ResponseEntity.ok(userResponseDto);
     }
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDto> updateUser(@Valid @RequestBody UserRequestDto userRequestDto, @PathVariable Long id){
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
@@ -65,7 +67,7 @@ public class UserController {
         return ResponseEntity.ok(userResponseDto);
     }
 
-    @PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_HR_ADMIN')")
+    @PreAuthorize("hasAnyRole('MANAGER', 'HR_ADMIN')")
     @GetMapping("/team")
     public ResponseEntity<List<UserResponseDto>> getTeamMembers(){
         User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
@@ -73,28 +75,28 @@ public class UserController {
         return ResponseEntity.ok(teamMemberList);
     }
 
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @PostMapping
     public ResponseEntity<UserCreatedResponse> createUser(@Valid @RequestBody CreateUserRequestDto requestDto){
         UserCreatedResponse response = userService.createUser(requestDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<Void> deactivateUser(@PathVariable Long id){
         userService.deactivateUserById(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @PatchMapping("/{id}/activate")
     public ResponseEntity<Void> activateUser(@PathVariable Long id){
         userService.activateUserById(id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PreAuthorize("hasRole('ROLE_HR_ADMIN')")
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<List<UserResponseDto>> searchUsers(
             @RequestParam(required = false) Long departmentId,
@@ -105,7 +107,7 @@ public class UserController {
         List<UserResponseDto> results = userService.searchUsers(departmentId, role, active, name);
         return ResponseEntity.ok(results);
     }
-    @PreAuthorize("hasAnyRole('ROLE_MANAGER' , 'ROLE_EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('MANAGER' , 'EMPLOYEE')")
     @PatchMapping("/me/profile")
     public ResponseEntity<Void> updateProfile(@RequestBody UserUpdateDto userUpdateDto){
         String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

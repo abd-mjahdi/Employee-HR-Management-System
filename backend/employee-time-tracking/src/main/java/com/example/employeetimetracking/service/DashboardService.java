@@ -1,7 +1,9 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.*;
+import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.mapper.LeaveBalanceMapper;
+import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
@@ -13,7 +15,7 @@ import java.util.List;
 
 @Service
 public class DashboardService {
-    private final UserService userService;
+    private final UserMapper userMapper;
     private final LeaveBalanceMapper leaveBalanceMapper;
     private final UserRepository userRepository;
     private final LeaveRequestService leaveRequestService;
@@ -23,16 +25,17 @@ public class DashboardService {
                        LeaveRequestService leaveRequestService,
                        TimeEntryService timeEntryService,
                        LeaveBalanceMapper leaveBalanceMapper,
-                       UserService userService){
+                       UserMapper userMapper){
         this.userRepository = userRepository;
         this.leaveRequestService = leaveRequestService;
         this.timeEntryService = timeEntryService;
         this.leaveBalanceMapper = leaveBalanceMapper;
-        this.userService = userService;
+        this.userMapper = userMapper;
     }
-    public UserDashboardDto getDashboardData(User authenticatedUser){
+    public UserDashboardDto getDashboardData(Long id){
+        User authenticatedUser = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User not found"));
 
-        UserResponseDto userResponseDto = userService.getUserDetails(authenticatedUser);
+        UserResponseDto userResponseDto = userMapper.toDto(authenticatedUser);
         List<LeaveBalanceDto> leaveBalances = authenticatedUser.getLeaveBalanceList().stream().map(leaveBalanceMapper::toDto).toList();
         List<LeaveRequestDto> upcomingLeave = leaveRequestService.getUpcomingLeave(authenticatedUser);
 

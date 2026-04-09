@@ -89,20 +89,6 @@ public class UserService {
         return userRepository.findByDepartmentIdAndIsActive(id,bool);
     }
 
-    public UserResponseDto getUserDetails(String email) {
-        User user = getByEmail(email);
-        return userMapper.toDto(user);
-    }
-
-    public UserResponseDto getUserDetails(Long id){
-        User user = getById(id);
-        return userMapper.toDto(user);
-    }
-
-    public UserResponseDto getUserDetails(User user){
-        return userMapper.toDto(user);
-    }
-
     // throw AccessDeniedException anyway to prevent enumeration attacks
     public UserResponseDto getUserIfAllowed(Long id, CustomUserDetails authenticatedUser) {
         try {
@@ -113,7 +99,7 @@ public class UserService {
             boolean isSameUser = Objects.equals(authenticatedUser.getId(), id);
 
             if (isHrAdmin || isManager || isSameUser) {
-                return getUserDetails(targetUser);
+                return userMapper.toDto(targetUser);
             }
 
             throw new AccessDeniedException("You cannot access this resource");
@@ -124,20 +110,22 @@ public class UserService {
     }
 
 
-    public UserResponseDto getUserIfAllowed(User authenticatedUser){
-        return getUserDetails(authenticatedUser);
+    public UserResponseDto getUserIfAllowed(Long id){
+        User authenticatedUser = getById(id);
+        return userMapper.toDto(authenticatedUser);
     }
 
     @Transactional
     public UserResponseDto updateUser(Long id , UserRequestDto userRequestDto){
         User targetUser = getById(id);
         updateAllFields(targetUser, userRequestDto);
-        return getUserDetails(targetUser);
+        return userMapper.toDto(targetUser);
 
     }
 
-    public List<UserResponseDto> getTeamMembers(User authenticatedUser) {
-        return authenticatedUser.getTeamMembers().stream()
+    public List<UserResponseDto> getTeamMembers(Long id) {
+        User user = getById(id);
+        return user.getTeamMembers().stream()
                 .map(userMapper::toDto)
                 .toList();
     }
@@ -237,8 +225,8 @@ public class UserService {
     }
 
     @Transactional
-    public void updateProfile(String email , UserUpdateDto userUpdateDto){
-        User user = getByEmail(email);
+    public void updateProfile(Long id , UserUpdateDto userUpdateDto){
+        User user = getById(id);
         if(userUpdateDto.getFirstName()!=null){
             user.setFirstName(userUpdateDto.getFirstName());
         }

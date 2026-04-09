@@ -55,23 +55,20 @@ public class UserController {
     @PreAuthorize("hasRole('HR_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDto> updateUser(@Valid @RequestBody UserRequestDto userRequestDto, @PathVariable Long id){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
         UserResponseDto updatedUserDto = userService.updateUser(id , userRequestDto);
         return ResponseEntity.ok(updatedUserDto);
     }
 
     @GetMapping("/me")
-    public ResponseEntity<UserResponseDto> getCurrentUser(){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        UserResponseDto userResponseDto = userService.getUserIfAllowed(authenticatedUser);
+    public ResponseEntity<UserResponseDto> getCurrentUser(@AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        UserResponseDto userResponseDto = userService.getUserIfAllowed(authenticatedUser.getId());
         return ResponseEntity.ok(userResponseDto);
     }
 
     @PreAuthorize("hasAnyRole('MANAGER', 'HR_ADMIN')")
     @GetMapping("/team")
-    public ResponseEntity<List<UserResponseDto>> getTeamMembers(){
-        User authenticatedUser = userService.getByEmail((String) SecurityContextHolder.getContext().getAuthentication().getPrincipal());
-        List<UserResponseDto> teamMemberList = userService.getTeamMembers(authenticatedUser);
+    public ResponseEntity<List<UserResponseDto>> getTeamMembers(@AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        List<UserResponseDto> teamMemberList = userService.getTeamMembers(authenticatedUser.getId());
         return ResponseEntity.ok(teamMemberList);
     }
 
@@ -107,11 +104,11 @@ public class UserController {
         List<UserResponseDto> results = userService.searchUsers(departmentId, role, active, name);
         return ResponseEntity.ok(results);
     }
+
     @PreAuthorize("hasAnyRole('MANAGER' , 'EMPLOYEE')")
     @PatchMapping("/me/profile")
-    public ResponseEntity<Void> updateProfile(@RequestBody UserUpdateDto userUpdateDto){
-        String email = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        userService.updateProfile(email,userUpdateDto);
+    public ResponseEntity<Void> updateProfile(@RequestBody UserUpdateDto userUpdateDto ,@AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        userService.updateProfile(authenticatedUser.getId(),userUpdateDto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

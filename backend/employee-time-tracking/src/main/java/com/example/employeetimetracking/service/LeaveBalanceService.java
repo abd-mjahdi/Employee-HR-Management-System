@@ -9,6 +9,7 @@ import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
@@ -118,19 +119,18 @@ public class LeaveBalanceService {
         return leaveBalances.stream().map(leaveBalanceMapper::toDto).toList();
     }
 
-    public List<LeaveBalanceDto> getLeaveBalanceIfAllowed(Long userId, User authUser, Collection<? extends GrantedAuthority> authorities) {
+    public List<LeaveBalanceDto> getLeaveBalanceIfAllowed(Long userId, CustomUserDetails authUser) {
         try {
             User target = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
 
             Long managerId = target.getManager() != null ? target.getManager().getId() : null;
 
-            boolean isHrAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_HR_ADMIN"));
+            boolean isHrAdmin = authUser.hasRole("HR_ADMIN");
             boolean isManager = Objects.equals(authUser.getId(), managerId);
 
             if (isHrAdmin || isManager)
                 return getByUserIdAndYear(userId, LocalDate.now().getYear());
-
             throw new AccessDeniedException("You cannot access this resource");
 
         } catch (UserNotFoundException | AccessDeniedException e) {

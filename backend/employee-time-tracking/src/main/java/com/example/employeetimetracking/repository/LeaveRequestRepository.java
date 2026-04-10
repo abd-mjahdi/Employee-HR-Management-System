@@ -30,6 +30,19 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     Integer countByManagerApprovalStatusAndHrApprovalStatus(Status managerApprovalStatus , Status hrAdminApprovalStatus);
 
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    WHERE lr.user.id = :userId
+    AND lr.status IN :statuses
+    AND :startDate <= lr.endDate
+    AND :endDate >= lr.startDate
+    """)
+    List<LeaveRequest> findOverlappingRequests(
+            Long userId,
+            List<Status> statuses,
+            LocalDate startDate,
+            LocalDate endDate
+    );
 
 
 

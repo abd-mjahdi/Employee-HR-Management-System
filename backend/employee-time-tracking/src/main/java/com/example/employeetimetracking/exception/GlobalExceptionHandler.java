@@ -44,7 +44,13 @@ public class GlobalExceptionHandler {
             WeakPasswordException.class,
             InvalidEmployeeManagerException.class,
             InvalidManagerSupervisorException.class,
-            NegativeLeaveBalanceException.class
+            NegativeLeaveBalanceException.class,
+            InvalidDateRangeException.class,
+            InsufficientNoticePeriodException.class,
+            OverlappingLeaveRequestException.class,
+            InactiveLeaveTypeException.class,
+            NullBalanceException.class,
+            InsufficientLeaveBalanceException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
@@ -54,7 +60,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             UserNotFoundException.class,
             LeavePolicyNotFoundException.class,
-            LeaveBalanceNotFoundException.class
+            LeaveBalanceNotFoundException.class,
+            LeaveTypeNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

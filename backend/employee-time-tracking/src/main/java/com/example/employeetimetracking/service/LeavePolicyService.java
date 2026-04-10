@@ -59,40 +59,7 @@ public class LeavePolicyService {
         return user.getIsActive();
     }
 
-    public boolean isRequestWithinPolicy(LeaveRequest request, User user) {
-        LeavePolicy policy = getPolicyByLeaveType(request.getLeaveType().getId());
 
-        // Check minimum notice period
-        long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), request.getStartDate());
-        if (daysUntilStart < policy.getMinNoticeDays()) {
-            return false;
-        }
-
-        // Check if user has enough balance
-        LeaveBalance balance = leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(
-                user.getId(),
-                request.getLeaveType().getId(),
-                request.getStartDate().getYear()
-        ).orElse(null);
-
-        if (balance == null) {
-            return false;
-        }
-
-        BigDecimal balanceAfterRequest = balance.getCurrentBalance().subtract(request.getTotalDays());
-
-        // Check if negative balance is allowed
-        if (balanceAfterRequest.compareTo(BigDecimal.ZERO) < 0 && !policy.getAllowsNegativeBalance()) {
-            return false;
-        }
-
-        // Check if request days don't exceed annual allocation
-        if (request.getTotalDays().compareTo(policy.getAnnualAllocation()) > 0) {
-            return false;
-        }
-
-        return true;
-    }
 
 
 }

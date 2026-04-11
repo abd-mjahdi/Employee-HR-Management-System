@@ -138,4 +138,9 @@ public class LeaveBalanceService {
         }
     }
 
+    public LeaveBalance getByUserIdAndLeaveTypeIdAndYear(Long userId, Long leaveTypeId ,int year){
+        return leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(userId, leaveTypeId, year)
+                .orElseThrow(()->new LeaveBalanceNotFoundException("Leave balance not found"));
+    }
+
 }

@@ -8,16 +8,14 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
 @Setter
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class LeaveRequestDto {
+public class LeaveRequestReviewDto {
     private Long id;
-    private Long userId;
-    private Long leaveTypeId;
-    private String LeaveTypeName;
+    private String employeeName;
+    private String leaveTypeName;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal totalDays;

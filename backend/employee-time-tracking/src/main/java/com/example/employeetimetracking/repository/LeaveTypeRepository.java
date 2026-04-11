@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface LeaveTypeRepository extends JpaRepository<LeaveType, Long> {
     Optional<LeaveType> findByTypeName(String typeName);
     List<LeaveType> findByIsActive(Boolean isActive);
+    Optional<LeaveType> findByIdAndIsActive(Long Id, Boolean isActive);
 }

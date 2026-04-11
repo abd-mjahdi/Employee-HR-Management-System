@@ -1,6 +1,8 @@
 package com.example.employeetimetracking.service;
 
+import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
+import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.*;
@@ -9,6 +11,8 @@ import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeavePolicyRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.repository.LeaveTypeRepository;
+import com.example.employeetimetracking.util.WorkingDaysCalculator;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,24 +21,36 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+import static java.util.List.of;
+
 @Service
 public class LeaveRequestService {
-    private final LeaveTypeRepository leaveTypeRepository;
+    private final LeaveTypeService leaveTypeService;
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveRequestMapper leaveRequestMapper;
-    private final LeavePolicyRepository leavePolicyRepository;
-    private final LeaveBalanceRepository leaveBalanceRepository;
+    private final LeavePolicyService leavePolicyService;
+    private final LeaveBalanceService leaveBalanceService;
+    private final UserService userService;
+    private final WorkingDaysCalculator workingDaysCalculator;
+
     @Autowired
-    public LeaveRequestService(LeaveRequestRepository leaveRequestRepository ,
-                               LeaveTypeRepository leaveTypeRepository,
+    public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
+                               LeaveTypeService leaveTypeService,
                                LeaveRequestMapper leaveRequestMapper,
-                               LeavePolicyRepository leavePolicyRepository,
-                               LeaveBalanceRepository leaveBalanceRepository){
+                               LeavePolicyService leavePolicyService,
+                               LeaveBalanceService leaveBalanceService,
+                               UserService userService,
+                               WorkingDaysCalculator workingDaysCalculator) {
         this.leaveRequestRepository = leaveRequestRepository;
+        this.leaveTypeService = leaveTypeService;
         this.leaveRequestMapper = leaveRequestMapper;
-        this.leavePolicyRepository = leavePolicyRepository;
-        this.leaveBalanceRepository = leaveBalanceRepository;
-        this.leaveTypeRepository = leaveTypeRepository;
+        this.leavePolicyService = leavePolicyService;
+        this.leaveBalanceService = leaveBalanceService;
+        this.userService = userService;
+        this.workingDaysCalculator = workingDaysCalculator;
+    }
+    public List<LeaveRequestDto> getByUserIdOrderByCreatedAtDesc(Long userId){
+        return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(leaveRequestMapper::toDto).toList();
     }
 
     // Self approved leave requests
@@ -63,53 +79,8 @@ public class LeaveRequestService {
         return leaveRequestRepository.countByManagerApprovalStatusAndHrApprovalStatus(Status.APPROVED , Status.PENDING);
     }
 
-    public boolean isRequestWithinPolicy(LeaveRequest request, User user) {
-        LeavePolicy policy = leavePolicyRepository.findByLeaveTypeId(request.getLeaveType().getId())
-                .orElseThrow(() -> new LeavePolicyNotFoundException("Policy not found for leave type"));
-
-        // Check minimum notice period
-        long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), request.getStartDate());
-        if (daysUntilStart < policy.getMinNoticeDays()) {
-            return false;
-        }
-
-        // Check if user has enough balance
-        LeaveBalance balance = leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(
-                user.getId(),
-                request.getLeaveType().getId(),
-                request.getStartDate().getYear()
-        ).orElse(null);
-
-        if (balance == null) {
-            return false;
-        }
-
-        BigDecimal balanceAfterRequest = balance.getCurrentBalance().subtract(request.getTotalDays());
-
-        // Check if negative balance is allowed
-        if (balanceAfterRequest.compareTo(BigDecimal.ZERO) < 0 && !policy.getAllowsNegativeBalance()) {
-            return false;
-        }
-
-        // Check if request days don't exceed annual allocation
-        if (request.getTotalDays().compareTo(policy.getAnnualAllocation()) > 0) {
-            return false;
-        }
-
-        return true;
-    }
-
-    public void validateLeaveRequest(LeaveRequest lr, User user){
-        LeaveType lt = leaveTypeRepository.findById(lr.getLeaveType().getId())
-                .orElseThrow(() -> new LeaveTypeNotFoundException("Leave type not found"));
-
-        if(!lt.getIsActive()){
-            throw new InactiveLeaveTypeException("Leave type is inactive");
-        }
-
-        LeavePolicy policy = leavePolicyRepository.findByLeaveTypeId(lt.getId())
-                .orElseThrow(() -> new LeavePolicyNotFoundException("Policy not found for leave type"));
-
+    public void validateLeaveRequest(LeaveRequest lr, LeavePolicy policy, LeaveBalance balance){
+        // leavetype and user are fine to access via getters because they are loaded by setters
         if(lr.getStartDate().isAfter(lr.getEndDate())){
             throw new InvalidDateRangeException("Start date cannot be after end date");
         }
@@ -119,16 +90,10 @@ public class LeaveRequestService {
             throw new InsufficientNoticePeriodException("Leave request does not meet minimum notice period requirement");
         }
 
-        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequests(user.getId(), List.of(Status.PENDING, Status.APPROVED), lr.getStartDate(), lr.getEndDate());
+        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequests(lr.getUser().getId(), List.of(Status.PENDING, Status.APPROVED), lr.getStartDate(), lr.getEndDate());
         if(!existingLeaveRequests.isEmpty()){
             throw new OverlappingLeaveRequestException("Leave request overlaps with an existing request");
         }
-
-        LeaveBalance balance = leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(
-                user.getId(),
-                lr.getLeaveType().getId(),
-                lr.getStartDate().getYear()
-        ).orElseThrow(()-> new NullBalanceException("Leave balance not initialized"));
 
         BigDecimal balanceAfterRequest = balance.getCurrentBalance().subtract(lr.getTotalDays());
 
@@ -136,10 +101,35 @@ public class LeaveRequestService {
         if (balanceAfterRequest.compareTo(BigDecimal.ZERO) < 0 && !policy.getAllowsNegativeBalance()) {
             throw new InsufficientLeaveBalanceException("Insufficient leave balance for this request");
         }
+    }
 
+    @Transactional
+    public LeaveRequestDto create(CreateLeaveRequestDto request ,Long id){
+        User user = userService.getById(id);
+        LeaveType leaveType = leaveTypeService.getById(request.getLeaveTypeId());
+        LeavePolicy policy = leavePolicyService.getPolicyByLeaveType(request.getLeaveTypeId());
+        LeaveBalance balance = leaveBalanceService.getByUserIdAndLeaveTypeIdAndYear(id,leaveType.getId(),LocalDate.now().getYear());
 
+        LeaveRequest lr = new LeaveRequest();
+        lr.setUser(user);
+        lr.setLeaveType(leaveType);
+        lr.setStartDate(request.getStartDate());
+        lr.setEndDate(request.getEndDate());
+        lr.setTotalDays(workingDaysCalculator.calculate(request.getStartDate(),request.getEndDate()));
+        lr.setReason(request.getReason());
+        lr.setStatus(Status.PENDING);
+        lr.setManagerApprovalStatus(Status.PENDING);
+        lr.setHrApprovalStatus(Status.PENDING);
 
+        validateLeaveRequest(lr,policy,balance);
 
+        return leaveRequestMapper.toDto(leaveRequestRepository.save(lr));
+
+    }
+
+    public List<LeaveRequestDto> getDirectReportPendingRequests(Long managerId){
+        return leaveRequestRepository.findByUserManagerIdAndStatus(managerId,Status.PENDING)
+                .stream().map(leaveRequestMapper::toDto).toList();
     }
 
 

@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.LeaveTypeDto;
+import com.example.employeetimetracking.exception.LeaveTypeNotFoundException;
 import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.mapper.LeaveTypeMapper;
 import com.example.employeetimetracking.model.entities.LeaveType;
@@ -24,6 +25,11 @@ public class LeaveTypeService {
     }
     public List<LeaveTypeDto> getAllActiveDto(){
         return leaveTypeRepository.findByIsActive(true).stream().map(leaveTypeMapper::toDto).toList();
+    }
+
+    public LeaveType getById(Long Id){
+        return leaveTypeRepository.findByIdAndIsActive(Id, true)
+                .orElseThrow(()-> new LeaveTypeNotFoundException("Leave type Not Found or Inactive"));
     }
 
 }

@@ -12,6 +12,7 @@ import java.util.List;
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
 
     List<LeaveRequest> findByUserId(Long userId);
+    List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<LeaveRequest> findByUserIdAndStatus(Long userId, Status status);
     List<LeaveRequest> findByStatus(Status status);
     List<LeaveRequest> findByManagerApprovedById(Long managerId);
@@ -43,6 +44,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             LocalDate startDate,
             LocalDate endDate
     );
+
+    List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
 
 
 

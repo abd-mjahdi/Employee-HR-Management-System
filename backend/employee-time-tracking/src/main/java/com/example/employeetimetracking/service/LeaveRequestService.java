@@ -11,9 +11,11 @@ import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeavePolicyRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.repository.LeaveTypeRepository;
+import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -127,9 +129,25 @@ public class LeaveRequestService {
 
     }
 
-    public List<LeaveRequestDto> getDirectReportPendingRequests(Long managerId){
+    public List<LeaveRequestReviewDto> getDirectReportPendingRequests(Long managerId){
         return leaveRequestRepository.findByUserManagerIdAndStatus(managerId,Status.PENDING)
-                .stream().map(leaveRequestMapper::toDto).toList();
+                .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
+    }
+
+    public List<LeaveRequestReviewDto> getTeamLeaveRequests(
+            Long managerId,
+            Status status,
+            LocalDate startDate,
+            LocalDate endDate
+    ){
+        Specification<LeaveRequest> spec = Specification
+                .where(LeaveRequestSpecifications.hasManagerId(managerId))
+                .and(LeaveRequestSpecifications.hasStatus(status))
+                .and(LeaveRequestSpecifications.afterDate(startDate))
+                .and(LeaveRequestSpecifications.beforeDate(endDate));
+
+        return leaveRequestRepository.findAll(spec)
+                .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
 

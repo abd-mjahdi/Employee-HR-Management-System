@@ -3,13 +3,14 @@ package com.example.employeetimetracking.repository;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
 
-public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> , JpaSpecificationExecutor<LeaveRequest> {
 
     List<LeaveRequest> findByUserId(Long userId);
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);

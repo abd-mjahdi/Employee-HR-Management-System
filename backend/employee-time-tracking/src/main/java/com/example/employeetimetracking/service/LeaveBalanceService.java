@@ -10,6 +10,7 @@ import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.GrantedAuthority;
@@ -66,7 +67,7 @@ public class LeaveBalanceService {
             save(balance);
         }
     }
-
+    @Transactional
     public void applyMonthlyAccrual(LeaveBalance lb){
         LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
         BigDecimal accrualAmount = policy.getAnnualAllocation()
@@ -83,6 +84,7 @@ public class LeaveBalanceService {
                 ));
     }
 
+    @Transactional
     public void deductLeaveBalance(LeaveRequest lr ,User user){
         LeaveBalance lb = getLeaveBalance(user, lr);
         BigDecimal newBalance = lb.getCurrentBalance().subtract(lr.getTotalDays());
@@ -94,12 +96,12 @@ public class LeaveBalanceService {
         lb.setCurrentBalance(newBalance);
 
     }
-
+    @Transactional
     public void restoreLeaveBalance(LeaveRequest lr ,User user){
         LeaveBalance lb = getLeaveBalance(user, lr);
         lb.setCurrentBalance(lb.getCurrentBalance().add(lr.getTotalDays()));
     }
-
+    @Transactional
     public void setLeaveBalance(LeaveRequest lr ,User user ,BigDecimal value){
         LeaveBalance lb = getLeaveBalance(user, lr);
         LeavePolicy policy = lb.getLeaveType().getLeavePolicy();

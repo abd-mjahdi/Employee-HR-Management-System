@@ -9,11 +9,13 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> , JpaSpecificationExecutor<LeaveRequest> {
 
     List<LeaveRequest> findByUserId(Long userId);
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
+    Optional<LeaveRequest> findByIdAndStatus(Long userId, boolean status);
     List<LeaveRequest> findByUserIdAndStatus(Long userId, Status status);
     List<LeaveRequest> findByStatus(Status status);
     List<LeaveRequest> findByManagerApprovedById(Long managerId);

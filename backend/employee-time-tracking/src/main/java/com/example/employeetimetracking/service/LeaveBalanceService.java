@@ -96,11 +96,13 @@ public class LeaveBalanceService {
         lb.setCurrentBalance(newBalance);
 
     }
+
     @Transactional
     public void restoreLeaveBalance(LeaveRequest lr ,User user){
         LeaveBalance lb = getLeaveBalance(user, lr);
         lb.setCurrentBalance(lb.getCurrentBalance().add(lr.getTotalDays()));
     }
+
     @Transactional
     public void setLeaveBalance(LeaveRequest lr ,User user ,BigDecimal value){
         LeaveBalance lb = getLeaveBalance(user, lr);

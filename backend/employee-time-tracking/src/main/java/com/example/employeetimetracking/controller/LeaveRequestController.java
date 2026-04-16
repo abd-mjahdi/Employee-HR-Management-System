@@ -6,6 +6,7 @@ import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import com.example.employeetimetracking.service.LeaveApprovalService;
 import com.example.employeetimetracking.service.LeaveRequestService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,9 +23,11 @@ import java.util.List;
 @RequestMapping("/leave-requests")
 public class LeaveRequestController {
     private final LeaveRequestService leaveRequestService;
+    private final LeaveApprovalService leaveApprovalService;
     @Autowired
-    public LeaveRequestController(LeaveRequestService leaveRequestService){
+    public LeaveRequestController(LeaveRequestService leaveRequestService, LeaveApprovalService leaveApprovalService){
         this.leaveRequestService = leaveRequestService;
+        this.leaveApprovalService = leaveApprovalService;
     }
 
     @PostMapping
@@ -63,6 +66,13 @@ public class LeaveRequestController {
                 );
 
         return ResponseEntity.ok(leaveRequests);
+    }
+
+    @PreAuthorize("hasRole('MANAGER')")
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Void> approve(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        leaveApprovalService.approve(id, authenticatedUser);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
 

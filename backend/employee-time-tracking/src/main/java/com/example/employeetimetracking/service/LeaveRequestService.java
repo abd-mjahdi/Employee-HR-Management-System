@@ -7,10 +7,7 @@ import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.Status;
-import com.example.employeetimetracking.repository.LeaveBalanceRepository;
-import com.example.employeetimetracking.repository.LeavePolicyRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
-import com.example.employeetimetracking.repository.LeaveTypeRepository;
 import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
@@ -20,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -53,6 +51,10 @@ public class LeaveRequestService {
     }
     public List<LeaveRequestDto> getByUserIdOrderByCreatedAtDesc(Long userId){
         return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(leaveRequestMapper::toDto).toList();
+    }
+
+    public LeaveRequest getById(Long id){
+        return leaveRequestRepository.findById(id).orElseThrow(()-> new LeaveRequestNotFoundException("Leave request not found with the id :"+id));
     }
 
     // Self approved leave requests
@@ -109,7 +111,7 @@ public class LeaveRequestService {
     public LeaveRequestDto create(CreateLeaveRequestDto request ,Long id){
         User user = userService.getById(id);
         LeaveType leaveType = leaveTypeService.getById(request.getLeaveTypeId());
-        LeavePolicy policy = leavePolicyService.getPolicyByLeaveType(request.getLeaveTypeId());
+        LeavePolicy policy = leavePolicyService.getPolicyByLeaveTypeId(request.getLeaveTypeId());
         LeaveBalance balance = leaveBalanceService.getByUserIdAndLeaveTypeIdAndYear(id,leaveType.getId(),LocalDate.now().getYear());
 
         LeaveRequest lr = new LeaveRequest();
@@ -150,5 +152,25 @@ public class LeaveRequestService {
                 .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
+    @Transactional
+    public void approveDirectly(LeaveRequest lr, Long approverId){
+        LocalDateTime now = LocalDateTime.now();
+        User approver = userService.getById(approverId);
+        lr.setManagerApprovalStatus(Status.APPROVED);
+        lr.setHrApprovalStatus(Status.APPROVED);
+        lr.setStatus(Status.APPROVED);
+        lr.setManagerApprovedBy(approver);
+        lr.setManagerApprovedAt(now);
+    }
+
+    @Transactional
+    public void approvePendingHr(LeaveRequest lr, Long approverId){
+        LocalDateTime now = LocalDateTime.now();
+        User approver = userService.getById(approverId);
+        lr.setManagerApprovalStatus(Status.APPROVED);
+        lr.setManagerApprovedBy(approver);
+        lr.setManagerApprovedAt(now);
+
+    }
 
 }

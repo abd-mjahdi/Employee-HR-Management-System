@@ -50,7 +50,8 @@ public class GlobalExceptionHandler {
             OverlappingLeaveRequestException.class,
             InactiveLeaveTypeException.class,
             NullBalanceException.class,
-            InsufficientLeaveBalanceException.class
+            InsufficientLeaveBalanceException.class,
+            LeaveApprovalException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
@@ -61,7 +62,8 @@ public class GlobalExceptionHandler {
             UserNotFoundException.class,
             LeavePolicyNotFoundException.class,
             LeaveBalanceNotFoundException.class,
-            LeaveTypeNotFoundException.class
+            LeaveTypeNotFoundException.class,
+            LeaveRequestNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

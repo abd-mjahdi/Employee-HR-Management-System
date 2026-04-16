@@ -22,13 +22,13 @@ public class LeavePolicyService {
         this.leavePolicyRepository = leavePolicyRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
     }
-    public LeavePolicy getPolicyByLeaveType(Long leaveTypeId) {
+    public LeavePolicy getPolicyByLeaveTypeId(Long leaveTypeId) {
         return leavePolicyRepository.findByLeaveTypeId(leaveTypeId)
                 .orElseThrow(() -> new LeavePolicyNotFoundException("Policy not found for leave type"));
     }
 
     public BigDecimal calculateAccruedBalance(User user, LeaveType leaveType, LocalDate asOfDate) {
-        LeavePolicy policy = getPolicyByLeaveType(leaveType.getId());
+        LeavePolicy policy = getPolicyByLeaveTypeId(leaveType.getId());
 
         if (policy.getAccrualMethod().equals(AccrualMethod.ANNUAL)) {
             // Annual: user gets full allocation at start of year

@@ -4,7 +4,6 @@ import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.model.enums.Status;
-import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.LeaveApprovalService;
 import com.example.employeetimetracking.service.LeaveRequestService;
@@ -67,13 +66,12 @@ public class LeaveRequestController {
 
         return ResponseEntity.ok(leaveRequests);
     }
-
+    // TODO: enable approver to submit notes
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails authenticatedUser){
         leaveApprovalService.approve(id, authenticatedUser);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
-
 
 }

@@ -23,5 +23,15 @@ public class NotificationService {
         if (leaveRequest == null || leaveRequest.getUser() == null) return;
         log.info("Leave request {} cancelled for user {}", leaveRequest.getId(), leaveRequest.getUser().getId());
     }
+
+    public void notifyCancellationRequested(LeaveRequest leaveRequest) {
+        if (leaveRequest == null || leaveRequest.getUser() == null) return;
+        log.info("Cancellation requested for leave request {} by user {}", leaveRequest.getId(), leaveRequest.getUser().getId());
+    }
+
+    public void notifyCancellationDenied(LeaveRequest leaveRequest) {
+        if (leaveRequest == null || leaveRequest.getUser() == null) return;
+        log.info("Cancellation denied for leave request {} of user {}", leaveRequest.getId(), leaveRequest.getUser().getId());
+    }
 }
 

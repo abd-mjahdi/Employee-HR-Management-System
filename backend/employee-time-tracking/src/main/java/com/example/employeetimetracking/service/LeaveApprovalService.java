@@ -176,7 +176,11 @@ public class LeaveApprovalService {
         }
 
         if (lr.getStatus() == Status.APPROVED) {
-            throw new LeaveApprovalException("Manager approval is required to cancel an approved leave request");
+            if (reason != null && !reason.isBlank()) {
+                lr.setManagerNotes(reason);
+            }
+            notificationService.notifyCancellationRequested(lr);
+            return;
         }
 
         throw new LeaveApprovalException("Leave request cannot be cancelled");
@@ -211,6 +215,29 @@ public class LeaveApprovalService {
         leaveRequestService.cancel(lr);
         leaveBalanceService.restoreLeaveBalance(lr, ownerOfRequest);
         notificationService.notifyLeaveCancelled(lr);
+    }
+
+    @Transactional
+    public void denyCancellation(Long lrId, CustomUserDetails authenticatedUser, String reason) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (ownerOfRequest.getManager() == null || ownerOfRequest.getManager().getId() == null) {
+            throw new LeaveApprovalException("Leave request owner has no manager assigned");
+        }
+
+        boolean isDirectReport = ownerOfRequest.getManager().getId().equals(authenticatedUser.getId());
+        if (!isDirectReport) {
+            throw new AccessDeniedException("You can't deny this cancellation request");
+        }
+        if (lr.getStatus() != Status.APPROVED) {
+            throw new LeaveApprovalException("Only approved leave requests can have cancellation denied");
+        }
+
+        lr.setManagerNotes(reason);
+        notificationService.notifyCancellationDenied(lr);
     }
 
 }

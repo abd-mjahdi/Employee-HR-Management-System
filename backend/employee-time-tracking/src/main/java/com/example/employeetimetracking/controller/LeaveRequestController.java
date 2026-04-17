@@ -69,6 +69,7 @@ public class LeaveRequestController {
 
         return ResponseEntity.ok(leaveRequests);
     }
+
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id,
@@ -119,6 +120,15 @@ public class LeaveRequestController {
                                                     @RequestBody(required = false) LeaveApprovalNotesDto request,
                                                     @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
         leaveApprovalService.approveCancellation(id, authenticatedUser, request != null ? request.getNotes() : null);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PreAuthorize("hasRole('MANAGER')")
+    @PostMapping("/{id}/cancel-deny")
+    public ResponseEntity<Void> denyCancellation(@PathVariable Long id,
+                                                 @Valid @RequestBody LeaveDenyRequestDto request,
+                                                 @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.denyCancellation(id, authenticatedUser, request.getReason());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

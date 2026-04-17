@@ -5,6 +5,7 @@ import com.example.employeetimetracking.model.entities.LeavePolicy;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +28,7 @@ public class LeaveApprovalService {
     }
 
     @Transactional
-    public void approve(Long lrId, CustomUserDetails authenticatedUser) {
+    public void approve(Long lrId, CustomUserDetails authenticatedUser, String approverNotes) {
         LeaveRequest lr = leaveRequestService.getById(lrId);
         User ownerOfRequest = lr.getUser();
         if (ownerOfRequest == null) {
@@ -55,10 +56,11 @@ public class LeaveApprovalService {
         }
 
         if (!policy.getRequiresHrApproval()) {
-            leaveRequestService.approveDirectly(lr, authenticatedUser.getId());
+            leaveRequestService.approveDirectly(lr, authenticatedUser.getId(), approverNotes);
             leaveBalanceService.deductLeaveBalance(lr, ownerOfRequest);
+            notificationService.notifyLeaveApproved(lr);
         } else {
-            leaveRequestService.approvePendingHr(lr, authenticatedUser.getId());
+            leaveRequestService.approvePendingHr(lr, authenticatedUser.getId(), approverNotes);
         }
     }
 
@@ -89,6 +91,67 @@ public class LeaveApprovalService {
         }
 
         leaveRequestService.deny(lr, authenticatedUser.getId(), denialReason);
+        notificationService.notifyLeaveDenied(lr);
+    }
+
+    @Transactional
+    public void hrApprove(Long lrId, CustomUserDetails authenticatedUser, String hrNotes) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+            throw new AccessDeniedException("You can't approve your own leave request");
+        }
+
+        LeavePolicy policy = lr.getLeaveType().getLeavePolicy();
+        if (lr.getStatus() != Status.PENDING || lr.getHrApprovalStatus() != Status.PENDING) {
+            throw new LeaveApprovalException("Leave request cannot be approved");
+        }
+
+        boolean ownerIsEmployee = ownerOfRequest.getUserRole() == UserRole.EMPLOYEE;
+        if (ownerIsEmployee) {
+            if (!policy.getRequiresHrApproval()) {
+                throw new LeaveApprovalException("Leave request does not require HR approval");
+            }
+            if (lr.getManagerApprovalStatus() != Status.APPROVED) {
+                throw new LeaveApprovalException("Leave request must be manager-approved first");
+            }
+        }
+
+        leaveRequestService.hrApprove(lr, authenticatedUser.getId(), hrNotes);
+        leaveBalanceService.deductLeaveBalance(lr, ownerOfRequest);
+        notificationService.notifyLeaveApproved(lr);
+    }
+
+    @Transactional
+    public void hrDeny(Long lrId, CustomUserDetails authenticatedUser, String denialReason) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (ownerOfRequest.getId() != null && ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+            throw new AccessDeniedException("You can't deny your own leave request");
+        }
+
+        LeavePolicy policy = lr.getLeaveType().getLeavePolicy();
+        if (lr.getStatus() != Status.PENDING || lr.getHrApprovalStatus() != Status.PENDING) {
+            throw new LeaveApprovalException("Leave request cannot be denied");
+        }
+
+        boolean ownerIsEmployee = ownerOfRequest.getUserRole() == UserRole.EMPLOYEE;
+        if (ownerIsEmployee) {
+            if (!policy.getRequiresHrApproval()) {
+                throw new LeaveApprovalException("Leave request does not require HR denial");
+            }
+            if (lr.getManagerApprovalStatus() != Status.APPROVED) {
+                throw new LeaveApprovalException("Leave request must be manager-reviewed first");
+            }
+        }
+
+        leaveRequestService.hrDeny(lr, authenticatedUser.getId(), denialReason);
         notificationService.notifyLeaveDenied(lr);
     }
 

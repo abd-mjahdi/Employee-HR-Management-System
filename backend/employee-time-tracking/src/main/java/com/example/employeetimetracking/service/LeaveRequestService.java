@@ -151,7 +151,7 @@ public class LeaveRequestService {
     }
 
     @Transactional
-    public void approveDirectly(LeaveRequest lr, Long approverId){
+    public void approveDirectly(LeaveRequest lr, Long approverId, String approverNotes){
         LocalDateTime now = LocalDateTime.now();
         User approver = userService.getById(approverId);
         lr.setManagerApprovalStatus(Status.APPROVED);
@@ -159,15 +159,17 @@ public class LeaveRequestService {
         lr.setStatus(Status.APPROVED);
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
+        lr.setManagerNotes(approverNotes);
     }
 
     @Transactional
-    public void approvePendingHr(LeaveRequest lr, Long approverId){
+    public void approvePendingHr(LeaveRequest lr, Long approverId, String approverNotes){
         LocalDateTime now = LocalDateTime.now();
         User approver = userService.getById(approverId);
         lr.setManagerApprovalStatus(Status.APPROVED);
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
+        lr.setManagerNotes(approverNotes);
 
     }
 
@@ -181,6 +183,34 @@ public class LeaveRequestService {
         lr.setManagerNotes(denialReason);
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
+    }
+
+    @Transactional
+    public void hrApprove(LeaveRequest lr, Long hrApproverId, String hrNotes) {
+        LocalDateTime now = LocalDateTime.now();
+        User approver = userService.getById(hrApproverId);
+        if (lr.getManagerApprovalStatus() == Status.PENDING) {
+            lr.setManagerApprovalStatus(Status.APPROVED);
+        }
+        lr.setHrApprovalStatus(Status.APPROVED);
+        lr.setHrApprovedBy(approver);
+        lr.setHrApprovedAt(now);
+        lr.setHrNotes(hrNotes);
+        lr.setStatus(Status.APPROVED);
+    }
+
+    @Transactional
+    public void hrDeny(LeaveRequest lr, Long hrApproverId, String denialReason) {
+        LocalDateTime now = LocalDateTime.now();
+        User approver = userService.getById(hrApproverId);
+        if (lr.getManagerApprovalStatus() == Status.PENDING) {
+            lr.setManagerApprovalStatus(Status.DENIED);
+        }
+        lr.setStatus(Status.DENIED);
+        lr.setHrApprovalStatus(Status.DENIED);
+        lr.setHrApprovedBy(approver);
+        lr.setHrApprovedAt(now);
+        lr.setHrNotes(denialReason);
     }
 
 }

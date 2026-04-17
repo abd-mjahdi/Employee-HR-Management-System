@@ -13,5 +13,10 @@ public class NotificationService {
         if (leaveRequest == null || leaveRequest.getUser() == null) return;
         log.info("Leave request {} denied for user {}", leaveRequest.getId(), leaveRequest.getUser().getId());
     }
+
+    public void notifyLeaveApproved(LeaveRequest leaveRequest) {
+        if (leaveRequest == null || leaveRequest.getUser() == null) return;
+        log.info("Leave request {} approved for user {}", leaveRequest.getId(), leaveRequest.getUser().getId());
+    }
 }
 

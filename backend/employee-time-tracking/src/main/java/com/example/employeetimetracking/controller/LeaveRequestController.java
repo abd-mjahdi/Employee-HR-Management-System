@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
+import com.example.employeetimetracking.dto.request.LeaveApprovalNotesDto;
 import com.example.employeetimetracking.dto.request.LeaveDenyRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
@@ -70,8 +71,10 @@ public class LeaveRequestController {
     // TODO: enable approver to submit notes
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
-    public ResponseEntity<Void> approve(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails authenticatedUser){
-        leaveApprovalService.approve(id, authenticatedUser);
+    public ResponseEntity<Void> approve(@PathVariable Long id,
+                                        @RequestBody(required = false) LeaveApprovalNotesDto request,
+                                        @AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        leaveApprovalService.approve(id, authenticatedUser, request != null ? request.getNotes() : null);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
@@ -81,6 +84,24 @@ public class LeaveRequestController {
                                      @Valid @RequestBody LeaveDenyRequestDto request,
                                      @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
         leaveApprovalService.deny(id, authenticatedUser, request.getReason());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @PostMapping("/{id}/hr-approve")
+    public ResponseEntity<Void> hrApprove(@PathVariable Long id,
+                                          @RequestBody(required = false) LeaveApprovalNotesDto request,
+                                          @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.hrApprove(id, authenticatedUser, request != null ? request.getNotes() : null);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @PostMapping("/{id}/hr-deny")
+    public ResponseEntity<Void> hrDeny(@PathVariable Long id,
+                                       @Valid @RequestBody LeaveDenyRequestDto request,
+                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.hrDeny(id, authenticatedUser, request.getReason());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

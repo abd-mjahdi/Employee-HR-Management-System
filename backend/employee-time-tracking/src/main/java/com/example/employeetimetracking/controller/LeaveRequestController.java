@@ -70,6 +70,13 @@ public class LeaveRequestController {
         return ResponseEntity.ok(leaveRequests);
     }
 
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @GetMapping("/hr/pending")
+    public ResponseEntity<List<LeaveRequestReviewDto>> getHrPendingRequests() {
+        List<LeaveRequestReviewDto> leaveRequests = leaveRequestService.getHrPendingRequests();
+        return ResponseEntity.ok(leaveRequests);
+    }
+
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id,

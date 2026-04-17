@@ -150,6 +150,18 @@ public class LeaveRequestService {
                 .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
+    public List<LeaveRequestReviewDto> getHrPendingRequests() {
+        return leaveRequestRepository
+                .findByStatusAndManagerApprovalStatusAndHrApprovalStatus(
+                        Status.PENDING,
+                        Status.APPROVED,
+                        Status.PENDING
+                )
+                .stream()
+                .map(leaveRequestMapper::toLeaveRequestReviewDto)
+                .toList();
+    }
+
     @Transactional
     public void approveDirectly(LeaveRequest lr, Long approverId, String approverNotes){
         LocalDateTime now = LocalDateTime.now();

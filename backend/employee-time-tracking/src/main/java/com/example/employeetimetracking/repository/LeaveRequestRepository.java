@@ -49,6 +49,11 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     );
 
     List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
+    List<LeaveRequest> findByStatusAndManagerApprovalStatusAndHrApprovalStatus(
+            Status status,
+            Status managerApprovalStatus,
+            Status hrApprovalStatus
+    );
 
 
 

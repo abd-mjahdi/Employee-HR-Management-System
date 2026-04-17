@@ -15,12 +15,15 @@ import org.springframework.stereotype.Service;
 public class LeaveApprovalService {
     private final LeaveRequestService leaveRequestService;
     private final LeaveBalanceService leaveBalanceService;
+    private final NotificationService notificationService;
 
     @Autowired
     public LeaveApprovalService(LeaveRequestService leaveRequestService,
-                                LeaveBalanceService leaveBalanceService) {
+                                LeaveBalanceService leaveBalanceService,
+                                NotificationService notificationService) {
         this.leaveRequestService = leaveRequestService;
         this.leaveBalanceService = leaveBalanceService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -57,6 +60,36 @@ public class LeaveApprovalService {
         } else {
             leaveRequestService.approvePendingHr(lr, authenticatedUser.getId());
         }
+    }
+
+    @Transactional
+    public void deny(Long lrId, CustomUserDetails authenticatedUser, String denialReason) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (ownerOfRequest.getId() != null && ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+            throw new AccessDeniedException("You can't deny your own leave request");
+        }
+        if (ownerOfRequest.getManager() == null || ownerOfRequest.getManager().getId() == null) {
+            throw new LeaveApprovalException("Leave request owner has no manager assigned");
+        }
+
+        boolean isDirectReport = ownerOfRequest.getManager().getId().equals(authenticatedUser.getId());
+        if (!isDirectReport) {
+            throw new AccessDeniedException("You can't deny this user");
+        }
+
+        if (lr.getStatus() != Status.PENDING) {
+            throw new LeaveApprovalException("Leave request cannot be denied");
+        }
+        if (lr.getManagerApprovalStatus() != Status.PENDING) {
+            throw new LeaveApprovalException("Leave request cannot be denied");
+        }
+
+        leaveRequestService.deny(lr, authenticatedUser.getId(), denialReason);
+        notificationService.notifyLeaveDenied(lr);
     }
 
 }

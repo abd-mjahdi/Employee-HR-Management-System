@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
+import com.example.employeetimetracking.dto.request.LeaveDenyRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.model.enums.Status;
@@ -71,6 +72,15 @@ public class LeaveRequestController {
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails authenticatedUser){
         leaveApprovalService.approve(id, authenticatedUser);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PreAuthorize("hasRole('MANAGER')")
+    @PostMapping("/{id}/deny")
+    public ResponseEntity<Void> deny(@PathVariable Long id,
+                                     @Valid @RequestBody LeaveDenyRequestDto request,
+                                     @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.deny(id, authenticatedUser, request.getReason());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

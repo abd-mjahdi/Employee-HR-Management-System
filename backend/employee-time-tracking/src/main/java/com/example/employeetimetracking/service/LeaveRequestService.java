@@ -21,8 +21,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import static java.util.List.of;
-
 @Service
 public class LeaveRequestService {
     private final LeaveTypeService leaveTypeService;
@@ -171,6 +169,18 @@ public class LeaveRequestService {
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
 
+    }
+
+    @Transactional
+    public void deny(LeaveRequest lr, Long approverId, String denialReason) {
+        LocalDateTime now = LocalDateTime.now();
+        User approver = userService.getById(approverId);
+        lr.setStatus(Status.DENIED);
+        lr.setManagerApprovalStatus(Status.DENIED);
+        lr.setHrApprovalStatus(Status.DENIED);
+        lr.setManagerNotes(denialReason);
+        lr.setManagerApprovedBy(approver);
+        lr.setManagerApprovedAt(now);
     }
 
 }

@@ -213,4 +213,11 @@ public class LeaveRequestService {
         lr.setHrNotes(denialReason);
     }
 
+    @Transactional
+    public void cancel(LeaveRequest lr) {
+        lr.setStatus(Status.CANCELLED);
+        lr.setManagerApprovalStatus(Status.CANCELLED);
+        lr.setHrApprovalStatus(Status.CANCELLED);
+    }
+
 }

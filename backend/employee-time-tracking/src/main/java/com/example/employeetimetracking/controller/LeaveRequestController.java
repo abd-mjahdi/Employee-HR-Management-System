@@ -2,6 +2,7 @@ package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
 import com.example.employeetimetracking.dto.request.LeaveApprovalNotesDto;
+import com.example.employeetimetracking.dto.request.LeaveCancelRequestDto;
 import com.example.employeetimetracking.dto.request.LeaveDenyRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
@@ -68,7 +69,6 @@ public class LeaveRequestController {
 
         return ResponseEntity.ok(leaveRequests);
     }
-    // TODO: enable approver to submit notes
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id,
@@ -102,6 +102,23 @@ public class LeaveRequestController {
                                        @Valid @RequestBody LeaveDenyRequestDto request,
                                        @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
         leaveApprovalService.hrDeny(id, authenticatedUser, request.getReason());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancel(@PathVariable Long id,
+                                       @RequestBody(required = false) LeaveCancelRequestDto request,
+                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.cancel(id, authenticatedUser, request != null ? request.getReason() : null);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PreAuthorize("hasRole('MANAGER')")
+    @PostMapping("/{id}/cancel-approve")
+    public ResponseEntity<Void> approveCancellation(@PathVariable Long id,
+                                                    @RequestBody(required = false) LeaveApprovalNotesDto request,
+                                                    @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        leaveApprovalService.approveCancellation(id, authenticatedUser, request != null ? request.getNotes() : null);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

@@ -155,5 +155,63 @@ public class LeaveApprovalService {
         notificationService.notifyLeaveDenied(lr);
     }
 
+    @Transactional
+    public void cancel(Long lrId, CustomUserDetails authenticatedUser, String reason) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null || ownerOfRequest.getId() == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (!ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+            throw new AccessDeniedException("You can't cancel this leave request");
+        }
+
+        if (lr.getStatus() == Status.PENDING) {
+            if (reason != null && !reason.isBlank()) {
+                lr.setManagerNotes(reason);
+            }
+            leaveRequestService.cancel(lr);
+            notificationService.notifyLeaveCancelled(lr);
+            return;
+        }
+
+        if (lr.getStatus() == Status.APPROVED) {
+            throw new LeaveApprovalException("Manager approval is required to cancel an approved leave request");
+        }
+
+        throw new LeaveApprovalException("Leave request cannot be cancelled");
+    }
+
+    @Transactional
+    public void approveCancellation(Long lrId, CustomUserDetails authenticatedUser, String notes) {
+        LeaveRequest lr = leaveRequestService.getById(lrId);
+        User ownerOfRequest = lr.getUser();
+        if (ownerOfRequest == null) {
+            throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (ownerOfRequest.getId() != null && ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+            throw new AccessDeniedException("You can't cancel your own leave request");
+        }
+        if (ownerOfRequest.getManager() == null || ownerOfRequest.getManager().getId() == null) {
+            throw new LeaveApprovalException("Leave request owner has no manager assigned");
+        }
+
+        boolean isDirectReport = ownerOfRequest.getManager().getId().equals(authenticatedUser.getId());
+        if (!isDirectReport) {
+            throw new AccessDeniedException("You can't cancel this user's leave request");
+        }
+
+        if (lr.getStatus() != Status.APPROVED) {
+            throw new LeaveApprovalException("Only approved leave requests require cancellation approval");
+        }
+
+        if (notes != null && !notes.isBlank()) {
+            lr.setManagerNotes(notes);
+        }
+        leaveRequestService.cancel(lr);
+        leaveBalanceService.restoreLeaveBalance(lr, ownerOfRequest);
+        notificationService.notifyLeaveCancelled(lr);
+    }
+
 }
 

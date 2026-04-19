@@ -1,6 +1,8 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
+import com.example.employeetimetracking.dto.response.CalendarDayDto;
+import com.example.employeetimetracking.dto.response.CalendarEmployeeDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.exception.*;
@@ -19,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -230,6 +233,29 @@ public class LeaveRequestService {
         lr.setStatus(Status.CANCELLED);
         lr.setManagerApprovalStatus(Status.CANCELLED);
         lr.setHrApprovalStatus(Status.CANCELLED);
+    }
+
+    public List<CalendarDayDto> getCalendarView(Long managerId, LocalDate startDate, LocalDate endDate){
+        List<LeaveRequest> leaveRequests = leaveRequestRepository
+                .findByStatusAndDateRangeOverlap(managerId, Status.APPROVED, startDate, endDate);
+        LocalDate current = startDate;
+        List<CalendarDayDto> calendarDays=new ArrayList<>();
+        while(!current.isAfter(endDate)){
+            CalendarDayDto day = new CalendarDayDto();
+            day.setDate(current);
+            LocalDate finalCurrent = current;
+            List<CalendarEmployeeDto> employeesOnLeaveThatDay = leaveRequests.stream()
+                    .filter(lr->!finalCurrent.isBefore(lr.getStartDate()) && !finalCurrent.isAfter(lr.getEndDate()))
+                    .map(lr->new CalendarEmployeeDto(lr.getUser().getId(), lr.getUser().getFirstName()+" "+lr.getUser().getLastName(), lr.getLeaveType().getTypeName()))
+                    .toList();
+            day.setEmployees(employeesOnLeaveThatDay);
+            if (!employeesOnLeaveThatDay.isEmpty()) {
+                calendarDays.add(day);
+            }
+            current=current.plusDays(1);
+        }
+        return calendarDays;
+
     }
 
 }

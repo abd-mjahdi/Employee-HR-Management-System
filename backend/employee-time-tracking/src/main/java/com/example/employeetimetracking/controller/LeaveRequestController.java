@@ -4,6 +4,7 @@ import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
 import com.example.employeetimetracking.dto.request.LeaveApprovalNotesDto;
 import com.example.employeetimetracking.dto.request.LeaveCancelRequestDto;
 import com.example.employeetimetracking.dto.request.LeaveDenyRequestDto;
+import com.example.employeetimetracking.dto.response.CalendarDayDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.model.enums.Status;
@@ -68,6 +69,16 @@ public class LeaveRequestController {
                 );
 
         return ResponseEntity.ok(leaveRequests);
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/calendar")
+    public ResponseEntity<List<CalendarDayDto>> getCalendar(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate,
+            @AuthenticationPrincipal CustomUserDetails authenticatedUser
+            ) {
+        return ResponseEntity.ok(leaveRequestService.getCalendarView(authenticatedUser.getId(), startDate, endDate));
     }
 
     @PreAuthorize("hasRole('HR_ADMIN')")

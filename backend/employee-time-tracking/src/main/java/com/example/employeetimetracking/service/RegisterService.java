@@ -9,6 +9,7 @@ import com.example.employeetimetracking.exception.WeakPasswordException;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,15 +19,19 @@ public class RegisterService {
     private final DepartmentService departmentService;
     private final BCryptPasswordEncoder encoder;
     private final UserService userService;
-
+    private final LeaveBalanceService leaveBalanceService;
     @Autowired
     public RegisterService(UserService userService,
                            BCryptPasswordEncoder encoder,
-                           DepartmentService departmentService) {
+                           DepartmentService departmentService,
+                           LeaveBalanceService leaveBalanceService) {
         this.userService = userService;
         this.encoder = encoder;
         this.departmentService = departmentService;
+        this.leaveBalanceService = leaveBalanceService;
     }
+
+    @Transactional
     public RegisterResponseDto register(RegisterRequestDto requestDto) {
         String email = requestDto.getEmail();
 
@@ -60,7 +65,8 @@ public class RegisterService {
         user.setDepartment(dep);
         user.setUserRole(userRole);
 
-        userService.save(user);
+        leaveBalanceService.initializeLeaveBalances(userService.save(user));
+
 
         return new RegisterResponseDto(email, userRole);
     }

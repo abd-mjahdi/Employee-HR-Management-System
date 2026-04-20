@@ -1,4 +1,4 @@
-package com.example.employeetimetracking.scheduler;
+package com.example.employeetimetracking.jobs;
 
 import com.example.employeetimetracking.model.entities.LeaveBalance;
 import com.example.employeetimetracking.model.entities.LeavePolicy;

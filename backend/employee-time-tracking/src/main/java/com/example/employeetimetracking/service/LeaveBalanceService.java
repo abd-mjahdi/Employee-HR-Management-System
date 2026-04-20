@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -68,11 +69,25 @@ public class LeaveBalanceService {
         }
     }
     @Transactional
-    public void applyMonthlyAccrual(LeaveBalance lb){
+    public void applyMonthlyAccrual(LeaveBalance lb) {
         LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
-        BigDecimal accrualAmount = policy.getAnnualAllocation()
+
+        LocalDate lastAccrual = lb.getLastAccrualDate();
+        LocalDate today = LocalDate.now();
+
+        // prorate based on days since last accrual
+        long daysSinceLastAccrual = ChronoUnit.DAYS.between(lastAccrual, today);
+        BigDecimal monthlyRate = policy.getAnnualAllocation()
                 .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        lb.setCurrentBalance(lb.getCurrentBalance().add(accrualAmount));
+        BigDecimal proratedAmount = monthlyRate
+                .multiply(BigDecimal.valueOf(daysSinceLastAccrual))
+                .divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP);
+
+        BigDecimal newBalance = lb.getCurrentBalance().add(proratedAmount);
+
+
+        lb.setCurrentBalance(newBalance);
+        lb.setLastAccrualDate(today);
     }
 
     private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {

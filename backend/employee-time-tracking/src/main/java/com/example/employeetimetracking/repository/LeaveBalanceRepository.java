@@ -10,9 +10,9 @@ import java.util.Optional;
 public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long> {
     List<LeaveBalance> findByUserId(Long userId);
     List<LeaveBalance> findByUserIdAndYear(Long userId, int year);
+    List<LeaveBalance> findByYear(int year);
     Optional<LeaveBalance> findByUserIdAndLeaveTypeIdAndYear(Long userId, Long leaveTypeId, int year);
     List<LeaveBalance> findByLeaveTypeId(Long leaveTypeId);
-    Optional<LeaveBalance> findByUserIdAndLeaveTypeId(Long userId , Long leaveTypeId);
     @Query("""
     SELECT DISTINCT lb
     FROM LeaveBalance lb

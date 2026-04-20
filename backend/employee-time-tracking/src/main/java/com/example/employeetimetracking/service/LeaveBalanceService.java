@@ -13,16 +13,11 @@ import com.example.employeetimetracking.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -72,58 +67,74 @@ public class LeaveBalanceService {
     @Transactional
     public void applyMonthlyAccrual(LeaveBalance lb) {
         LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
-
-        LocalDate lastAccrual = lb.getLastAccrualDate();
         LocalDate today = LocalDate.now();
+        if (lb.getYear() != today.getYear()) {
+            return;
+        }
+        if (lb.getLastAccrualDate() != null) {
+            LocalDate thisMonthStart = today.withDayOfMonth(1);
+            if (!lb.getLastAccrualDate().isBefore(thisMonthStart)) {
+                return;
+            }
+        }
 
-        // prorate based on days since last accrual
-        long daysSinceLastAccrual = ChronoUnit.DAYS.between(lastAccrual, today);
         BigDecimal monthlyRate = policy.getAnnualAllocation()
                 .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-        BigDecimal proratedAmount = monthlyRate
-                .multiply(BigDecimal.valueOf(daysSinceLastAccrual))
-                .divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP);
 
-        BigDecimal newBalance = lb.getCurrentBalance().add(proratedAmount);
-
-
-        lb.setCurrentBalance(newBalance);
+        lb.setCurrentBalance(lb.getCurrentBalance().add(monthlyRate));
         lb.setLastAccrualDate(today);
     }
 
     @Transactional
-    public void applyAnnualAccrual(LeaveBalance lb) {
-        LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
+    public void rolloverBalance(LeaveBalance currentYearBalance) {
+        int currentYear = LocalDate.now().getYear();
+        if (currentYearBalance.getYear() != currentYear) {
+            return;
+        }
 
-        LocalDate lastAccrual = lb.getLastAccrualDate();
-        LocalDate today = LocalDate.now();
+        int nextYear = currentYear + 1;
+        boolean nextYearExists = leaveBalanceRepository
+                .findByUserIdAndLeaveTypeIdAndYear(
+                        currentYearBalance.getUser().getId(),
+                        currentYearBalance.getLeaveType().getId(),
+                        nextYear
+                )
+                .isPresent();
+        if (nextYearExists) {
+            return;
+        }
 
-        long daysSinceLastAccrual = ChronoUnit.DAYS.between(lastAccrual, today);
-        BigDecimal annualRate = policy.getAnnualAllocation();
+        LeavePolicy policy = currentYearBalance.getLeaveType().getLeavePolicy();
+        BigDecimal carry = currentYearBalance.getCurrentBalance();
+        if (policy.getMaxRolloverDays() != null) {
+            carry = carry.min(policy.getMaxRolloverDays());
+        }
+        if (carry.compareTo(BigDecimal.ZERO) < 0) {
+            carry = BigDecimal.ZERO;
+        }
 
-        // prorate based on days since last accrual out of 365
-        BigDecimal proratedAmount = annualRate
-                .multiply(BigDecimal.valueOf(daysSinceLastAccrual))
-                .divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP);
+        BigDecimal nextYearBalanceValue = carry;
+        if (policy.getAccrualMethod() == AccrualMethod.ANNUAL) {
+            nextYearBalanceValue = nextYearBalanceValue.add(policy.getAnnualAllocation());
+        }
 
-        BigDecimal newBalance = lb.getCurrentBalance().add(proratedAmount);
-
-        lb.setCurrentBalance(newBalance);
-        lb.setLastAccrualDate(today);
-    }
-
-    @Transactional
-    public void rolloverBalance(LeaveBalance lb){
-        LeavePolicy lp = lb.getLeaveType().getLeavePolicy();
-        lb.setCurrentBalance(lb.getCurrentBalance().min(lp.getMaxRolloverDays()));
+        LeaveBalance nextYearBalance = new LeaveBalance();
+        nextYearBalance.setUser(currentYearBalance.getUser());
+        nextYearBalance.setLeaveType(currentYearBalance.getLeaveType());
+        nextYearBalance.setYear((short) nextYear);
+        nextYearBalance.setCurrentBalance(nextYearBalanceValue);
+        nextYearBalance.setLastAccrualDate(LocalDate.of(nextYear, 1, 1));
+        save(nextYearBalance);
     }
 
     private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {
+        int currentYear = LocalDate.now().getYear();
         return leaveBalanceRepository
-                .findByUserIdAndLeaveTypeId(user.getId(), lr.getLeaveType().getId())
+                .findByUserIdAndLeaveTypeIdAndYear(user.getId(), lr.getLeaveType().getId(), currentYear)
                 .orElseThrow(() -> new LeaveBalanceNotFoundException(
                         "Leave balance not found for userId=" + user.getId() +
-                                " and leaveTypeId=" + lr.getLeaveType().getId()
+                                ", leaveTypeId=" + lr.getLeaveType().getId() +
+                                ", year=" + currentYear
                 ));
     }
 

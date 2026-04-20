@@ -48,8 +48,9 @@ public class LeaveBalanceService {
         return leaveBalanceRepository.save(balance);
     }
 
+    @Transactional
     public void initializeLeaveBalances(User user){
-        List<LeaveType> leaveTypes = leaveTypeService.getAll();
+        List<LeaveType> leaveTypes = leaveTypeService.getAllWithPolicy();
 
         for(LeaveType leaveType : leaveTypes){
             LeavePolicy policy = leaveType.getLeavePolicy();
@@ -88,6 +89,33 @@ public class LeaveBalanceService {
 
         lb.setCurrentBalance(newBalance);
         lb.setLastAccrualDate(today);
+    }
+
+    @Transactional
+    public void applyAnnualAccrual(LeaveBalance lb) {
+        LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
+
+        LocalDate lastAccrual = lb.getLastAccrualDate();
+        LocalDate today = LocalDate.now();
+
+        long daysSinceLastAccrual = ChronoUnit.DAYS.between(lastAccrual, today);
+        BigDecimal annualRate = policy.getAnnualAllocation();
+
+        // prorate based on days since last accrual out of 365
+        BigDecimal proratedAmount = annualRate
+                .multiply(BigDecimal.valueOf(daysSinceLastAccrual))
+                .divide(BigDecimal.valueOf(365), 2, RoundingMode.HALF_UP);
+
+        BigDecimal newBalance = lb.getCurrentBalance().add(proratedAmount);
+
+        lb.setCurrentBalance(newBalance);
+        lb.setLastAccrualDate(today);
+    }
+
+    @Transactional
+    public void rolloverBalance(LeaveBalance lb){
+        LeavePolicy lp = lb.getLeaveType().getLeavePolicy();
+        lb.setCurrentBalance(lb.getCurrentBalance().min(lp.getMaxRolloverDays()));
     }
 
     private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {

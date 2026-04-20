@@ -32,4 +32,8 @@ public class LeaveTypeService {
                 .orElseThrow(()-> new LeaveTypeNotFoundException("Leave type Not Found or Inactive"));
     }
 
+    public List<LeaveType> getAllWithPolicy(){
+        return leaveTypeRepository.findAllWithPolicy();
+    }
+
 }

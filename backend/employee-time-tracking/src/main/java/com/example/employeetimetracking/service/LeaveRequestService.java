@@ -90,6 +90,12 @@ public class LeaveRequestService {
             throw new InvalidDateRangeException("Start date cannot be after end date");
         }
 
+        if (lr.getStartDate().getYear() != lr.getEndDate().getYear()) {
+            throw new InvalidLeaveRequestException(
+                    "Leave requests cannot span across years. Please submit two separate requests."
+            );
+        }
+
         long daysUntilStart = ChronoUnit.DAYS.between(LocalDate.now(), lr.getStartDate());
         if (daysUntilStart < policy.getMinNoticeDays()) {
             throw new InsufficientNoticePeriodException("Leave request does not meet minimum notice period requirement");

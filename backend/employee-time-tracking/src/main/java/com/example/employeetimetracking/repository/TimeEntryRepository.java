@@ -5,11 +5,13 @@ import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.sql.Time;
 import java.time.LocalDate;
 import java.util.List;
 
-public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
+public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, JpaSpecificationExecutor<TimeEntry> {
 
     List<TimeEntry> findByUserId(Long userId);
     List<TimeEntry> findByUserIdAndStatus(Long userId, Status status);

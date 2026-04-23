@@ -9,10 +9,12 @@ import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
+import com.example.employeetimetracking.specification.TimeEntrySpecification;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -149,6 +151,14 @@ public class TimeEntryService {
         TimeEntry te = createTimeEntryEntity(request, user,project);
         validateTimeEntry(te);
         return timeEntryMapper.toDto(timeEntryRepository.save(te));
+    }
+
+    public List<TimeEntryDto> getByUserId(Long userId, Status status, LocalDate startDate, LocalDate endDate){
+        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatus(status)
+                .and(TimeEntrySpecification.hasUserId(userId))
+                .and(TimeEntrySpecification.afterDate(startDate))
+                .and(TimeEntrySpecification.beforeDate(endDate)));
+        return timeEntryRepository.findAll(spec).stream().map(timeEntryMapper::toDto).toList();
     }
 
 

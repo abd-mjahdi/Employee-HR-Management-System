@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,6 +40,16 @@ public class TimeEntryController {
                 status,
                 startDate,
                 endDate);
+        return ResponseEntity.ok(response);
+    }
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/team")
+    public ResponseEntity<List<TimeEntryDto>> getTeamEntries(@RequestParam(required = false) Status status,
+                                                             @RequestParam(required = false) LocalDate startDate,
+                                                             @RequestParam(required = false) LocalDate endDate,
+                                                             @RequestParam(required = false) String name,
+                                                             @AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        List<TimeEntryDto> response = timeEntryService.getTeamEntries(authenticatedUser.getId(), status, startDate, endDate, name);
         return ResponseEntity.ok(response);
     }
 

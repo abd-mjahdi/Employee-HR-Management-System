@@ -162,6 +162,15 @@ public class TimeEntryService {
         return timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate")).stream().map(timeEntryMapper::toDto).toList();
     }
 
+    public List<TimeEntryDto> getTeamEntries(Long managerId, Status status, LocalDate startDate, LocalDate endDate, String name){
+        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatus(status)
+                .and(TimeEntrySpecification.hasManagerId(managerId))
+                .and(TimeEntrySpecification.afterDate(startDate))
+                .and(TimeEntrySpecification.beforeDate(endDate))
+                .and(TimeEntrySpecification.hasName(name)));
+        return timeEntryRepository.findAll(spec).stream().map(timeEntryMapper::toDto).toList();
+    }
+
 
 
 

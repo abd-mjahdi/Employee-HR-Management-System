@@ -14,6 +14,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -158,7 +159,7 @@ public class TimeEntryService {
                 .and(TimeEntrySpecification.hasUserId(userId))
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate)));
-        return timeEntryRepository.findAll(spec).stream().map(timeEntryMapper::toDto).toList();
+        return timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate")).stream().map(timeEntryMapper::toDto).toList();
     }
 
 

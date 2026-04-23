@@ -1,12 +1,10 @@
 package com.example.employeetimetracking.specification;
 
 
-import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.jpa.domain.Specification;
 
-import java.sql.Time;
 import java.time.LocalDate;
 
 public class TimeEntrySpecification {

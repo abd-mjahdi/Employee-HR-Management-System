@@ -14,6 +14,7 @@ import com.example.employeetimetracking.specification.LeaveRequestSpecifications
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -262,6 +263,10 @@ public class LeaveRequestService {
         }
         return calendarDays;
 
+    }
+
+    public boolean hasActiveLeaveRequestOnDate(User user, LocalDate entryDate, List<Status> statuses){
+        return leaveRequestRepository.countInRangeAndStatusForUser(user,entryDate,statuses)!=0;
     }
 
 }

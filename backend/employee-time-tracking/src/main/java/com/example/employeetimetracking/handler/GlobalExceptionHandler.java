@@ -53,7 +53,9 @@ public class GlobalExceptionHandler {
             NullBalanceException.class,
             InsufficientLeaveBalanceException.class,
             LeaveApprovalException.class,
-            InvalidLeaveRequestException.class
+            InvalidLeaveRequestException.class,
+            ProjectNotFoundException.class,
+            InvalidTimeEntryException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

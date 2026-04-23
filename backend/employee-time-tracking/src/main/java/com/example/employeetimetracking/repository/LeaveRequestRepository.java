@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.repository;
 
 import com.example.employeetimetracking.model.entities.LeaveRequest;
+import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -68,6 +69,16 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             Status hrApprovalStatus
     );
 
+    @Query("""
+    SELECT COUNT(lr)
+    FROM LeaveRequest lr
+    WHERE lr.user = :user
+    AND lr.status IN :statuses
+    AND :entryDate BETWEEN lr.startDate AND lr.endDate
+    """)
+    long countInRangeAndStatusForUser(@Param("user") User user,
+                                      @Param("entryDate") LocalDate entryDate,
+                                      @Param("statuses") List<Status> statuses);
 
 
 }

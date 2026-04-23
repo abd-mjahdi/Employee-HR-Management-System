@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.repository;
 
 import com.example.employeetimetracking.model.entities.TimeEntry;
+import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,5 +21,6 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
     List<TimeEntry> findByUserIdOrderByEntryDateDesc(Long userId , Pageable limit);
     Integer countByUserIdAndStatus(Long userId, Status status);
     Integer countByUserManagerIdAndStatus(Long managerId , Status status);
+    boolean existsByUserAndEntryDate(User user, LocalDate entryDate);
 
 }

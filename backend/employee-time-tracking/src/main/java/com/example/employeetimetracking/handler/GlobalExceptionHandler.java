@@ -33,7 +33,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             EmailAlreadyRegisteredException.class,
-            UsernameAlreadyExists.class
+            UsernameAlreadyExists.class,
+            ProjectCodeAlreadyExistsException.class
     })
     public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

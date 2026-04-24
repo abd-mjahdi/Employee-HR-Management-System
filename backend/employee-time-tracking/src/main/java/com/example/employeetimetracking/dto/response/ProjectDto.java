@@ -13,4 +13,6 @@ public class ProjectDto {
     private Long id;
     private String projectName;
     private String projectCode;
+    private String description;
+    private Boolean isActive;
 }

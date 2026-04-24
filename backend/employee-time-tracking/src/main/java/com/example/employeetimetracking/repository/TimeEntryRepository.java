@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-import java.sql.Time;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,8 +20,9 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     List<TimeEntry> findByProjectId(Long projectId);
     List<TimeEntry> findByUserIdAndEntryDateBetweenAndStatus(Long userId, LocalDate startDate, LocalDate endDate ,Status status);
     List<TimeEntry> findByUserIdOrderByEntryDateDesc(Long userId , Pageable limit);
+    List<TimeEntry> findByUserIdAndEntryDate(Long userId, LocalDate entryDate);
+    List<TimeEntry> findByUserManagerIdAndStatusOrderByCreatedAtAsc(Long managerId, Status status);
     Integer countByUserIdAndStatus(Long userId, Status status);
     Integer countByUserManagerIdAndStatus(Long managerId , Status status);
-    boolean existsByUserAndEntryDate(User user, LocalDate entryDate);
 
 }

@@ -40,7 +40,7 @@ CREATE TABLE time_entries (
                               total_hours     NUMERIC(5,2) NOT NULL,
                               project_id      BIGINT NOT NULL REFERENCES projects(id),
                               description     TEXT,
-                              status          TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'DENIED' ,'CANCELLED')),
+                              status          TEXT NOT NULL CHECK (status IN ('PENDING', 'APPROVED', 'DENIED' ,'CANCELLED', 'PENDING_CORRECTION')),
                               approved_by     BIGINT REFERENCES users(id),
                               approved_at     TIMESTAMP,
                               created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

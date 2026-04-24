@@ -4,5 +4,7 @@ public enum Status {
     PENDING,
     APPROVED,
     DENIED,
-    CANCELLED
+    CANCELLED,
+    /** Approved entry locked; employee asked to change; waiting for supervisor to allow edit */
+    PENDING_CORRECTION
 }

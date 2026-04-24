@@ -1,13 +1,18 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
+import com.example.employeetimetracking.dto.request.CorrectionRequestDto;
+import com.example.employeetimetracking.dto.request.TimeEntryRejectionDto;
+import com.example.employeetimetracking.dto.response.TimeEntrySummaryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.TimeEntryService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,6 +58,107 @@ public class TimeEntryController {
         return ResponseEntity.ok(response);
     }
 
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Void> approve(@PathVariable Long id,
+                                        @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.approve(id, authenticatedUser.getId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
 
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<Void> reject(@PathVariable Long id,
+                                       @Valid @RequestBody TimeEntryRejectionDto request,
+                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.reject(id, authenticatedUser.getId(), request.getReason());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TimeEntryDto> update(@PathVariable Long id,
+                                               @Valid @RequestBody CreateTimeEntryDto request,
+                                               @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
+        TimeEntryDto response = timeEntryService.update(id, request, authenticatedUser.getId(), isManager);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePending(@PathVariable Long id,
+                                              @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.deletePending(id, authenticatedUser.getId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<List<TimeEntryDto>> bulkCreate(@Valid @RequestBody List<CreateTimeEntryDto> requests,
+                                                         @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        List<TimeEntryDto> response = timeEntryService.bulkCreate(requests, authenticatedUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/summary")
+    public ResponseEntity<TimeEntrySummaryDto> summary(@RequestParam LocalDate startDate,
+                                                       @RequestParam LocalDate endDate,
+                                                       @RequestParam(required = false) Long userId,
+                                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        TimeEntrySummaryDto response = timeEntryService.summary(
+                authenticatedUser.getId(),
+                userId,
+                startDate,
+                endDate,
+                authenticatedUser
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/correction-request")
+    public ResponseEntity<Void> requestCorrection(@PathVariable Long id,
+                                                 @Valid @RequestBody CorrectionRequestDto request,
+                                                 @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.requestCorrection(id, authenticatedUser.getId(), request.getExplanation());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @PostMapping("/{id}/correction-approve")
+    public ResponseEntity<Void> approveCorrectionUnlock(@PathVariable Long id,
+                                                        @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.approveCorrectionUnlock(id, authenticatedUser.getId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/pending-approval")
+    public ResponseEntity<List<TimeEntryDto>> pendingApproval(
+            @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        boolean hr = authenticatedUser.hasRole("HR_ADMIN");
+        return ResponseEntity.ok(
+                timeEntryService.getPendingApprovalQueue(authenticatedUser.getId(), hr)
+        );
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(@RequestParam LocalDate startDate,
+                                         @RequestParam LocalDate endDate,
+                                         @RequestParam String format,
+                                         @RequestParam(required = false) Long userId,
+                                         @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        byte[] body = timeEntryService.export(
+                authenticatedUser.getId(), startDate, endDate, userId, format, authenticatedUser
+        );
+        boolean csv = "csv".equalsIgnoreCase(format.trim());
+        String ext = csv ? "csv" : "xlsx";
+        MediaType media = csv
+                ? MediaType.parseMediaType("text/csv; charset=UTF-8")
+                : MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"time-entries." + ext + "\"")
+                .contentType(media)
+                .body(body);
+    }
 
 }

@@ -2,6 +2,7 @@ package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
 import com.example.employeetimetracking.dto.response.TimeEntrySummaryDto;
+import com.example.employeetimetracking.dto.response.TimeEntryPersonalStatsDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
 import com.example.employeetimetracking.dto.response.TimeSummaryItemDto;
 import com.example.employeetimetracking.exception.InvalidTimeEntryException;
@@ -37,6 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -97,6 +99,53 @@ public class TimeEntryService {
             hoursThisMonth = hoursThisMonth.add(te.getTotalHours());
         }
         return hoursThisMonth;
+    }
+
+    public TimeEntryPersonalStatsDto getMyStats(Long userId) {
+        LocalDate today = LocalDate.now();
+        LocalDate startOfMonth = today.withDayOfMonth(1);
+
+        BigDecimal totalHoursThisWeek = getHoursThisWeek(userId);
+        List<TimeEntry> monthEntries = timeEntryRepository
+                .findByUserIdAndEntryDateBetweenAndStatus(userId, startOfMonth, today, Status.APPROVED);
+
+        BigDecimal monthTotalHours = monthEntries.stream()
+                .map(TimeEntry::getTotalHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long distinctLoggedDays = monthEntries.stream()
+                .map(TimeEntry::getEntryDate)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        BigDecimal averageHoursPerDayThisMonth = distinctLoggedDays == 0
+                ? BigDecimal.ZERO
+                : monthTotalHours.divide(BigDecimal.valueOf(distinctLoggedDays), 2, RoundingMode.HALF_UP);
+
+        Map<String, BigDecimal> projectHours = monthEntries.stream()
+                .filter(te -> te.getProject() != null && te.getProject().getProjectCode() != null)
+                .collect(Collectors.groupingBy(
+                        te -> te.getProject().getProjectCode(),
+                        Collectors.reducing(BigDecimal.ZERO, TimeEntry::getTotalHours, BigDecimal::add)
+                ));
+
+        String topProjectCode = null;
+        BigDecimal topProjectHours = BigDecimal.ZERO;
+        for (Map.Entry<String, BigDecimal> entry : projectHours.entrySet()) {
+            if (topProjectCode == null || entry.getValue().compareTo(topProjectHours) > 0) {
+                topProjectCode = entry.getKey();
+                topProjectHours = entry.getValue();
+            }
+        }
+
+        return new TimeEntryPersonalStatsDto(
+                totalHoursThisWeek,
+                averageHoursPerDayThisMonth,
+                topProjectCode,
+                topProjectHours
+        );
     }
 
     public Integer getUserPendingCount(Long userId) {

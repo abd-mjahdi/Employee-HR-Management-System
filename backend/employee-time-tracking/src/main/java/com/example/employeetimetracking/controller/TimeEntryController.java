@@ -3,6 +3,7 @@ package com.example.employeetimetracking.controller;
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
 import com.example.employeetimetracking.dto.request.CorrectionRequestDto;
 import com.example.employeetimetracking.dto.request.TimeEntryRejectionDto;
+import com.example.employeetimetracking.dto.response.TimeEntryPersonalStatsDto;
 import com.example.employeetimetracking.dto.response.TimeEntrySummaryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
 import com.example.employeetimetracking.model.enums.Status;
@@ -47,6 +48,14 @@ public class TimeEntryController {
                 endDate);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/stats/me")
+    public ResponseEntity<TimeEntryPersonalStatsDto> getMyStats(
+            @AuthenticationPrincipal CustomUserDetails authenticatedUser
+    ) {
+        return ResponseEntity.ok(timeEntryService.getMyStats(authenticatedUser.getId()));
+    }
+
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @GetMapping("/team")
     public ResponseEntity<List<TimeEntryDto>> getTeamEntries(@RequestParam(required = false) Status status,

@@ -41,5 +41,4 @@ entities.txt
 ### permissions ###
 permissions.txt
 ### db config ###
-src/main/resources/application.yaml
 src/test/resources/application-test.yaml

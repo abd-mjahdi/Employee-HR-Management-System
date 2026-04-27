@@ -1,16 +1,20 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
+import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
+import com.example.employeetimetracking.dto.response.LeaveBalanceReportItemDto;
 import com.example.employeetimetracking.dto.response.PayrollEmployeeHoursDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveRequestItemDto;
 import com.example.employeetimetracking.dto.response.TimeSummaryItemDto;
 import com.example.employeetimetracking.exception.InvalidTimeEntryException;
+import com.example.employeetimetracking.model.entities.LeaveBalance;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
@@ -36,6 +40,7 @@ import java.util.stream.Collectors;
 public class ReportService {
     private final TimeEntryRepository timeEntryRepository;
     private final LeaveRequestRepository leaveRequestRepository;
+    private final LeaveBalanceRepository leaveBalanceRepository;
 
     @Value("${reports.payroll.overtime.daily-hours:8.0}")
     private BigDecimal dailyOvertimeThresholdHours;
@@ -44,9 +49,12 @@ public class ReportService {
     private BigDecimal weeklyOvertimeThresholdHours;
 
     @Autowired
-    public ReportService(TimeEntryRepository timeEntryRepository, LeaveRequestRepository leaveRequestRepository) {
+    public ReportService(TimeEntryRepository timeEntryRepository,
+                         LeaveRequestRepository leaveRequestRepository,
+                         LeaveBalanceRepository leaveBalanceRepository) {
         this.timeEntryRepository = timeEntryRepository;
         this.leaveRequestRepository = leaveRequestRepository;
+        this.leaveBalanceRepository = leaveBalanceRepository;
     }
 
     public EmployeeTimeReportDto generateEmployeeTimeReport(Long userId, LocalDate startDate, LocalDate endDate) {
@@ -304,6 +312,89 @@ public class ReportService {
         BigDecimal total = regularTotal.add(overtimeTotal).setScale(2, RoundingMode.HALF_UP);
 
         return new PayrollEmployeeHoursDto(userId, name, regularTotal, overtimeTotal, total);
+    }
+
+    public LeaveBalanceReportDto generateLeaveBalanceReport(Integer year, Long departmentId) {
+        int y = year == null ? LocalDate.now().getYear() : year;
+        if (y < 2000 || y > 3000) {
+            throw new InvalidTimeEntryException("year is invalid");
+        }
+
+        List<LeaveBalance> balances = departmentId == null
+                ? leaveBalanceRepository.findAllLeaveBalancesForYear(y)
+                : leaveBalanceRepository.findLeaveBalancesForYearAndDepartment(y, departmentId);
+
+        List<LeaveBalanceReportItemDto> items = balances.stream()
+                .map(lb -> toLeaveBalanceItem(lb, y))
+                .sorted(Comparator
+                        .comparing(LeaveBalanceReportItemDto::getEmployeeName, Comparator.nullsLast(String::compareTo))
+                        .thenComparing(LeaveBalanceReportItemDto::getLeaveTypeName, Comparator.nullsLast(String::compareTo)))
+                .toList();
+
+        BigDecimal total = items.stream()
+                .map(LeaveBalanceReportItemDto::getCurrentBalance)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal avg = items.isEmpty()
+                ? BigDecimal.ZERO
+                : total.divide(BigDecimal.valueOf(items.size()), 2, RoundingMode.HALF_UP);
+
+        List<LeaveBalanceReportItemDto> lowest = items.stream()
+                .sorted(Comparator.comparing(LeaveBalanceReportItemDto::getCurrentBalance, Comparator.nullsLast(BigDecimal::compareTo)))
+                .limit(10)
+                .toList();
+
+        List<LeaveBalanceReportItemDto> highest = items.stream()
+                .sorted(Comparator.comparing(LeaveBalanceReportItemDto::getCurrentBalance, Comparator.nullsLast(BigDecimal::compareTo)).reversed())
+                .limit(10)
+                .toList();
+
+        int employeesCount = (int) items.stream()
+                .map(LeaveBalanceReportItemDto::getEmployeeId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        return new LeaveBalanceReportDto(
+                y,
+                departmentId,
+                employeesCount,
+                items.size(),
+                items,
+                lowest,
+                highest,
+                avg
+        );
+    }
+
+    private LeaveBalanceReportItemDto toLeaveBalanceItem(LeaveBalance lb, int year) {
+        BigDecimal allocation = null;
+        if (lb.getLeaveType() != null && lb.getLeaveType().getLeavePolicy() != null) {
+            allocation = lb.getLeaveType().getLeavePolicy().getAnnualAllocation();
+        }
+        BigDecimal current = lb.getCurrentBalance();
+
+        BigDecimal pct = null;
+        if (allocation != null && allocation.compareTo(BigDecimal.ZERO) > 0 && current != null) {
+            pct = current
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(allocation, 2, RoundingMode.HALF_UP);
+        }
+
+        return new LeaveBalanceReportItemDto(
+                lb.getUser() != null ? lb.getUser().getId() : null,
+                lb.getUser() != null ? (lb.getUser().getFirstName() + " " + lb.getUser().getLastName()) : null,
+                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getId() : null,
+                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getDepartmentCode() : null,
+                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getDepartmentName() : null,
+                lb.getLeaveType() != null ? lb.getLeaveType().getId() : null,
+                lb.getLeaveType() != null ? lb.getLeaveType().getTypeName() : null,
+                year,
+                allocation,
+                current,
+                pct
+        );
     }
 }
 

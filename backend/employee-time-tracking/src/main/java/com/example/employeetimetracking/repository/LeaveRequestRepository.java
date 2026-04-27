@@ -63,6 +63,11 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("endDate") LocalDate endDate);
 
     List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
+    List<LeaveRequest> findByUserManagerIdAndStatusAndStartDateAfterOrderByStartDateAsc(
+            Long managerId,
+            Status status,
+            LocalDate startDate
+    );
     List<LeaveRequest> findByStatusAndManagerApprovalStatusAndHrApprovalStatus(
             Status status,
             Status managerApprovalStatus,

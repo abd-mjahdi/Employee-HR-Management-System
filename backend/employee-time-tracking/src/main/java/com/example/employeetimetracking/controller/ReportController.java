@@ -4,7 +4,9 @@ import com.example.employeetimetracking.dto.response.DepartmentUtilizationReport
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
 import com.example.employeetimetracking.dto.response.AbsencePatternsReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
+import com.example.employeetimetracking.dto.response.OvertimeSummaryReportDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
+import com.example.employeetimetracking.dto.response.ProjectHoursReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.security.CustomUserDetails;
@@ -117,6 +119,26 @@ public class ReportController {
             @RequestParam LocalDate endDate
     ) {
         return ResponseEntity.ok(reportService.generateAbsencePatternsReport(startDate, endDate));
+    }
+
+    // Task 141
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/overtime-summary")
+    public ResponseEntity<OvertimeSummaryReportDto> overtimeSummary(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
+        return ResponseEntity.ok(reportService.generateOvertimeSummary(startDate, endDate));
+    }
+
+    // Task 142
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/project-hours")
+    public ResponseEntity<ProjectHoursReportDto> projectHours(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
+        return ResponseEntity.ok(reportService.generateProjectHours(startDate, endDate));
     }
 
     private void assertCanViewUserReport(CustomUserDetails caller, Long targetUserId) {

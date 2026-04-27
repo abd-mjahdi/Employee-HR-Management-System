@@ -7,8 +7,13 @@ import com.example.employeetimetracking.dto.response.DepartmentUtilizationItemDt
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportItemDto;
+import com.example.employeetimetracking.dto.response.OvertimeSummaryEmployeeDto;
+import com.example.employeetimetracking.dto.response.OvertimeSummaryReportDto;
 import com.example.employeetimetracking.dto.response.PayrollEmployeeHoursDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
+import com.example.employeetimetracking.dto.response.ProjectHoursItemDto;
+import com.example.employeetimetracking.dto.response.ProjectHoursReportDto;
+import com.example.employeetimetracking.dto.response.ProjectHoursTimelineItemDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveRequestItemDto;
 import com.example.employeetimetracking.dto.response.TimeSummaryItemDto;
@@ -608,6 +613,132 @@ public class ReportService {
                 sickClusters,
                 flagged,
                 reason
+        );
+    }
+
+    public OvertimeSummaryReportDto generateOvertimeSummary(LocalDate startDate, LocalDate endDate) {
+        PayrollReportDto payroll = generatePayrollReport(startDate, endDate);
+
+        List<OvertimeSummaryEmployeeDto> employees = payroll.getEmployees().stream()
+                .map(e -> new OvertimeSummaryEmployeeDto(
+                        e.getEmployeeId(),
+                        e.getName(),
+                        null,
+                        null,
+                        e.getRegularHours(),
+                        e.getOvertimeHours(),
+                        e.getTotalHours()
+                ))
+                .sorted(Comparator.comparing(OvertimeSummaryEmployeeDto::getOvertimeHours, Comparator.nullsLast(BigDecimal::compareTo)).reversed())
+                .toList();
+
+        int overtimeEmployees = (int) employees.stream()
+                .filter(e -> e.getOvertimeHours() != null && e.getOvertimeHours().compareTo(BigDecimal.ZERO) > 0)
+                .count();
+
+        BigDecimal totalOvertime = employees.stream()
+                .map(OvertimeSummaryEmployeeDto::getOvertimeHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new OvertimeSummaryReportDto(
+                payroll.getStartDate(),
+                payroll.getEndDate(),
+                payroll.getDailyOvertimeThresholdHours(),
+                payroll.getWeeklyOvertimeThresholdHours(),
+                employees.size(),
+                overtimeEmployees,
+                totalOvertime.setScale(2, RoundingMode.HALF_UP),
+                employees
+        );
+    }
+
+    public ProjectHoursReportDto generateProjectHours(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new InvalidTimeEntryException("startDate and endDate are required");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidTimeEntryException("startDate cannot be after endDate");
+        }
+
+        List<TimeEntry> entries = timeEntryRepository.findForProjectHours(Status.APPROVED, startDate, endDate);
+
+        Map<Long, List<TimeEntry>> byProjectId = entries.stream()
+                .filter(te -> te.getProject() != null && te.getProject().getId() != null)
+                .collect(Collectors.groupingBy(te -> te.getProject().getId()));
+
+        List<ProjectHoursItemDto> projects = byProjectId.values().stream()
+                .map(this::toProjectHoursItem)
+                .sorted(Comparator.comparing(ProjectHoursItemDto::getTotalHours, Comparator.nullsLast(BigDecimal::compareTo)).reversed())
+                .toList();
+
+        int employeesCount = (int) entries.stream()
+                .map(te -> te.getUser() != null ? te.getUser().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        BigDecimal totalHours = projects.stream()
+                .map(ProjectHoursItemDto::getTotalHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        return new ProjectHoursReportDto(
+                startDate,
+                endDate,
+                projects.size(),
+                employeesCount,
+                totalHours,
+                projects
+        );
+    }
+
+    private ProjectHoursItemDto toProjectHoursItem(List<TimeEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return new ProjectHoursItemDto(null, null, null, BigDecimal.ZERO, 0, BigDecimal.ZERO, List.of());
+        }
+
+        var p = entries.get(0).getProject();
+        Long projectId = p.getId();
+        String projectCode = p.getProjectCode();
+        String projectName = p.getProjectName();
+
+        BigDecimal total = entries.stream()
+                .map(TimeEntry::getTotalHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int employeesCount = (int) entries.stream()
+                .map(te -> te.getUser() != null ? te.getUser().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        BigDecimal avg = employeesCount == 0
+                ? BigDecimal.ZERO
+                : total.divide(BigDecimal.valueOf(employeesCount), 2, RoundingMode.HALF_UP);
+
+        Map<LocalDate, BigDecimal> daily = entries.stream()
+                .filter(te -> te.getEntryDate() != null)
+                .collect(Collectors.groupingBy(
+                        TimeEntry::getEntryDate,
+                        TreeMap::new,
+                        Collectors.reducing(BigDecimal.ZERO, TimeEntry::getTotalHours, BigDecimal::add)
+                ));
+
+        List<ProjectHoursTimelineItemDto> timeline = daily.entrySet().stream()
+                .map(e -> new ProjectHoursTimelineItemDto(e.getKey(), e.getValue().setScale(2, RoundingMode.HALF_UP)))
+                .toList();
+
+        return new ProjectHoursItemDto(
+                projectId,
+                projectCode,
+                projectName,
+                total.setScale(2, RoundingMode.HALF_UP),
+                employeesCount,
+                avg,
+                timeline
         );
     }
 }

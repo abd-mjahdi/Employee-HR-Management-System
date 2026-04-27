@@ -41,4 +41,19 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
             @Param("endDate") LocalDate endDate
     );
 
+    @Query("""
+    SELECT te
+    FROM TimeEntry te
+    JOIN FETCH te.user u
+    JOIN FETCH u.department d
+    JOIN FETCH te.project p
+    WHERE te.status = :status
+      AND te.entryDate BETWEEN :startDate AND :endDate
+    """)
+    List<TimeEntry> findForProjectHours(
+            @Param("status") Status status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
 }

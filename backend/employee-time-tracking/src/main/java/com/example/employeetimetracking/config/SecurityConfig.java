@@ -1,5 +1,6 @@
-package com.example.employeetimetracking.security;
+package com.example.employeetimetracking.config;
 
+import com.example.employeetimetracking.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;

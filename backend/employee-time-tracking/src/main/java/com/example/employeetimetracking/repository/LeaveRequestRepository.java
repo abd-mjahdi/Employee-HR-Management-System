@@ -62,6 +62,22 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Query("""
+    SELECT lr
+    FROM LeaveRequest lr
+    JOIN FETCH lr.user u
+    JOIN FETCH u.department d
+    JOIN FETCH lr.leaveType lt
+    WHERE lr.status = :status
+      AND lr.startDate <= :endDate
+      AND lr.endDate >= :startDate
+    """)
+    List<LeaveRequest> findByStatusAndDateRangeOverlapAll(
+            @Param("status") Status status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
     List<LeaveRequest> findByUserManagerIdAndStatusAndStartDateAfterOrderByStartDateAsc(
             Long managerId,

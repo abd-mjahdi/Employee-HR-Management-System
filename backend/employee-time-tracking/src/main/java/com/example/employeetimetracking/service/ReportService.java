@@ -1,6 +1,8 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
+import com.example.employeetimetracking.dto.response.AbsencePatternEmployeeDto;
+import com.example.employeetimetracking.dto.response.AbsencePatternsReportDto;
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationItemDto;
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
 import java.util.Comparator;
@@ -485,6 +488,126 @@ public class ReportService {
                 employeesCount,
                 avg,
                 projectDistribution
+        );
+    }
+
+    public AbsencePatternsReportDto generateAbsencePatternsReport(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new InvalidTimeEntryException("startDate and endDate are required");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidTimeEntryException("startDate cannot be after endDate");
+        }
+
+        List<LeaveRequest> requests = leaveRequestRepository.findByStatusAndDateRangeOverlapAll(
+                Status.APPROVED, startDate, endDate
+        );
+
+        Map<Long, List<LeaveRequest>> byUser = requests.stream()
+                .filter(lr -> lr.getUser() != null && lr.getUser().getId() != null)
+                .collect(Collectors.groupingBy(lr -> lr.getUser().getId()));
+
+        List<AbsencePatternEmployeeDto> employees = byUser.entrySet().stream()
+                .map(e -> buildAbsencePatternEmployee(e.getValue()))
+                .sorted(Comparator
+                        .comparing(AbsencePatternEmployeeDto::getFlagged, Comparator.nullsLast(Boolean::compareTo)).reversed()
+                        .thenComparing(AbsencePatternEmployeeDto::getTotalLeaveDays, Comparator.nullsLast(BigDecimal::compareTo)).reversed()
+                        .thenComparing(AbsencePatternEmployeeDto::getEmployeeName, Comparator.nullsLast(String::compareTo)))
+                .toList();
+
+        int flaggedCount = (int) employees.stream().filter(e -> Boolean.TRUE.equals(e.getFlagged())).count();
+
+        return new AbsencePatternsReportDto(
+                startDate,
+                endDate,
+                employees.size(),
+                flaggedCount,
+                employees
+        );
+    }
+
+    private AbsencePatternEmployeeDto buildAbsencePatternEmployee(List<LeaveRequest> requests) {
+        requests = requests.stream()
+                .sorted(Comparator.comparing(LeaveRequest::getStartDate).thenComparing(LeaveRequest::getId, Comparator.nullsLast(Long::compareTo)))
+                .toList();
+
+        User u = requests.isEmpty() ? null : requests.get(0).getUser();
+        Long employeeId = u != null ? u.getId() : null;
+        String name = u != null ? (u.getFirstName() + " " + u.getLastName()) : null;
+        Long deptId = (u != null && u.getDepartment() != null) ? u.getDepartment().getId() : null;
+        String deptCode = (u != null && u.getDepartment() != null) ? u.getDepartment().getDepartmentCode() : null;
+
+        BigDecimal totalDays = requests.stream()
+                .map(LeaveRequest::getTotalDays)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int mondayStarts = 0;
+        int fridayStarts = 0;
+        int sickCount = 0;
+        int sickClusters = 0;
+        LocalDate lastSickStart = null;
+
+        for (LeaveRequest lr : requests) {
+            if (lr.getStartDate() != null) {
+                DayOfWeek dow = lr.getStartDate().getDayOfWeek();
+                if (dow == DayOfWeek.MONDAY) mondayStarts++;
+                if (dow == DayOfWeek.FRIDAY) fridayStarts++;
+            }
+
+            String leaveType = (lr.getLeaveType() != null && lr.getLeaveType().getTypeName() != null)
+                    ? lr.getLeaveType().getTypeName().toLowerCase()
+                    : "";
+            boolean isSick = leaveType.contains("sick");
+            if (isSick) {
+                sickCount++;
+                if (lr.getStartDate() != null && lastSickStart != null) {
+                    long gapDays = java.time.temporal.ChronoUnit.DAYS.between(lastSickStart, lr.getStartDate());
+                    if (gapDays >= 0 && gapDays <= 14) {
+                        sickClusters++;
+                    }
+                }
+                if (lr.getStartDate() != null) {
+                    lastSickStart = lr.getStartDate();
+                }
+            }
+        }
+
+        int monFri = mondayStarts + fridayStarts;
+
+        boolean flagged = false;
+        String reason = null;
+
+        // Heuristic 1: Monday/Friday-heavy starts (>=3 and >=50% of requests)
+        if (requests.size() >= 3 && monFri * 2 >= requests.size()) {
+            flagged = true;
+            reason = "High number of Monday/Friday leave starts";
+        }
+        // Heuristic 2: clustered sick leaves
+        if (!flagged && sickClusters >= 2) {
+            flagged = true;
+            reason = "Clustered sick leave requests (<=14 days apart)";
+        }
+        // Heuristic 3: unusually high usage in the range (>= 15 days)
+        if (!flagged && totalDays.compareTo(BigDecimal.valueOf(15)) >= 0) {
+            flagged = true;
+            reason = "Unusually high leave usage in period";
+        }
+
+        return new AbsencePatternEmployeeDto(
+                employeeId,
+                name,
+                deptId,
+                deptCode,
+                requests.size(),
+                totalDays,
+                mondayStarts,
+                fridayStarts,
+                monFri,
+                sickCount,
+                sickClusters,
+                flagged,
+                reason
         );
     }
 }

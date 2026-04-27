@@ -2,6 +2,7 @@ package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
+import com.example.employeetimetracking.dto.response.AbsencePatternsReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
@@ -106,6 +107,16 @@ public class ReportController {
             @RequestParam LocalDate endDate
     ) {
         return ResponseEntity.ok(reportService.generateDepartmentUtilizationReport(startDate, endDate));
+    }
+
+    // Task 140
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @GetMapping("/absence-patterns")
+    public ResponseEntity<AbsencePatternsReportDto> absencePatterns(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
+        return ResponseEntity.ok(reportService.generateAbsencePatternsReport(startDate, endDate));
     }
 
     private void assertCanViewUserReport(CustomUserDetails caller, Long targetUserId) {

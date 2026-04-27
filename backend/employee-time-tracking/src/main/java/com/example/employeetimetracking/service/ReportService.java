@@ -1,6 +1,8 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
+import com.example.employeetimetracking.dto.response.DepartmentUtilizationItemDto;
+import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportItemDto;
 import com.example.employeetimetracking.dto.response.PayrollEmployeeHoursDto;
@@ -394,6 +396,95 @@ public class ReportService {
                 allocation,
                 current,
                 pct
+        );
+    }
+
+    public DepartmentUtilizationReportDto generateDepartmentUtilizationReport(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new InvalidTimeEntryException("startDate and endDate are required");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidTimeEntryException("startDate cannot be after endDate");
+        }
+
+        List<TimeEntry> entries = timeEntryRepository.findForDepartmentUtilization(Status.APPROVED, startDate, endDate);
+
+        // departmentId -> entries
+        Map<Long, List<TimeEntry>> byDepartmentId = entries.stream()
+                .filter(te -> te.getUser() != null && te.getUser().getDepartment() != null && te.getUser().getDepartment().getId() != null)
+                .collect(Collectors.groupingBy(te -> te.getUser().getDepartment().getId()));
+
+        List<DepartmentUtilizationItemDto> departments = byDepartmentId.values().stream()
+                .map(this::toDepartmentUtilizationItem)
+                .sorted(Comparator.comparing(DepartmentUtilizationItemDto::getTotalHours).reversed())
+                .toList();
+
+        BigDecimal totalHours = departments.stream()
+                .map(DepartmentUtilizationItemDto::getTotalHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int employeesCount = (int) entries.stream()
+                .map(te -> te.getUser() != null ? te.getUser().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        return new DepartmentUtilizationReportDto(
+                startDate,
+                endDate,
+                totalHours.setScale(2, RoundingMode.HALF_UP),
+                departments.size(),
+                employeesCount,
+                departments
+        );
+    }
+
+    private DepartmentUtilizationItemDto toDepartmentUtilizationItem(List<TimeEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return new DepartmentUtilizationItemDto(null, null, null, BigDecimal.ZERO, 0, BigDecimal.ZERO, List.of());
+        }
+
+        var dept = entries.get(0).getUser().getDepartment();
+        Long deptId = dept.getId();
+        String deptCode = dept.getDepartmentCode();
+        String deptName = dept.getDepartmentName();
+
+        BigDecimal totalHours = entries.stream()
+                .map(TimeEntry::getTotalHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int employeesCount = (int) entries.stream()
+                .map(te -> te.getUser() != null ? te.getUser().getId() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+
+        BigDecimal avg = employeesCount == 0
+                ? BigDecimal.ZERO
+                : totalHours.divide(BigDecimal.valueOf(employeesCount), 2, RoundingMode.HALF_UP);
+
+        Map<String, BigDecimal> projectHours = entries.stream()
+                .filter(te -> te.getProject() != null && te.getProject().getProjectCode() != null)
+                .collect(Collectors.groupingBy(
+                        te -> te.getProject().getProjectCode(),
+                        Collectors.reducing(BigDecimal.ZERO, TimeEntry::getTotalHours, BigDecimal::add)
+                ));
+
+        List<TimeSummaryItemDto> projectDistribution = projectHours.entrySet().stream()
+                .map(e -> new TimeSummaryItemDto(e.getKey(), e.getValue()))
+                .sorted(Comparator.comparing(TimeSummaryItemDto::getTotalHours).reversed())
+                .toList();
+
+        return new DepartmentUtilizationItemDto(
+                deptId,
+                deptCode,
+                deptName,
+                totalHours.setScale(2, RoundingMode.HALF_UP),
+                employeesCount,
+                avg,
+                projectDistribution
         );
     }
 }

@@ -15,6 +15,7 @@ public class UserDashboardDto {
     private UserResponseDto user;
     private List<LeaveBalanceDto> leaveBalances;
     private List<LeaveRequestDto> upcomingLeave;
+    private List<LeaveRequestDto> recentLeaveRequests;
     private List<TimeEntryDto> recentTimeEntries;
     private DashboardStatsDto stats;  // hours this week, pending approvals count
 }

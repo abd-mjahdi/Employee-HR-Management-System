@@ -6,6 +6,7 @@ import com.example.employeetimetracking.model.enums.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
@@ -16,6 +17,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByUserId(Long userId);
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
     Optional<LeaveRequest> findByIdAndStatus(Long id, Status status);
     List<LeaveRequest> findByUserIdAndStatus(Long userId, Status status);
     List<LeaveRequest> findByStatus(Status status);
@@ -25,6 +27,7 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByHrApprovalStatus(Status status);
     List<LeaveRequest> findByLeaveTypeId(Long leaveTypeId);
     List<LeaveRequest> findByStartDateBetween(LocalDate startDate, LocalDate endDate);
+    List<LeaveRequest> findByUserIdAndStatusAndStartDateAfterOrderByStartDateAsc(Long userId, Status status, LocalDate startDate, Pageable pageable);
     Integer countByUserIdAndStatus(Long userId, Status status);
 
     @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status = :status")

@@ -14,8 +14,9 @@ import com.example.employeetimetracking.specification.LeaveRequestSpecifications
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -61,9 +62,26 @@ public class LeaveRequestService {
 
     // Self approved leave requests
     public List<LeaveRequestDto> getUpcomingLeave(User user){
-        List<LeaveRequest> allLeaveRequests = user.getLeaveRequestList();
-        List<LeaveRequest> upcomingLeave = allLeaveRequests.stream().filter(leaveRequest -> leaveRequest.getStatus().equals(Status.APPROVED) && leaveRequest.getStartDate().isAfter(LocalDate.now())).toList();
-        return upcomingLeave.stream().map(leaveRequestMapper::toDto).toList();
+        return getUpcomingLeave(user.getId(), 10);
+    }
+
+    public List<LeaveRequestDto> getUpcomingLeave(Long userId, int limit){
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        Pageable pageable = PageRequest.of(0, safeLimit);
+        return leaveRequestRepository
+                .findByUserIdAndStatusAndStartDateAfterOrderByStartDateAsc(userId, Status.APPROVED, LocalDate.now(), pageable)
+                .stream()
+                .map(leaveRequestMapper::toDto)
+                .toList();
+    }
+
+    public List<LeaveRequestDto> getRecentLeaveRequests(Long userId, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        Pageable pageable = PageRequest.of(0, safeLimit);
+        return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+                .stream()
+                .map(leaveRequestMapper::toDto)
+                .toList();
     }
 
     // Count of self pending leave requests

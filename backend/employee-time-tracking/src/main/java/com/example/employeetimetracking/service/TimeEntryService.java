@@ -1,16 +1,20 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
+import com.example.employeetimetracking.dto.request.CreateTimeEntryBreakDto;
 import com.example.employeetimetracking.dto.response.TimeEntrySummaryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryPersonalStatsDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
+import com.example.employeetimetracking.dto.response.TimeEntryBreakDto;
 import com.example.employeetimetracking.dto.response.TimeSummaryItemDto;
 import com.example.employeetimetracking.exception.InvalidTimeEntryException;
 import com.example.employeetimetracking.mapper.TimeEntryMapper;
 import com.example.employeetimetracking.model.entities.Project;
 import com.example.employeetimetracking.model.entities.TimeEntry;
+import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
@@ -47,6 +51,7 @@ public class TimeEntryService {
     private static final long HOURS_IN_AUTO_APPROVE_WINDOW = 48L;
 
     private final TimeEntryRepository timeEntryRepository;
+    private final TimeEntryBreakRepository timeEntryBreakRepository;
     private final TimeEntryMapper timeEntryMapper;
     private final ProjectService projectService;
     private final UserService userService;
@@ -55,12 +60,14 @@ public class TimeEntryService {
     @Autowired
     public TimeEntryService(
             TimeEntryRepository timeEntryRepository,
+            TimeEntryBreakRepository timeEntryBreakRepository,
             TimeEntryMapper timeEntryMapper,
             ProjectService projectService,
             UserService userService,
             LeaveRequestService leaveRequestService
     ) {
         this.timeEntryRepository = timeEntryRepository;
+        this.timeEntryBreakRepository = timeEntryBreakRepository;
         this.timeEntryMapper = timeEntryMapper;
         this.projectService = projectService;
         this.userService = userService;
@@ -256,6 +263,74 @@ public class TimeEntryService {
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
     }
 
+    private void recalculateNetHours(TimeEntry te) {
+        if (te.getClockInTime() == null || te.getClockOutTime() == null) {
+            return;
+        }
+        long totalMinutes = ChronoUnit.MINUTES.between(te.getClockInTime(), te.getClockOutTime());
+        if (totalMinutes < 0) {
+            throw new InvalidTimeEntryException("Clock out time must be after clock in time");
+        }
+        List<TimeEntryBreak> breaks = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
+        long unpaidBreakMinutes = 0;
+        for (TimeEntryBreak b : breaks) {
+            if (Boolean.TRUE.equals(b.getIsUnpaid())) {
+                unpaidBreakMinutes += ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+            }
+        }
+        long netMinutes = totalMinutes - unpaidBreakMinutes;
+        if (netMinutes < 0) {
+            throw new InvalidTimeEntryException("Break time cannot exceed worked time");
+        }
+        te.setTotalHours(
+                BigDecimal.valueOf(netMinutes)
+                        .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP)
+        );
+    }
+
+    private static void assertBreakValid(LocalTime breakStart, LocalTime breakEnd, LocalTime clockIn, LocalTime clockOut) {
+        if (breakStart == null || breakEnd == null) {
+            throw new InvalidTimeEntryException("Break start and end are required");
+        }
+        if (!breakEnd.isAfter(breakStart)) {
+            throw new InvalidTimeEntryException("Break end must be after break start");
+        }
+        if (clockIn != null && breakStart.isBefore(clockIn)) {
+            throw new InvalidTimeEntryException("Break cannot start before clock-in time");
+        }
+        if (clockOut != null && breakEnd.isAfter(clockOut)) {
+            throw new InvalidTimeEntryException("Break cannot end after clock-out time");
+        }
+    }
+
+    private void assertNoBreakOverlap(Long timeEntryId, LocalTime start, LocalTime end) {
+        List<TimeEntryBreak> existing = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(timeEntryId);
+        for (TimeEntryBreak b : existing) {
+            if (start.isBefore(b.getBreakEnd()) && b.getBreakStart().isBefore(end)) {
+                throw new InvalidTimeEntryException("Break overlaps with an existing break");
+            }
+        }
+    }
+
+    private void assertExistingBreaksStillValid(TimeEntry te) {
+        if (te.getId() == null) {
+            return;
+        }
+        List<TimeEntryBreak> existing = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
+        for (TimeEntryBreak b : existing) {
+            assertBreakValid(b.getBreakStart(), b.getBreakEnd(), te.getClockInTime(), te.getClockOutTime());
+        }
+        for (int i = 0; i < existing.size(); i++) {
+            for (int j = i + 1; j < existing.size(); j++) {
+                TimeEntryBreak a = existing.get(i);
+                TimeEntryBreak b = existing.get(j);
+                if (a.getBreakStart().isBefore(b.getBreakEnd()) && b.getBreakStart().isBefore(a.getBreakEnd())) {
+                    throw new InvalidTimeEntryException("Existing breaks overlap");
+                }
+            }
+        }
+    }
+
     private void validateForUpdate(TimeEntry te) {
         LocalDate now = LocalDate.now();
         if (te.getClockOutTime().isBefore(te.getClockInTime())) {
@@ -392,7 +467,13 @@ public class TimeEntryService {
         te.setProject(project);
         te.setDescription(request.getDescription());
         te.setTotalHours(calculateTotalHours(request));
+        // If breaks exist, ensure they still fit the new clock range
+        assertExistingBreaksStillValid(te);
         validateForUpdate(te);
+        // If breaks exist, keep totalHours as net (clock span - breaks)
+        if (te.getId() != null) {
+            recalculateNetHours(te);
+        }
         return timeEntryMapper.toDto(te);
     }
 
@@ -430,6 +511,77 @@ public class TimeEntryService {
             applyAutoApproveIfEligible(te);
         }
         return timeEntryRepository.saveAll(entities).stream().map(timeEntryMapper::toDto).toList();
+    }
+
+    @Transactional
+    public TimeEntryBreakDto addBreak(Long timeEntryId, CreateTimeEntryBreakDto dto, Long actorId, boolean isManager) {
+        TimeEntry te = getById(timeEntryId);
+        User actor = userService.getById(actorId);
+
+        if (te.getStatus() != Status.PENDING) {
+            throw new InvalidTimeEntryException("Breaks can only be updated for pending time entries");
+        }
+        if (isManager) {
+            assertCanManageEntry(actor, te);
+        } else if (!te.getUser().getId().equals(actorId)) {
+            throw new InvalidTimeEntryException("You cannot add a break to this time entry");
+        }
+
+        Boolean unpaid = dto.getIsUnpaid() == null ? true : dto.getIsUnpaid();
+        assertBreakValid(dto.getBreakStart(), dto.getBreakEnd(), te.getClockInTime(), te.getClockOutTime());
+        assertNoBreakOverlap(te.getId(), dto.getBreakStart(), dto.getBreakEnd());
+
+        TimeEntryBreak b = new TimeEntryBreak();
+        b.setTimeEntry(te);
+        b.setBreakStart(dto.getBreakStart());
+        b.setBreakEnd(dto.getBreakEnd());
+        b.setIsUnpaid(unpaid);
+        TimeEntryBreak saved = timeEntryBreakRepository.save(b);
+
+        recalculateNetHours(te);
+        return toBreakDto(saved);
+    }
+
+    @Transactional
+    public List<TimeEntryBreakDto> listBreaks(Long timeEntryId, Long actorId, boolean isManager) {
+        TimeEntry te = getById(timeEntryId);
+        User actor = userService.getById(actorId);
+        if (isManager) {
+            assertCanManageEntry(actor, te);
+        } else if (!te.getUser().getId().equals(actorId)) {
+            throw new InvalidTimeEntryException("You cannot view breaks for this time entry");
+        }
+        return timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(timeEntryId).stream()
+                .map(this::toBreakDto)
+                .toList();
+    }
+
+    @Transactional
+    public void deleteBreak(Long timeEntryId, Long breakId, Long actorId, boolean isManager) {
+        TimeEntry te = getById(timeEntryId);
+        User actor = userService.getById(actorId);
+        if (te.getStatus() != Status.PENDING) {
+            throw new InvalidTimeEntryException("Breaks can only be updated for pending time entries");
+        }
+        if (isManager) {
+            assertCanManageEntry(actor, te);
+        } else if (!te.getUser().getId().equals(actorId)) {
+            throw new InvalidTimeEntryException("You cannot delete a break from this time entry");
+        }
+
+        TimeEntryBreak b = timeEntryBreakRepository.findById(breakId)
+                .orElseThrow(() -> new InvalidTimeEntryException("Break not found with id: " + breakId));
+        if (b.getTimeEntry() == null || b.getTimeEntry().getId() == null || !b.getTimeEntry().getId().equals(timeEntryId)) {
+            throw new InvalidTimeEntryException("Break does not belong to this time entry");
+        }
+
+        timeEntryBreakRepository.delete(b);
+        recalculateNetHours(te);
+    }
+
+    private TimeEntryBreakDto toBreakDto(TimeEntryBreak b) {
+        int mins = (int) ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+        return new TimeEntryBreakDto(b.getId(), b.getBreakStart(), b.getBreakEnd(), b.getIsUnpaid(), mins);
     }
 
     /** Validates everything except same-day DB overlap; used before batch grouping. */

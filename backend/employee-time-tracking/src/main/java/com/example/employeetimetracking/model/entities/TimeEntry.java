@@ -10,11 +10,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Entity
 @Setter
@@ -69,6 +68,9 @@ public class TimeEntry {
     @UpdateTimestamp
     @Column(name = "updated_at" ,nullable = false)
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "timeEntry", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TimeEntryBreak> breaks;
 
 
 

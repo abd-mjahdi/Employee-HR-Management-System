@@ -3,6 +3,9 @@ package com.example.employeetimetracking.service;
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
 import com.example.employeetimetracking.dto.response.AbsencePatternEmployeeDto;
 import com.example.employeetimetracking.dto.response.AbsencePatternsReportDto;
+import com.example.employeetimetracking.dto.response.ComplianceEntitlementIssueDto;
+import com.example.employeetimetracking.dto.response.ComplianceBreakIssueDto;
+import com.example.employeetimetracking.dto.response.ComplianceReportDto;
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationItemDto;
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
@@ -22,11 +25,17 @@ import com.example.employeetimetracking.model.entities.LeaveBalance;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.entities.LeaveType;
+import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
+import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
+import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.repository.LeaveTypeRepository;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
@@ -38,6 +47,7 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +61,9 @@ public class ReportService {
     private final TimeEntryRepository timeEntryRepository;
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
+    private final UserRepository userRepository;
+    private final LeaveTypeRepository leaveTypeRepository;
+    private final TimeEntryBreakRepository timeEntryBreakRepository;
 
     @Value("${reports.payroll.overtime.daily-hours:8.0}")
     private BigDecimal dailyOvertimeThresholdHours;
@@ -58,13 +71,25 @@ public class ReportService {
     @Value("${reports.payroll.overtime.weekly-hours:40.0}")
     private BigDecimal weeklyOvertimeThresholdHours;
 
+    @Value("${reports.compliance.break.required-after-hours:6.0}")
+    private BigDecimal breakRequiredAfterHours;
+
+    @Value("${reports.compliance.break.required-minutes:30}")
+    private Integer breakRequiredMinutes;
+
     @Autowired
     public ReportService(TimeEntryRepository timeEntryRepository,
                          LeaveRequestRepository leaveRequestRepository,
-                         LeaveBalanceRepository leaveBalanceRepository) {
+                         LeaveBalanceRepository leaveBalanceRepository,
+                         UserRepository userRepository,
+                         LeaveTypeRepository leaveTypeRepository,
+                         TimeEntryBreakRepository timeEntryBreakRepository) {
         this.timeEntryRepository = timeEntryRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
+        this.userRepository = userRepository;
+        this.leaveTypeRepository = leaveTypeRepository;
+        this.timeEntryBreakRepository = timeEntryBreakRepository;
     }
 
     public EmployeeTimeReportDto generateEmployeeTimeReport(Long userId, LocalDate startDate, LocalDate endDate) {
@@ -740,6 +765,151 @@ public class ReportService {
                 avg,
                 timeline
         );
+    }
+
+    @Transactional
+    public ComplianceReportDto generateComplianceReport(LocalDate startDate, LocalDate endDate) {
+        // Transaction ensures we can safely read related break rows
+        // when building break adherence results.
+        if (startDate == null || endDate == null) {
+            throw new InvalidTimeEntryException("startDate and endDate are required");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidTimeEntryException("startDate cannot be after endDate");
+        }
+
+        int year = startDate.getYear();
+        if (startDate.getYear() != endDate.getYear()) {
+            // Keep it simple for now: compliance checks by year need a single year.
+            throw new InvalidTimeEntryException("Compliance report must be within a single calendar year");
+        }
+
+        // Leave granted
+        List<LeaveRequest> leaveGranted = leaveRequestRepository.findByStatusAndDateRangeOverlapAll(
+                Status.APPROVED, startDate, endDate
+        );
+
+        BigDecimal totalLeaveDaysGranted = leaveGranted.stream()
+                .map(LeaveRequest::getTotalDays)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        Map<String, BigDecimal> byType = leaveGranted.stream()
+                .filter(lr -> lr.getLeaveType() != null && lr.getLeaveType().getTypeName() != null)
+                .collect(Collectors.groupingBy(
+                        lr -> lr.getLeaveType().getTypeName(),
+                        Collectors.reducing(BigDecimal.ZERO, LeaveRequest::getTotalDays, BigDecimal::add)
+                ));
+
+        List<TimeSummaryItemDto> leaveDaysByType = byType.entrySet().stream()
+                .map(e -> new TimeSummaryItemDto(e.getKey(), e.getValue().setScale(2, RoundingMode.HALF_UP)))
+                .sorted(Comparator.comparing(TimeSummaryItemDto::getTotalHours).reversed())
+                .toList();
+
+        // Overtime hours (re-uses existing payroll logic)
+        OvertimeSummaryReportDto overtimeSummary = generateOvertimeSummary(startDate, endDate);
+
+        // Break adherence (requires breaks table; compute using recorded unpaid break minutes)
+        List<ComplianceBreakIssueDto> breakIssues = computeBreakIssues(startDate, endDate);
+
+        // Entitlements (consistency check): every active user should have a leave balance record
+        // for each active leave type for this year.
+        List<User> activeUsers = userRepository.findByIsActive(true);
+        List<LeaveType> activeLeaveTypes = leaveTypeRepository.findByIsActive(true);
+        List<LeaveBalance> yearBalances = leaveBalanceRepository.findAllLeaveBalancesForYear(year);
+
+        Map<String, LeaveBalance> balanceByKey = yearBalances.stream()
+                .filter(lb -> lb.getUser() != null && lb.getUser().getId() != null && lb.getLeaveType() != null && lb.getLeaveType().getId() != null)
+                .collect(Collectors.toMap(
+                        lb -> lb.getUser().getId() + ":" + lb.getLeaveType().getId(),
+                        lb -> lb,
+                        (a, b) -> a
+                ));
+
+        List<ComplianceEntitlementIssueDto> issues = new ArrayList<>();
+        for (User u : activeUsers) {
+            for (LeaveType lt : activeLeaveTypes) {
+                String key = u.getId() + ":" + lt.getId();
+                if (!balanceByKey.containsKey(key)) {
+                    issues.add(new ComplianceEntitlementIssueDto(
+                            u.getId(),
+                            u.getFirstName() + " " + u.getLastName(),
+                            lt.getId(),
+                            lt.getTypeName(),
+                            year,
+                            "Missing leave balance record for employee/year/leave type"
+                    ));
+                }
+            }
+        }
+
+        return new ComplianceReportDto(
+                startDate,
+                endDate,
+                year,
+                totalLeaveDaysGranted,
+                leaveDaysByType,
+                overtimeSummary,
+                true,
+                "Break adherence calculated from recorded unpaid breaks.",
+                breakIssues.size(),
+                breakIssues.stream().limit(200).toList(),
+                issues.size(),
+                issues.stream().limit(200).toList()
+        );
+    }
+
+    private List<ComplianceBreakIssueDto> computeBreakIssues(LocalDate startDate, LocalDate endDate) {
+        // We reuse the approved time entry query and load breaks in bulk.
+        Specification<TimeEntry> spec = Specification
+                .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
+                .and(TimeEntrySpecification.afterDate(startDate))
+                .and(TimeEntrySpecification.beforeDate(endDate));
+        List<TimeEntry> entries = timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "entryDate", "id"));
+
+        List<Long> ids = entries.stream()
+                .map(TimeEntry::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<Long, List<TimeEntryBreak>> breaksByEntry = timeEntryBreakRepository.findByTimeEntryIdIn(ids).stream()
+                .collect(Collectors.groupingBy(b -> b.getTimeEntry().getId()));
+
+        int requiredAfterMinutes = breakRequiredAfterHours == null
+                ? 0
+                : breakRequiredAfterHours.multiply(BigDecimal.valueOf(60)).intValue();
+        int requiredMinutes = breakRequiredMinutes == null ? 0 : breakRequiredMinutes;
+
+        List<ComplianceBreakIssueDto> issues = new ArrayList<>();
+        for (TimeEntry te : entries) {
+            if (te.getClockInTime() == null || te.getClockOutTime() == null || te.getEntryDate() == null) {
+                continue;
+            }
+            int workedMinutes = (int) java.time.temporal.ChronoUnit.MINUTES.between(te.getClockInTime(), te.getClockOutTime());
+            if (workedMinutes < requiredAfterMinutes) {
+                continue;
+            }
+            int unpaidBreakMinutes = 0;
+            List<TimeEntryBreak> breaks = te.getId() == null ? List.of() : breaksByEntry.getOrDefault(te.getId(), List.of());
+            for (TimeEntryBreak b : breaks) {
+                if (Boolean.TRUE.equals(b.getIsUnpaid())) {
+                    unpaidBreakMinutes += (int) java.time.temporal.ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+                }
+            }
+            if (unpaidBreakMinutes < requiredMinutes) {
+                User u = te.getUser();
+                issues.add(new ComplianceBreakIssueDto(
+                        u != null ? u.getId() : null,
+                        u != null ? (u.getFirstName() + " " + u.getLastName()) : null,
+                        te.getEntryDate(),
+                        workedMinutes,
+                        unpaidBreakMinutes,
+                        requiredMinutes,
+                        "Missing required unpaid break time"
+                ));
+            }
+        }
+        return issues;
     }
 }
 

@@ -47,6 +47,15 @@ CREATE TABLE time_entries (
                               updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE time_entry_breaks (
+                                   id            BIGSERIAL PRIMARY KEY,
+                                   time_entry_id BIGINT NOT NULL REFERENCES time_entries(id) ON DELETE CASCADE,
+                                   break_start   TIME NOT NULL,
+                                   break_end     TIME NOT NULL,
+                                   is_unpaid     BOOLEAN NOT NULL DEFAULT TRUE,
+                                   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE leave_types (
                              id              BIGSERIAL PRIMARY KEY,
                              type_name       VARCHAR(50) NOT NULL UNIQUE,

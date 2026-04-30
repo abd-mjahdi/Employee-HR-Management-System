@@ -1,8 +1,10 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
+import com.example.employeetimetracking.dto.request.CreateTimeEntryBreakDto;
 import com.example.employeetimetracking.dto.request.CorrectionRequestDto;
 import com.example.employeetimetracking.dto.request.TimeEntryRejectionDto;
+import com.example.employeetimetracking.dto.response.TimeEntryBreakDto;
 import com.example.employeetimetracking.dto.response.TimeEntryPersonalStatsDto;
 import com.example.employeetimetracking.dto.response.TimeEntrySummaryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
@@ -91,6 +93,31 @@ public class TimeEntryController {
         boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
         TimeEntryDto response = timeEntryService.update(id, request, authenticatedUser.getId(), isManager);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/breaks")
+    public ResponseEntity<TimeEntryBreakDto> addBreak(@PathVariable Long id,
+                                                      @Valid @RequestBody CreateTimeEntryBreakDto request,
+                                                      @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
+        TimeEntryBreakDto dto = timeEntryService.addBreak(id, request, authenticatedUser.getId(), isManager);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    }
+
+    @GetMapping("/{id}/breaks")
+    public ResponseEntity<List<TimeEntryBreakDto>> listBreaks(@PathVariable Long id,
+                                                              @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
+        return ResponseEntity.ok(timeEntryService.listBreaks(id, authenticatedUser.getId(), isManager));
+    }
+
+    @DeleteMapping("/{id}/breaks/{breakId}")
+    public ResponseEntity<Void> deleteBreak(@PathVariable Long id,
+                                            @PathVariable Long breakId,
+                                            @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
+        timeEntryService.deleteBreak(id, breakId, authenticatedUser.getId(), isManager);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
     @DeleteMapping("/{id}")

@@ -303,7 +303,81 @@ SELECT setval('time_entries_id_seq', 39);
 
 
 -- ============================================================
--- 8. LEAVE REQUESTS
+-- 8. TIME ENTRY BREAKS
+-- Simulating lunch breaks for the time entries above.
+-- Compliance rules:
+-- 1. Break required if total_hours > 6.0
+-- 2. Required break duration: at least 30 minutes
+-- ============================================================
+INSERT INTO time_entry_breaks (id, time_entry_id, break_start, break_end, is_unpaid) VALUES
+-- Ivan Petrov (id=9)
+(1,  1,  '12:30', '13:30', TRUE), -- 8.5h
+(2,  2,  '13:00', '14:00', TRUE), -- 9.0h
+(3,  3,  '12:00', '13:00', TRUE), -- 8.5h
+(4,  4,  '12:30', '13:30', TRUE), -- 8.5h
+(5,  5,  '12:30', '13:30', TRUE), -- 8.5h
+
+-- Julia Ross (id=10)
+(6,  6,  '12:00', '13:00', TRUE), -- 8.5h
+(7,  7,  '12:00', '13:00', TRUE), -- 8.0h
+(8,  8,  '12:00', '13:00', TRUE), -- 9.0h
+-- Entry 9 is only 4.0 hours, no break required.
+
+-- Kevin Chang (id=11)
+(9,  10, '13:30', '14:30', TRUE), -- 9.0h
+(10, 11, '13:00', '14:00', TRUE), -- 9.0h
+(11, 12, '13:00', '14:00', TRUE), -- 8.5h
+
+-- Laura White (id=12)
+(12, 13, '12:00', '13:00', TRUE), -- 9.0h
+-- Entry 14 is 4.0 hours, no break required.
+(13, 15, '12:30', '13:30', TRUE), -- 8.5h
+
+-- Mark Jensen (id=13)
+(14, 16, '12:00', '13:00', TRUE), -- 8.0h
+(15, 17, '12:30', '13:30', TRUE), -- 8.5h
+(16, 18, '12:00', '13:00', TRUE), -- 8.0h
+
+-- Nina Brown (id=14)
+(17, 19, '13:00', '14:00', TRUE), -- 8.0h
+-- Entry 20 is cancelled.
+(18, 21, '13:00', '14:00', TRUE), -- 8.0h
+
+-- Paula King (id=16)
+(19, 22, '12:30', '13:30', TRUE), -- 9.0h
+(20, 23, '12:30', '13:30', TRUE), -- 8.5h
+(21, 24, '12:30', '13:30', TRUE), -- 8.5h
+
+-- Sam Turner (id=19)
+(22, 25, '12:30', '13:30', TRUE), -- 8.5h
+(23, 26, '13:00', '14:00', TRUE), -- 9.0h
+(24, 27, '12:30', '13:30', TRUE), -- 8.5h
+
+-- Tina Clark (id=20)
+(25, 28, '12:00', '13:00', TRUE), -- 8.0h
+-- Entry 29 is 4.0 hours, no break required.
+(26, 30, '12:00', '13:00', TRUE), -- 8.0h
+
+-- Wendy Hall (id=23)
+(27, 31, '12:00', '13:00', TRUE), -- 8.5h
+(28, 32, '12:00', '13:00', TRUE), -- 9.0h
+(29, 33, '12:00', '13:00', TRUE), -- 8.5h
+
+-- Zoe Wright (id=26)
+(30, 34, '12:30', '13:30', TRUE), -- 8.5h
+(31, 35, '13:00', '14:00', TRUE), -- 9.0h
+(32, 36, '12:30', '13:30', TRUE), -- 8.5h
+
+-- Carol Knight (id=3)
+(33, 37, '13:00', '14:00', TRUE), -- 9.0h
+(34, 38, '12:30', '13:30', TRUE), -- 8.5h
+(35, 39, '13:00', '14:00', TRUE); -- 9.0h
+
+SELECT setval('time_entry_breaks_id_seq', 35);
+
+
+-- ============================================================
+-- 9. LEAVE REQUESTS
 -- Dates: past (approved/denied), current week, future (pending)
 -- total_days excludes weekends for realism
 -- ============================================================
@@ -472,7 +546,7 @@ SELECT setval('leave_requests_id_seq', 18);
 
 
 -- ============================================================
--- 9. AUDIT LOGS
+-- 10. AUDIT LOGS
 -- Sample audit trail covering CREATE / UPDATE / DELETE actions
 -- across users, leave_requests, time_entries
 -- ============================================================

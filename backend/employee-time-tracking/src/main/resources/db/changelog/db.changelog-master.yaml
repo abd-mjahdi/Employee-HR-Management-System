@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-init-schema
+      author: app
+      changes:
+        - sqlFile:
+            path: db/changelog/001-init-schema.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true
+
+  - changeSet:
+      id: 002-seed-data
+      author: app
+      context: seed
+      changes:
+        - sqlFile:
+            path: db/changelog/002-seed-data.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: false

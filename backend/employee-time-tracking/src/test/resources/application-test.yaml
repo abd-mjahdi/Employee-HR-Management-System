@@ -1,4 +1,7 @@
 spring:
+  main:
+    banner-mode: "off"
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -6,6 +9,13 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: seed
 
   jwt:
     secret: 0ef2d553cf17c6a144e82d71ca3d5d1f931f4b42d637a6d0b3ae645be2e1e67a
@@ -13,5 +23,6 @@ spring:
 
 logging:
   level:
+    liquibase: info
     org.hibernate.SQL: warn
     org.hibernate.orm.jdbc.bind: warn

@@ -31,29 +31,29 @@ public class EmployeeTimeTrackingApplication {
 		SpringApplication.run(EmployeeTimeTrackingApplication.class, args);
 	}
 
-	@Bean
-	CommandLineRunner myInitializer() {
-		System.out.println(encoder.encode("password"));
-		return args -> {
-			if(userRepository.count() == 0) {
-				Department defaultDepartment = new Department();
-				defaultDepartment.setDepartmentName("Human Resources");
-				defaultDepartment.setDepartmentCode("HR");
-				departmentRepository.save(defaultDepartment);
+	//@Bean
+	//CommandLineRunner myInitializer() {
+	//	System.out.println(encoder.encode("password"));
+	//	return args -> {
+	//		if(userRepository.count() == 0) {
+	//			Department defaultDepartment = new Department();
+	//			defaultDepartment.setDepartmentName("Human Resources");
+	//			defaultDepartment.setDepartmentCode("HR");
+	//			departmentRepository.save(defaultDepartment);
 
-				User adminUser = new User();
-				adminUser.setUsername("adminadmin");
-				adminUser.setEmail("adminadmin@example.com");
-				adminUser.setPasswordHash(encoder.encode("password"));
-				adminUser.setFirstName("Admin");
-				adminUser.setLastName("User");
-				adminUser.setUserRole(UserRole.HR_ADMIN);
-				adminUser.setDepartment(defaultDepartment);
-				adminUser.setIsActive(true);
-				adminUser.setManager(null);
+	//			User adminUser = new User();
+	//			adminUser.setUsername("adminadmin");
+	//			adminUser.setEmail("adminadmin@example.com");
+	//			adminUser.setPasswordHash(encoder.encode("password"));
+	//			adminUser.setFirstName("Admin");
+	//			adminUser.setLastName("User");
+	//			adminUser.setUserRole(UserRole.HR_ADMIN);
+	//			adminUser.setDepartment(defaultDepartment);
+	//			adminUser.setIsActive(true);
+	//			adminUser.setManager(null);
 
-				userRepository.save(adminUser);
-			}
-		};
-	}
+	//			userRepository.save(adminUser);
+	//		}
+	//	};
+	//}
 }

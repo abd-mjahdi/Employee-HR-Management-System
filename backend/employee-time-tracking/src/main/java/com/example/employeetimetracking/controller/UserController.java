@@ -45,7 +45,6 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @PreAuthorize("hasAnyRole('MANAGER' , 'EMPLOYEE')")
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDto> getUser(@PathVariable @Min(1) Long id , @AuthenticationPrincipal CustomUserDetails authenticatedUser){
         UserResponseDto userResponseDto = userService.getUserIfAllowed(id , authenticatedUser);

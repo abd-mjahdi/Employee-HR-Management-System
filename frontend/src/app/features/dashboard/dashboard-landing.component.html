@@ -1,0 +1,23 @@
+<div class="dashboard-container">
+  <header class="header">
+    <h2>Employee HR Portal</h2>
+    <div class="user-bar">
+      <span>{{ currentUser()?.email }} ({{ currentUser()?.role }})</span>
+      <button type="button" class="btn-logout" (click)="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <h1>Welcome, {{ currentUser()?.email }}</h1>
+    <p>Authentication complete. JWT token is active.</p>
+
+    <div class="info-section">
+      <h3>Session Details</h3>
+      <ul>
+        <li><strong>Email:</strong> {{ currentUser()?.email }}</li>
+        <li><strong>Role:</strong> {{ currentUser()?.role }}</li>
+        <li><strong>Token Status:</strong> Active</li>
+      </ul>
+    </div>
+  </main>
+</div>

@@ -40,10 +40,10 @@ public class SecurityConfig {
                 auth
                         .requestMatchers(
                                 "/auth/login",
-                                "/auth/register",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/auth/register").denyAll()
                         .anyRequest().authenticated()
         );
         http.addFilterBefore(jwtAuthenticationFilter , UsernamePasswordAuthenticationFilter.class);
@@ -66,7 +66,7 @@ public class SecurityConfig {
         config.setAllowCredentials(false);
 
         config.setAllowedMethods(List.of("GET","POST","PUT","DELETE"));
-        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:4200"));
         config.setAllowedHeaders(List.of("*"));
 
 

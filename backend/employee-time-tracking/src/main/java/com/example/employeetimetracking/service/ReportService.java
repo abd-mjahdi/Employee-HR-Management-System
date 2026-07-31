@@ -165,8 +165,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<LeaveRequest> requests = leaveRequestRepository.findByStatusAndDateRangeOverlap(
-                managerId, Status.APPROVED, startDate, endDate
+        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlap(
+                managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
         );
 
         BigDecimal totalDays = requests.stream()
@@ -212,7 +212,7 @@ public class ReportService {
                 .toList();
 
         List<TeamLeaveRequestItemDto> upcoming = leaveRequestRepository
-                .findByUserManagerIdAndStatusAndStartDateAfterOrderByStartDateAsc(managerId, Status.APPROVED, LocalDate.now())
+                .findByUserManagerIdAndStatusInAndStartDateAfterOrderByStartDateAsc(managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), LocalDate.now())
                 .stream()
                 .limit(10)
                 .map(lr -> new TeamLeaveRequestItemDto(
@@ -529,8 +529,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<LeaveRequest> requests = leaveRequestRepository.findByStatusAndDateRangeOverlapAll(
-                Status.APPROVED, startDate, endDate
+        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlapAll(
+                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
         );
 
         Map<Long, List<LeaveRequest>> byUser = requests.stream()
@@ -785,8 +785,8 @@ public class ReportService {
         }
 
         // Leave granted
-        List<LeaveRequest> leaveGranted = leaveRequestRepository.findByStatusAndDateRangeOverlapAll(
-                Status.APPROVED, startDate, endDate
+        List<LeaveRequest> leaveGranted = leaveRequestRepository.findByStatusInAndDateRangeOverlapAll(
+                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
         );
 
         BigDecimal totalLeaveDaysGranted = leaveGranted.stream()

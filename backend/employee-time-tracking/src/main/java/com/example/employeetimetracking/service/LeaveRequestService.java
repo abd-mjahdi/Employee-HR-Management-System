@@ -69,7 +69,7 @@ public class LeaveRequestService {
         int safeLimit = Math.max(1, Math.min(limit, 50));
         Pageable pageable = PageRequest.of(0, safeLimit);
         return leaveRequestRepository
-                .findByUserIdAndStatusAndStartDateAfterOrderByStartDateAsc(userId, Status.APPROVED, LocalDate.now(), pageable)
+                .findByUserIdAndStatusInAndStartDateAfterOrderByStartDateAsc(userId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), LocalDate.now(), pageable)
                 .stream()
                 .map(leaveRequestMapper::toDto)
                 .toList();
@@ -95,7 +95,7 @@ public class LeaveRequestService {
     // Number of their direct reports who have approved leave for today's date
     public Integer getTeamMembersOnLeaveToday(Long managerId){
         LocalDate today = LocalDate.now();
-        return leaveRequestRepository.teamMembersOnLeaveToday(managerId , Status.APPROVED , today);
+        return leaveRequestRepository.teamMembersOnLeaveTodayInStatuses(managerId , List.of(Status.APPROVED, Status.CANCELLATION_PENDING) , today);
     }
     // Number of leave requests across the whole company with manager_approval_status=APPROVED
     // but hr_approval_status=PENDING (leave requests waiting for HR's final approval after manager already approved)
@@ -120,7 +120,7 @@ public class LeaveRequestService {
             throw new InsufficientNoticePeriodException("Leave request does not meet minimum notice period requirement");
         }
 
-        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequests(lr.getUser().getId(), List.of(Status.PENDING, Status.APPROVED), lr.getStartDate(), lr.getEndDate());
+        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequests(lr.getUser().getId(), List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING), lr.getStartDate(), lr.getEndDate());
         if(!existingLeaveRequests.isEmpty()){
             throw new OverlappingLeaveRequestException("Leave request overlaps with an existing request");
         }
@@ -159,6 +159,11 @@ public class LeaveRequestService {
 
     public List<LeaveRequestReviewDto> getDirectReportPendingRequests(Long managerId){
         return leaveRequestRepository.findByUserManagerIdAndStatus(managerId,Status.PENDING)
+                .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
+    }
+
+    public List<LeaveRequestReviewDto> getDirectReportCancellationPendingRequests(Long managerId){
+        return leaveRequestRepository.findByUserManagerIdAndStatus(managerId, Status.CANCELLATION_PENDING)
                 .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
@@ -262,7 +267,7 @@ public class LeaveRequestService {
 
     public List<CalendarDayDto> getCalendarView(Long managerId, LocalDate startDate, LocalDate endDate){
         List<LeaveRequest> leaveRequests = leaveRequestRepository
-                .findByStatusAndDateRangeOverlap(managerId, Status.APPROVED, startDate, endDate);
+                .findByStatusInAndDateRangeOverlap(managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate);
         LocalDate current = startDate;
         List<CalendarDayDto> calendarDays=new ArrayList<>();
         while(!current.isAfter(endDate)){

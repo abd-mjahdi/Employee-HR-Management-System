@@ -243,7 +243,7 @@ public class TimeEntryService {
         }
         assertNoTimeOverlap(te.getUser(), te.getEntryDate(), te.getClockInTime(), te.getClockOutTime(), te.getId());
         if (leaveRequestService.hasActiveLeaveRequestOnDate(te.getUser(), te.getEntryDate(),
-                List.of(Status.PENDING, Status.APPROVED))) {
+                List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING))) {
             throw new InvalidTimeEntryException("Time entry not allowed: user is on leave for this date");
         }
         if (te.getTotalHours().compareTo(BigDecimal.valueOf(24)) > 0) {
@@ -594,7 +594,7 @@ public class TimeEntryService {
             throw new InvalidTimeEntryException("Entry date cannot be in the future");
         }
         if (leaveRequestService.hasActiveLeaveRequestOnDate(te.getUser(), te.getEntryDate(),
-                List.of(Status.PENDING, Status.APPROVED))) {
+                List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING))) {
             throw new InvalidTimeEntryException("Time entry not allowed: user is on leave for this date");
         }
         if (te.getTotalHours().compareTo(BigDecimal.valueOf(24)) > 0) {

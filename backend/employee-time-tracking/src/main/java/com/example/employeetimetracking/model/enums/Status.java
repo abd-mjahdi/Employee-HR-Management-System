@@ -6,5 +6,7 @@ public enum Status {
     DENIED,
     CANCELLED,
     /** Approved entry locked; employee asked to change; waiting for supervisor to allow edit */
-    PENDING_CORRECTION
+    PENDING_CORRECTION,
+    CANCELLATION_PENDING
 }
+

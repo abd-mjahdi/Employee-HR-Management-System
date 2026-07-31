@@ -176,6 +176,7 @@ public class LeaveApprovalService {
         }
 
         if (lr.getStatus() == Status.APPROVED) {
+            lr.setStatus(Status.CANCELLATION_PENDING);
             if (reason != null && !reason.isBlank()) {
                 lr.setManagerNotes(reason);
             }
@@ -205,8 +206,8 @@ public class LeaveApprovalService {
             throw new AccessDeniedException("You can't cancel this user's leave request");
         }
 
-        if (lr.getStatus() != Status.APPROVED) {
-            throw new LeaveApprovalException("Only approved leave requests require cancellation approval");
+        if (lr.getStatus() != Status.CANCELLATION_PENDING) {
+            throw new LeaveApprovalException("Only approved leave requests with pending cancellation require cancellation approval");
         }
 
         if (notes != null && !notes.isBlank()) {
@@ -232,10 +233,11 @@ public class LeaveApprovalService {
         if (!isDirectReport) {
             throw new AccessDeniedException("You can't deny this cancellation request");
         }
-        if (lr.getStatus() != Status.APPROVED) {
-            throw new LeaveApprovalException("Only approved leave requests can have cancellation denied");
+        if (lr.getStatus() != Status.CANCELLATION_PENDING) {
+            throw new LeaveApprovalException("Only approved leave requests with pending cancellation can have cancellation denied");
         }
 
+        lr.setStatus(Status.APPROVED);
         lr.setManagerNotes(reason);
         notificationService.notifyCancellationDenied(lr);
     }

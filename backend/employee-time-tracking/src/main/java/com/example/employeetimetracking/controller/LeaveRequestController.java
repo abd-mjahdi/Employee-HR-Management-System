@@ -53,6 +53,13 @@ public class LeaveRequestController {
     }
 
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @GetMapping("/cancellation-pending")
+    public ResponseEntity<List<LeaveRequestReviewDto>> getDirectReportCancellationPendingRequests(@AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        List<LeaveRequestReviewDto> leaveRequests = leaveRequestService.getDirectReportCancellationPendingRequests(authenticatedUser.getId());
+        return ResponseEntity.ok(leaveRequests);
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @GetMapping("/team")
     public ResponseEntity<List<LeaveRequestReviewDto>> getTeamLeaveRequests(
             @AuthenticationPrincipal CustomUserDetails authenticatedUser,

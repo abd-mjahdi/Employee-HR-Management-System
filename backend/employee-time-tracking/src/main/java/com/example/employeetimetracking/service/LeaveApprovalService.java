@@ -101,7 +101,10 @@ public class LeaveApprovalService {
         if (ownerOfRequest == null) {
             throw new LeaveApprovalException("Leave request has no owner");
         }
-        if (ownerOfRequest.getId().equals(authenticatedUser.getId())) {
+        if (!authenticatedUser.hasRole(UserRole.HR_ADMIN.name())) {
+            throw new AccessDeniedException("Only HR Admin can perform HR approvals");
+        }
+        if (ownerOfRequest.getId() != null && ownerOfRequest.getId().equals(authenticatedUser.getId())) {
             throw new AccessDeniedException("You can't approve your own leave request");
         }
 
@@ -131,6 +134,9 @@ public class LeaveApprovalService {
         User ownerOfRequest = lr.getUser();
         if (ownerOfRequest == null) {
             throw new LeaveApprovalException("Leave request has no owner");
+        }
+        if (!authenticatedUser.hasRole(UserRole.HR_ADMIN.name())) {
+            throw new AccessDeniedException("Only HR Admin can perform HR denials");
         }
         if (ownerOfRequest.getId() != null && ownerOfRequest.getId().equals(authenticatedUser.getId())) {
             throw new AccessDeniedException("You can't deny your own leave request");

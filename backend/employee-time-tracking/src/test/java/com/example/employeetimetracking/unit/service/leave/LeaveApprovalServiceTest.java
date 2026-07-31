@@ -112,4 +112,20 @@ public class LeaveApprovalServiceTest {
         assertThrows(LeaveApprovalException.class, () ->
                 leaveApprovalService.denyCancellation(100L, managerDetails, "Reason"));
     }
+
+    @Test
+    void testHrApproveFailsWithoutHrRole() {
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () ->
+                leaveApprovalService.hrApprove(100L, managerDetails, "Notes"));
+    }
+
+    @Test
+    void testHrDenyFailsWithoutHrRole() {
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () ->
+                leaveApprovalService.hrDeny(100L, managerDetails, "Reason"));
+    }
 }

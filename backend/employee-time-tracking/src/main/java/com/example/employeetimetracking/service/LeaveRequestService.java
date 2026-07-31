@@ -236,6 +236,8 @@ public class LeaveRequestService {
         User approver = userService.getById(hrApproverId);
         if (lr.getManagerApprovalStatus() == Status.PENDING) {
             lr.setManagerApprovalStatus(Status.APPROVED);
+            lr.setManagerApprovedBy(approver);
+            lr.setManagerApprovedAt(now);
         }
         lr.setHrApprovalStatus(Status.APPROVED);
         lr.setHrApprovedBy(approver);
@@ -250,6 +252,8 @@ public class LeaveRequestService {
         User approver = userService.getById(hrApproverId);
         if (lr.getManagerApprovalStatus() == Status.PENDING) {
             lr.setManagerApprovalStatus(Status.DENIED);
+            lr.setManagerApprovedBy(approver);
+            lr.setManagerApprovedAt(now);
         }
         lr.setStatus(Status.DENIED);
         lr.setHrApprovalStatus(Status.DENIED);

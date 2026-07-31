@@ -382,7 +382,7 @@ SELECT setval('time_entry_breaks_id_seq', 35);
 -- total_days excludes weekends for realism
 -- ============================================================
 INSERT INTO leave_requests (
-    id, user_id, leave_type_id, start_date, end_date, total_days, reason,
+    id, user_id, leave_type_id, start_date, end_date, total_days, reason, cancellation_reason,
     status,
     manager_approval_status, manager_approved_by, manager_approved_at, manager_notes,
     hr_approval_status, hr_approved_by, hr_approved_at, hr_notes
@@ -393,7 +393,7 @@ INSERT INTO leave_requests (
 -- Ivan Petrov: 3-day annual leave in March (approved by manager only, no HR needed)
 (1, 9, 1,
  '2026-03-10', '2026-03-12', 3.0,
- 'Personal vacation - family visit',
+ 'Personal vacation - family visit', NULL,
  'APPROVED',
  'APPROVED', 3, '2026-03-05 10:00:00', 'Approved. Enjoy!',
  'PENDING',  NULL, NULL, NULL),
@@ -401,7 +401,7 @@ INSERT INTO leave_requests (
 -- Julia Ross: 1-day sick leave in March
 (2, 10, 2,
  '2026-03-18', '2026-03-18', 1.0,
- 'Flu - doctor advised rest',
+ 'Flu - doctor advised rest', NULL,
  'APPROVED',
  'APPROVED', 3, '2026-03-18 08:30:00', 'Get well soon.',
  'PENDING',  NULL, NULL, NULL),
@@ -409,7 +409,7 @@ INSERT INTO leave_requests (
 -- Mark Jensen: 2-day annual leave in March
 (3, 13, 1,
  '2026-03-24', '2026-03-25', 2.0,
- 'Long weekend trip',
+ 'Long weekend trip', NULL,
  'APPROVED',
  'APPROVED', 4, '2026-03-20 11:00:00', NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -417,7 +417,7 @@ INSERT INTO leave_requests (
 -- Paula King: 1-day annual leave end of March
 (4, 16, 1,
  '2026-03-31', '2026-03-31', 1.0,
- 'Bank appointment - could not schedule outside hours',
+ 'Bank appointment - could not schedule outside hours', NULL,
  'APPROVED',
  'APPROVED', 5, '2026-03-27 09:00:00', NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -425,7 +425,7 @@ INSERT INTO leave_requests (
 -- Tina Clark: 5-day annual leave in early April (just finished)
 (5, 20, 1,
  '2026-04-07', '2026-04-11', 5.0,
- 'Holiday - booked months in advance',
+ 'Holiday - booked months in advance', NULL,
  'APPROVED',
  'APPROVED', 6, '2026-03-25 10:00:00', 'Approved. Handover doc required.',
  'PENDING',  NULL, NULL, NULL),
@@ -433,7 +433,7 @@ INSERT INTO leave_requests (
 -- Kevin Chang: unpaid leave fully approved (requires HR too)
 (6, 11, 3,
  '2026-03-02', '2026-03-06', 5.0,
- 'Extended personal matter requiring unpaid leave',
+ 'Extended personal matter requiring unpaid leave', NULL,
  'APPROVED',
  'APPROVED', 3, '2026-02-20 09:00:00', 'Discussed and agreed.',
  'APPROVED', 1, '2026-02-21 14:00:00', 'Approved after review of policy compliance.'),
@@ -443,7 +443,7 @@ INSERT INTO leave_requests (
 -- Oscar Diaz: annual leave denied (insufficient notice)
 (7, 15, 1,
  '2026-04-22', '2026-04-23', 2.0,
- 'Short break',
+ 'Short break', NULL,
  'DENIED',
  'DENIED', 4, '2026-04-18 09:00:00', 'Insufficient notice — minimum 7 days required.',
  'PENDING', NULL, NULL, NULL),
@@ -451,7 +451,7 @@ INSERT INTO leave_requests (
 -- Rachel Scott: study leave denied at HR level
 (8, 18, 7,
  '2026-05-12', '2026-05-14', 3.0,
- 'Professional accounting exam preparation',
+ 'Professional accounting exam preparation', NULL,
  'DENIED',
  'APPROVED', 5, '2026-04-10 10:00:00', 'Support this — passing to HR.',
  'DENIED',  2, '2026-04-12 11:00:00', 'Study leave quota exhausted for this period.'),
@@ -461,7 +461,7 @@ INSERT INTO leave_requests (
 -- Sam Turner: cancelled his own request
 (9, 19, 1,
  '2026-04-28', '2026-04-29', 2.0,
- 'Personal plans - may change',
+ 'Personal plans - may change', 'Plans changed',
  'CANCELLED',
  'CANCELLED', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -471,7 +471,7 @@ INSERT INTO leave_requests (
 -- Zoe Wright: annual leave next week
 (10, 26, 1,
  '2026-04-28', '2026-05-01', 4.0,
- 'Spring holiday with family',
+ 'Spring holiday with family', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -479,7 +479,7 @@ INSERT INTO leave_requests (
 -- Adam Lewis: 2-day annual leave in May
 (11, 27, 1,
  '2026-05-05', '2026-05-06', 2.0,
- 'Personal appointment and rest day',
+ 'Personal appointment and rest day', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING', NULL, NULL, NULL),
@@ -487,7 +487,7 @@ INSERT INTO leave_requests (
 -- Wendy Hall: sick leave today
 (12, 23, 2,
  '2026-04-21', '2026-04-21', 1.0,
- 'Migraine — unable to come in',
+ 'Migraine — unable to come in', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -495,7 +495,7 @@ INSERT INTO leave_requests (
 -- Bella Garcia: annual leave in May (longer)
 (13, 28, 1,
  '2026-05-19', '2026-05-23', 5.0,
- 'International travel — flights already booked',
+ 'International travel — flights already booked', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -503,7 +503,7 @@ INSERT INTO leave_requests (
 -- Diana Miller: annual leave in June
 (14, 30, 1,
  '2026-06-02', '2026-06-05', 4.0,
- 'Family reunion',
+ 'Family reunion', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -511,7 +511,7 @@ INSERT INTO leave_requests (
 -- Quinn Lee: study leave pending full approval chain
 (15, 17, 7,
  '2026-06-09', '2026-06-11', 3.0,
- 'CFA Level 1 exam prep week',
+ 'CFA Level 1 exam prep week', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -519,7 +519,7 @@ INSERT INTO leave_requests (
 -- Victor Nguyen: paternity leave (big notice, future date — requires HR)
 (16, 22, 5,
  '2026-07-01', '2026-07-14', 10.0,
- 'Baby due end of June — paternity leave',
+ 'Baby due end of June — paternity leave', NULL,
  'PENDING',
  'PENDING', NULL, NULL, NULL,
  'PENDING',  NULL, NULL, NULL),
@@ -529,7 +529,7 @@ INSERT INTO leave_requests (
 -- Xander Adams: annual leave — manager approved, waiting HR (requires_hr_approval=false for annual, but let's use unpaid to show 2-step)
 (17, 24, 3,
  '2026-05-26', '2026-05-29', 4.0,
- 'Extended travel — taking unpaid days',
+ 'Extended travel — taking unpaid days', NULL,
  'PENDING',
  'APPROVED', 7, '2026-04-17 09:30:00', 'Approved at manager level, forwarding to HR.',
  'PENDING',  NULL, NULL, NULL),
@@ -537,12 +537,22 @@ INSERT INTO leave_requests (
 -- Carl Robinson: maternity/paternity adjacent — study leave, manager approved, HR pending
 (18, 29, 7,
  '2026-06-23', '2026-06-25', 3.0,
- 'SHRM certification exam',
+ 'SHRM certification exam', NULL,
  'PENDING',
  'APPROVED', 1, '2026-04-19 10:00:00', 'Strongly encouraged — good for the team.',
+ 'PENDING',  NULL, NULL, NULL),
+
+-- ── CANCELLATION PENDING ──────────────────────────────────
+
+-- Grace Allen: approved leave with pending cancellation request
+(19, 14, 1,
+ '2026-05-15', '2026-05-18', 2.0,
+ 'Personal trip', 'Trip postponed by airline',
+ 'CANCELLATION_PENDING',
+ 'APPROVED', 4, '2026-04-10 09:00:00', 'Approved by manager',
  'PENDING',  NULL, NULL, NULL);
 
-SELECT setval('leave_requests_id_seq', 18);
+SELECT setval('leave_requests_id_seq', 19);
 
 
 -- ============================================================

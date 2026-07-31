@@ -18,7 +18,9 @@ public class LeaveRequestMapper{
                 lr.getEndDate(),
                 lr.getTotalDays(),
                 lr.getReason(),
-                lr.getStatus());
+                lr.getStatus(),
+                lr.getManagerNotes(),
+                lr.getCancellationReason());
     }
 
     public LeaveRequestReviewDto toLeaveRequestReviewDto(LeaveRequest lr){
@@ -30,7 +32,9 @@ public class LeaveRequestMapper{
                 lr.getEndDate(),
                 lr.getTotalDays(),
                 lr.getReason(),
-                lr.getStatus()
+                lr.getStatus(),
+                lr.getManagerNotes(),
+                lr.getCancellationReason()
                 );
 
     }

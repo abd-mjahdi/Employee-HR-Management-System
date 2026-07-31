@@ -63,6 +63,9 @@ public class LeaveRequest {
     @Column(name = "manager_notes")
     private String managerNotes;
 
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "hr_approval_status")
     private Status hrApprovalStatus;

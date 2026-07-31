@@ -174,7 +174,7 @@ public class LeaveApprovalService {
 
         if (lr.getStatus() == Status.PENDING) {
             if (reason != null && !reason.isBlank()) {
-                lr.setManagerNotes(reason);
+                lr.setCancellationReason(reason);
             }
             leaveRequestService.cancel(lr);
             notificationService.notifyLeaveCancelled(lr);
@@ -184,7 +184,7 @@ public class LeaveApprovalService {
         if (lr.getStatus() == Status.APPROVED) {
             lr.setStatus(Status.CANCELLATION_PENDING);
             if (reason != null && !reason.isBlank()) {
-                lr.setManagerNotes(reason);
+                lr.setCancellationReason(reason);
             }
             notificationService.notifyCancellationRequested(lr);
             return;
@@ -244,7 +244,9 @@ public class LeaveApprovalService {
         }
 
         lr.setStatus(Status.APPROVED);
-        lr.setManagerNotes(reason);
+        if (reason != null && !reason.isBlank()) {
+            lr.setManagerNotes(reason);
+        }
         notificationService.notifyCancellationDenied(lr);
     }
 

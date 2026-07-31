@@ -128,13 +128,13 @@ public class LeaveBalanceService {
     }
 
     private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {
-        int currentYear = LocalDate.now().getYear();
+        int year = (lr != null && lr.getStartDate() != null) ? lr.getStartDate().getYear() : LocalDate.now().getYear();
         return leaveBalanceRepository
-                .findByUserIdAndLeaveTypeIdAndYear(user.getId(), lr.getLeaveType().getId(), currentYear)
+                .findByUserIdAndLeaveTypeIdAndYear(user.getId(), lr.getLeaveType().getId(), year)
                 .orElseThrow(() -> new LeaveBalanceNotFoundException(
                         "Leave balance not found for userId=" + user.getId() +
                                 ", leaveTypeId=" + lr.getLeaveType().getId() +
-                                ", year=" + currentYear
+                                ", year=" + year
                 ));
     }
 

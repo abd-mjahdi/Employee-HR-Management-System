@@ -23,4 +23,6 @@ public class LeaveRequestDto {
     private BigDecimal totalDays;
     private String reason;
     private Status status;
+    private String managerNotes;
+    private String cancellationReason;
 }

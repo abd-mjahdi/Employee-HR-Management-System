@@ -138,7 +138,7 @@ public class LeaveRequestService {
         User user = userService.getById(id);
         LeaveType leaveType = leaveTypeService.getById(request.getLeaveTypeId());
         LeavePolicy policy = leavePolicyService.getPolicyByLeaveTypeId(request.getLeaveTypeId());
-        LeaveBalance balance = leaveBalanceService.getByUserIdAndLeaveTypeIdAndYear(id,leaveType.getId(),LocalDate.now().getYear());
+        LeaveBalance balance = leaveBalanceService.getByUserIdAndLeaveTypeIdAndYear(id, leaveType.getId(), request.getStartDate().getYear());
 
         LeaveRequest lr = new LeaveRequest();
         lr.setUser(user);

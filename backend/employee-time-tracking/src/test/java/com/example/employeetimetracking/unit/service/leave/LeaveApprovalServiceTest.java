@@ -67,7 +67,8 @@ public class LeaveApprovalServiceTest {
         leaveApprovalService.cancel(100L, ownerDetails, "Need to cancel");
 
         assertEquals(Status.CANCELLATION_PENDING, leaveRequest.getStatus());
-        assertEquals("Need to cancel", leaveRequest.getManagerNotes());
+        assertEquals("Need to cancel", leaveRequest.getCancellationReason());
+        assertNull(leaveRequest.getManagerNotes());
         verify(notificationService).notifyCancellationRequested(leaveRequest);
     }
 

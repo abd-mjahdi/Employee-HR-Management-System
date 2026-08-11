@@ -48,9 +48,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class TimeEntryService {
-    private static final BigDecimal HOURS_FOR_AUTO_APPROVE = BigDecimal.valueOf(8);
-    private static final long HOURS_IN_AUTO_APPROVE_WINDOW = 48L;
-
     private final TimeEntryRepository timeEntryRepository;
     private final TimeEntryBreakRepository timeEntryBreakRepository;
     private final TimeEntryMapper timeEntryMapper;
@@ -339,30 +336,6 @@ public class TimeEntryService {
         assertNoTimeOverlap(te.getUser(), te.getEntryDate(), te.getClockInTime(), te.getClockOutTime(), te.getId());
     }
 
-    private void applyAutoApproveIfEligible(TimeEntry te) {
-        if (!shouldAutoApprove(te)) {
-            return;
-        }
-        te.setStatus(Status.APPROVED);
-        te.setApprovedAt(LocalDateTime.now());
-        te.setApprovedBy(null);
-    }
-
-    private boolean shouldAutoApprove(TimeEntry te) {
-        if (te.getTotalHours() == null) {
-            return false;
-        }
-        if (te.getTotalHours().compareTo(HOURS_FOR_AUTO_APPROVE) >= 0) {
-            return false;
-        }
-        if (te.getEntryDate() == null) {
-            return false;
-        }
-        long hoursAfterEntryDateStart = ChronoUnit.HOURS.between(
-                te.getEntryDate().atStartOfDay(), LocalDateTime.now());
-        return hoursAfterEntryDateStart <= HOURS_IN_AUTO_APPROVE_WINDOW;
-    }
-
     private TimeEntry getById(Long id) {
         return timeEntryRepository.findById(id)
                 .orElseThrow(() -> new InvalidTimeEntryException("Time entry not found with id: " + id));
@@ -386,7 +359,6 @@ public class TimeEntryService {
         Project project = projectService.getById(request.getProjectId());
         TimeEntry te = createTimeEntryEntity(request, user, project);
         validateTimeEntry(te);
-        applyAutoApproveIfEligible(te);
         return timeEntryMapper.toDto(timeEntryRepository.save(te));
     }
 
@@ -497,9 +469,6 @@ public class TimeEntryService {
                 })
                 .toList();
         assertNoOverlapInBatch(entities);
-        for (TimeEntry te : entities) {
-            applyAutoApproveIfEligible(te);
-        }
         return timeEntryRepository.saveAll(entities).stream().map(timeEntryMapper::toDto).toList();
     }
 

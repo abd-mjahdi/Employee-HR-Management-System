@@ -19,3 +19,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
+
+  - changeSet:
+      id: 003-time-entry-rejection-reason
+      author: app
+      changes:
+        - sqlFile:
+            path: db/changelog/003-time-entry-rejection-reason.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

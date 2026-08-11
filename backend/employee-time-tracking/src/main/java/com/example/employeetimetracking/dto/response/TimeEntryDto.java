@@ -28,6 +28,7 @@ public class TimeEntryDto {
     private String projectName;
     private String projectCode;
     private String description;
+    private String rejectionReason;
     private Status status;
     private List<TimeEntryBreakDto> breaks;
 }

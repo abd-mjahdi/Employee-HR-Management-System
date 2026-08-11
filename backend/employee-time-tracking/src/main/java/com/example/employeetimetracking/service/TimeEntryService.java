@@ -480,9 +480,7 @@ public class TimeEntryService {
         te.setStatus(Status.DENIED);
         te.setApprovedBy(approver);
         te.setApprovedAt(LocalDateTime.now());
-        String existingDescription = te.getDescription() == null ? "" : te.getDescription().trim();
-        String rejectionNote = "Rejected reason: " + reason;
-        te.setDescription(existingDescription.isEmpty() ? rejectionNote : existingDescription + "\n" + rejectionNote);
+        te.setRejectionReason(reason);
     }
 
     @Transactional

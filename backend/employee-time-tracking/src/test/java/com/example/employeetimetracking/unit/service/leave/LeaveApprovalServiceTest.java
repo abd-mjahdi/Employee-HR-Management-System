@@ -4,6 +4,7 @@ import com.example.employeetimetracking.exception.LeaveApprovalException;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.LeaveApprovalService;
 import com.example.employeetimetracking.service.LeaveBalanceService;
@@ -15,8 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -46,13 +45,19 @@ public class LeaveApprovalServiceTest {
     void setUp() {
         manager = new User();
         manager.setId(10L);
+        manager.setEmail("manager@test.com");
+        manager.setPasswordHash("password");
+        manager.setUserRole(UserRole.MANAGER);
 
         owner = new User();
         owner.setId(1L);
+        owner.setEmail("owner@test.com");
+        owner.setPasswordHash("password");
+        owner.setUserRole(UserRole.EMPLOYEE);
         owner.setManager(manager);
 
-        ownerDetails = new CustomUserDetails(1L, "owner@test.com", "password", Collections.emptyList());
-        managerDetails = new CustomUserDetails(10L, "manager@test.com", "password", Collections.emptyList());
+        ownerDetails = new CustomUserDetails(owner);
+        managerDetails = new CustomUserDetails(manager);
 
         leaveRequest = new LeaveRequest();
         leaveRequest.setId(100L);

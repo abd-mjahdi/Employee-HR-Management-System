@@ -14,6 +14,7 @@ import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
@@ -59,12 +60,12 @@ public class TimeEntryService {
 
     @Autowired
     public TimeEntryService(
-            TimeEntryRepository timeEntryRepository,
+                            TimeEntryRepository timeEntryRepository,
             TimeEntryBreakRepository timeEntryBreakRepository,
-            TimeEntryMapper timeEntryMapper,
-            ProjectService projectService,
-            UserService userService,
-            LeaveRequestService leaveRequestService
+                            TimeEntryMapper timeEntryMapper,
+                            ProjectService projectService,
+                            UserService userService,
+                            LeaveRequestService leaveRequestService
     ) {
         this.timeEntryRepository = timeEntryRepository;
         this.timeEntryBreakRepository = timeEntryBreakRepository;
@@ -172,14 +173,7 @@ public class TimeEntryService {
         te.setDescription(request.getDescription());
         te.setProject(project);
         te.setStatus(Status.PENDING);
-        long minutes = ChronoUnit.MINUTES.between(
-                request.getClockInTime(),
-                request.getClockOutTime()
-        );
-        te.setTotalHours(
-                BigDecimal.valueOf(minutes)
-                        .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP)
-        );
+        recalculateHours(te);
         return te;
     }
 
@@ -254,16 +248,11 @@ public class TimeEntryService {
         }
     }
 
-    private BigDecimal calculateTotalHours(CreateTimeEntryDto request) {
-        long minutes = ChronoUnit.MINUTES.between(
-                request.getClockInTime(),
-                request.getClockOutTime()
-        );
-        return BigDecimal.valueOf(minutes)
-                .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
-    }
-
-    private void recalculateNetHours(TimeEntry te) {
+    /**
+     * Sets {@code totalHours} to payable hours: clock span minus unpaid breaks.
+     * Call whenever clock times or breaks change — never set totalHours directly.
+     */
+    private void recalculateHours(TimeEntry te) {
         if (te.getClockInTime() == null || te.getClockOutTime() == null) {
             return;
         }
@@ -271,11 +260,13 @@ public class TimeEntryService {
         if (totalMinutes < 0) {
             throw new InvalidTimeEntryException("Clock out time must be after clock in time");
         }
-        List<TimeEntryBreak> breaks = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
         long unpaidBreakMinutes = 0;
-        for (TimeEntryBreak b : breaks) {
-            if (Boolean.TRUE.equals(b.getIsUnpaid())) {
-                unpaidBreakMinutes += ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+        if (te.getId() != null) {
+            List<TimeEntryBreak> breaks = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
+            for (TimeEntryBreak b : breaks) {
+                if (Boolean.TRUE.equals(b.getIsUnpaid())) {
+                    unpaidBreakMinutes += ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+                }
             }
         }
         long netMinutes = totalMinutes - unpaidBreakMinutes;
@@ -426,7 +417,9 @@ public class TimeEntryService {
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Only pending time entries can be approved");
         }
-        assertCanManageEntry(approver, te);
+        if(approver.getUserRole() != UserRole.HR_ADMIN){
+            assertCanManageEntry(approver, te);
+        }
         te.setStatus(Status.APPROVED);
         te.setApprovedBy(approver);
         te.setApprovedAt(LocalDateTime.now());
@@ -439,7 +432,9 @@ public class TimeEntryService {
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Only pending time entries can be rejected");
         }
-        assertCanManageEntry(approver, te);
+        if(approver.getUserRole() != UserRole.HR_ADMIN){
+            assertCanManageEntry(approver, te);
+        }
         te.setStatus(Status.DENIED);
         te.setApprovedBy(approver);
         te.setApprovedAt(LocalDateTime.now());
@@ -466,14 +461,9 @@ public class TimeEntryService {
         te.setClockOutTime(request.getClockOutTime());
         te.setProject(project);
         te.setDescription(request.getDescription());
-        te.setTotalHours(calculateTotalHours(request));
-        // If breaks exist, ensure they still fit the new clock range
         assertExistingBreaksStillValid(te);
+        recalculateHours(te);
         validateForUpdate(te);
-        // If breaks exist, keep totalHours as net (clock span - breaks)
-        if (te.getId() != null) {
-            recalculateNetHours(te);
-        }
         return timeEntryMapper.toDto(te);
     }
 
@@ -538,7 +528,7 @@ public class TimeEntryService {
         b.setIsUnpaid(unpaid);
         TimeEntryBreak saved = timeEntryBreakRepository.save(b);
 
-        recalculateNetHours(te);
+        recalculateHours(te);
         return toBreakDto(saved);
     }
 
@@ -576,7 +566,7 @@ public class TimeEntryService {
         }
 
         timeEntryBreakRepository.delete(b);
-        recalculateNetHours(te);
+        recalculateHours(te);
     }
 
     private TimeEntryBreakDto toBreakDto(TimeEntryBreak b) {

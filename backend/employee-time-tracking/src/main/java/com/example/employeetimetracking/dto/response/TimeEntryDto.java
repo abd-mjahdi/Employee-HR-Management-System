@@ -1,7 +1,5 @@
 package com.example.employeetimetracking.dto.response;
 
-import com.example.employeetimetracking.model.entities.Project;
-import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,6 +9,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -30,4 +29,5 @@ public class TimeEntryDto {
     private String projectCode;
     private String description;
     private Status status;
+    private List<TimeEntryBreakDto> breaks;
 }

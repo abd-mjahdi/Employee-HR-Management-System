@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +76,7 @@ public class TimeEntryService {
     public List<TimeEntryDto> getRecentTimeEntries(User user) {
         Pageable limit = PageRequest.of(0, 8);
         List<TimeEntry> recentTimeEntries = timeEntryRepository.findByUserIdOrderByEntryDateDesc(user.getId(), limit);
-        return recentTimeEntries.stream().map(timeEntryMapper::toDto).toList();
+        return toDtos(recentTimeEntries);
     }
 
     public BigDecimal getHoursThisWeek(Long userId) {
@@ -170,7 +171,8 @@ public class TimeEntryService {
         te.setDescription(request.getDescription());
         te.setProject(project);
         te.setStatus(Status.PENDING);
-        recalculateHours(te);
+        applySubmittedBreaks(te, request.getBreaks(), false);
+        recalculateHours(te, te.getBreaks());
         return te;
     }
 
@@ -249,7 +251,7 @@ public class TimeEntryService {
      * Sets {@code totalHours} to payable hours: clock span minus unpaid breaks.
      * Call whenever clock times or breaks change — never set totalHours directly.
      */
-    private void recalculateHours(TimeEntry te) {
+    private void recalculateHours(TimeEntry te, List<TimeEntryBreak> breaks) {
         if (te.getClockInTime() == null || te.getClockOutTime() == null) {
             return;
         }
@@ -258,8 +260,7 @@ public class TimeEntryService {
             throw new InvalidTimeEntryException("Clock out time must be after clock in time");
         }
         long unpaidBreakMinutes = 0;
-        if (te.getId() != null) {
-            List<TimeEntryBreak> breaks = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
+        if (breaks != null) {
             for (TimeEntryBreak b : breaks) {
                 if (Boolean.TRUE.equals(b.getIsUnpaid())) {
                     unpaidBreakMinutes += ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
@@ -274,6 +275,101 @@ public class TimeEntryService {
                 BigDecimal.valueOf(netMinutes)
                         .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP)
         );
+    }
+
+    private void recalculateHoursFromDb(TimeEntry te) {
+        List<TimeEntryBreak> breaks = te.getId() == null
+                ? List.of()
+                : timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId());
+        recalculateHours(te, breaks);
+    }
+
+    private TimeEntryBreak toBreakEntity(TimeEntry te, CreateTimeEntryBreakDto dto) {
+        Boolean unpaid = dto.getIsUnpaid() == null ? true : dto.getIsUnpaid();
+        TimeEntryBreak b = new TimeEntryBreak();
+        b.setTimeEntry(te);
+        b.setBreakStart(dto.getBreakStart());
+        b.setBreakEnd(dto.getBreakEnd());
+        b.setIsUnpaid(unpaid);
+        return b;
+    }
+
+    private void assertSubmittedBreaksValid(LocalTime clockIn, LocalTime clockOut, List<CreateTimeEntryBreakDto> breaks) {
+        if (breaks == null || breaks.isEmpty()) {
+            return;
+        }
+        for (CreateTimeEntryBreakDto dto : breaks) {
+            assertBreakValid(dto.getBreakStart(), dto.getBreakEnd(), clockIn, clockOut);
+        }
+        for (int i = 0; i < breaks.size(); i++) {
+            for (int j = i + 1; j < breaks.size(); j++) {
+                CreateTimeEntryBreakDto a = breaks.get(i);
+                CreateTimeEntryBreakDto b = breaks.get(j);
+                if (a.getBreakStart().isBefore(b.getBreakEnd()) && b.getBreakStart().isBefore(a.getBreakEnd())) {
+                    throw new InvalidTimeEntryException("Break overlaps with another submitted break");
+                }
+            }
+        }
+    }
+
+    /**
+     * @param replace when true, clears existing breaks then applies the submitted set
+     *                (used for update). When false (create), only adds submitted breaks.
+     */
+    private void applySubmittedBreaks(TimeEntry te, List<CreateTimeEntryBreakDto> breakDtos, boolean replace) {
+        if (te.getBreaks() == null) {
+            te.setBreaks(new ArrayList<>());
+        }
+        if (replace) {
+            te.getBreaks().clear();
+        }
+        if (breakDtos == null || breakDtos.isEmpty()) {
+            return;
+        }
+        assertSubmittedBreaksValid(te.getClockInTime(), te.getClockOutTime(), breakDtos);
+        for (CreateTimeEntryBreakDto dto : breakDtos) {
+            te.getBreaks().add(toBreakEntity(te, dto));
+        }
+    }
+
+    private TimeEntryBreakDto toBreakDto(TimeEntryBreak b) {
+        int mins = (int) ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
+        return new TimeEntryBreakDto(b.getId(), b.getBreakStart(), b.getBreakEnd(), b.getIsUnpaid(), mins);
+    }
+
+    private TimeEntryDto toDto(TimeEntry te) {
+        List<TimeEntryBreakDto> breaks;
+        if (te.getId() != null) {
+            breaks = timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(te.getId()).stream()
+                    .map(this::toBreakDto)
+                    .toList();
+        } else {
+            breaks = te.getBreaks() == null ? List.of() : te.getBreaks().stream().map(this::toBreakDto).toList();
+        }
+        return timeEntryMapper.toDto(te, breaks);
+    }
+
+    private List<TimeEntryDto> toDtos(List<TimeEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = entries.stream()
+                .map(TimeEntry::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<Long, List<TimeEntryBreak>> breaksByEntry = ids.isEmpty()
+                ? Map.of()
+                : timeEntryBreakRepository.findByTimeEntryIdIn(ids).stream()
+                .collect(Collectors.groupingBy(b -> b.getTimeEntry().getId()));
+        return entries.stream()
+                .map(te -> {
+                    List<TimeEntryBreakDto> breaks = breaksByEntry.getOrDefault(te.getId(), List.of()).stream()
+                            .sorted(Comparator.comparing(TimeEntryBreak::getBreakStart))
+                            .map(this::toBreakDto)
+                            .toList();
+                    return timeEntryMapper.toDto(te, breaks);
+                })
+                .toList();
     }
 
     private static void assertBreakValid(LocalTime breakStart, LocalTime breakEnd, LocalTime clockIn, LocalTime clockOut) {
@@ -359,7 +455,7 @@ public class TimeEntryService {
         Project project = projectService.getById(request.getProjectId());
         TimeEntry te = createTimeEntryEntity(request, user, project);
         validateTimeEntry(te);
-        return timeEntryMapper.toDto(timeEntryRepository.save(te));
+        return toDto(timeEntryRepository.save(te));
     }
 
     public List<TimeEntryDto> getByUserId(Long userId, Status status, LocalDate startDate, LocalDate endDate) {
@@ -367,10 +463,7 @@ public class TimeEntryService {
                 .and(TimeEntrySpecification.hasUserId(userId))
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate)));
-        return timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate"))
-                .stream()
-                .map(timeEntryMapper::toDto)
-                .toList();
+        return toDtos(timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate")));
     }
 
     public List<TimeEntryDto> getTeamEntries(Long managerId, Status status, LocalDate startDate, LocalDate endDate, String name) {
@@ -379,7 +472,7 @@ public class TimeEntryService {
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate))
                 .and(TimeEntrySpecification.hasName(name)));
-        return timeEntryRepository.findAll(spec).stream().map(timeEntryMapper::toDto).toList();
+        return toDtos(timeEntryRepository.findAll(spec));
     }
 
     @Transactional
@@ -433,10 +526,15 @@ public class TimeEntryService {
         te.setClockOutTime(request.getClockOutTime());
         te.setProject(project);
         te.setDescription(request.getDescription());
-        assertExistingBreaksStillValid(te);
-        recalculateHours(te);
+        if (request.getBreaks() != null) {
+            applySubmittedBreaks(te, request.getBreaks(), true);
+            recalculateHours(te, te.getBreaks());
+        } else {
+            assertExistingBreaksStillValid(te);
+            recalculateHoursFromDb(te);
+        }
         validateForUpdate(te);
-        return timeEntryMapper.toDto(te);
+        return toDto(te);
     }
 
     @Transactional
@@ -469,7 +567,7 @@ public class TimeEntryService {
                 })
                 .toList();
         assertNoOverlapInBatch(entities);
-        return timeEntryRepository.saveAll(entities).stream().map(timeEntryMapper::toDto).toList();
+        return toDtos(timeEntryRepository.saveAll(entities));
     }
 
     @Transactional
@@ -496,8 +594,10 @@ public class TimeEntryService {
         b.setBreakEnd(dto.getBreakEnd());
         b.setIsUnpaid(unpaid);
         TimeEntryBreak saved = timeEntryBreakRepository.save(b);
-
-        recalculateHours(te);
+        if (te.getBreaks() != null) {
+            te.getBreaks().add(saved);
+        }
+        recalculateHoursFromDb(te);
         return toBreakDto(saved);
     }
 
@@ -535,12 +635,10 @@ public class TimeEntryService {
         }
 
         timeEntryBreakRepository.delete(b);
-        recalculateHours(te);
-    }
-
-    private TimeEntryBreakDto toBreakDto(TimeEntryBreak b) {
-        int mins = (int) ChronoUnit.MINUTES.between(b.getBreakStart(), b.getBreakEnd());
-        return new TimeEntryBreakDto(b.getId(), b.getBreakStart(), b.getBreakEnd(), b.getIsUnpaid(), mins);
+        if (te.getBreaks() != null) {
+            te.getBreaks().removeIf(existing -> existing.getId() != null && existing.getId().equals(breakId));
+        }
+        recalculateHoursFromDb(te);
     }
 
     /** Validates everything except same-day DB overlap; used before batch grouping. */
@@ -601,7 +699,7 @@ public class TimeEntryService {
         } else {
             list = timeEntryRepository.findByUserManagerIdAndStatusOrderByCreatedAtAsc(actorId, Status.PENDING);
         }
-        return list.stream().map(timeEntryMapper::toDto).toList();
+        return toDtos(list);
     }
 
     @Transactional

@@ -1,6 +1,6 @@
 package com.example.employeetimetracking.dto.request;
 
-import com.example.employeetimetracking.model.entities.Project;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -9,6 +9,8 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
+
 @Setter
 @Getter
 @NoArgsConstructor
@@ -28,4 +30,11 @@ public class CreateTimeEntryDto {
 
     private String description;
 
+    /**
+     * Optional breaks submitted with the time entry (timesheet-style).
+     * On create: omitted/empty means no breaks.
+     * On update: null keeps existing breaks; non-null replaces the full set.
+     */
+    @Valid
+    private List<CreateTimeEntryBreakDto> breaks;
 }

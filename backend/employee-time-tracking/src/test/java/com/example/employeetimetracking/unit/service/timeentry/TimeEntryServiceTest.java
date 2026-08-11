@@ -103,10 +103,21 @@ public class TimeEntryServiceTest {
                 .thenReturn(false);
         when(timeEntryRepository.findByUserIdAndEntryDate(any(Long.class), any(LocalDate.class)))
                 .thenReturn(Collections.emptyList());
-        when(timeEntryRepository.save(any(TimeEntry.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        TimeEntryDto mapped = new TimeEntryDto();
-        mapped.setId(100L);
-        when(timeEntryMapper.toDto(any(TimeEntry.class))).thenReturn(mapped);
+        when(timeEntryRepository.save(any(TimeEntry.class))).thenAnswer(invocation -> {
+            TimeEntry te = invocation.getArgument(0);
+            te.setId(100L);
+            return te;
+        });
+        when(timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(100L))
+                .thenReturn(Collections.emptyList());
+        when(timeEntryMapper.toDto(any(TimeEntry.class), anyList())).thenAnswer(invocation -> {
+            TimeEntry te = invocation.getArgument(0);
+            TimeEntryDto mapped = new TimeEntryDto();
+            mapped.setId(te.getId());
+            mapped.setTotalHours(te.getTotalHours());
+            mapped.setBreaks(invocation.getArgument(1));
+            return mapped;
+        });
 
         CreateTimeEntryDto request = new CreateTimeEntryDto();
         request.setEntryDate(LocalDate.now());
@@ -118,10 +129,55 @@ public class TimeEntryServiceTest {
         TimeEntryDto te = timeEntryService.create(request, 1L);
 
         assertNotNull(te);
+        assertEquals(new BigDecimal("8.00"), te.getTotalHours());
+        verify(timeEntryRepository, times(1)).save(any(TimeEntry.class));
+    }
+
+    @Test
+    public void create_withSubmittedUnpaidBreaks_setsPayableHoursAndPersistsBreaks() {
+        when(userService.getById(1L)).thenReturn(emp1);
+        when(projectService.getById(1L)).thenReturn(project);
+        when(leaveRequestService.hasActiveLeaveRequestOnDate(any(User.class), any(LocalDate.class), anyList()))
+                .thenReturn(false);
+        when(timeEntryRepository.findByUserIdAndEntryDate(any(Long.class), any(LocalDate.class)))
+                .thenReturn(Collections.emptyList());
+        when(timeEntryRepository.save(any(TimeEntry.class))).thenAnswer(invocation -> {
+            TimeEntry te = invocation.getArgument(0);
+            te.setId(100L);
+            return te;
+        });
+        when(timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(100L)).thenAnswer(invocation -> {
+            // After cascade save, breaks are on the entity; simulate DB return from captored save
+            return List.of();
+        });
         ArgumentCaptor<TimeEntry> saved = ArgumentCaptor.forClass(TimeEntry.class);
-        verify(timeEntryRepository, times(1)).save(saved.capture());
-        assertEquals(new BigDecimal("8.00"), saved.getValue().getTotalHours());
-        verify(timeEntryMapper).toDto(any(TimeEntry.class));
+        when(timeEntryMapper.toDto(any(TimeEntry.class), anyList())).thenAnswer(invocation -> {
+            TimeEntry te = invocation.getArgument(0);
+            TimeEntryDto mapped = new TimeEntryDto();
+            mapped.setId(te.getId());
+            mapped.setTotalHours(te.getTotalHours());
+            mapped.setBreaks(invocation.getArgument(1));
+            return mapped;
+        });
+
+        CreateTimeEntryDto request = new CreateTimeEntryDto();
+        request.setEntryDate(LocalDate.now());
+        request.setClockInTime(LocalTime.of(9, 0));
+        request.setClockOutTime(LocalTime.of(17, 0));
+        request.setProjectId(1L);
+        request.setDescription("day with lunch");
+        request.setBreaks(List.of(
+                new CreateTimeEntryBreakDto(LocalTime.of(12, 0), LocalTime.of(13, 0), true)
+        ));
+
+        TimeEntryDto result = timeEntryService.create(request, 1L);
+
+        verify(timeEntryRepository).save(saved.capture());
+        TimeEntry persisted = saved.getValue();
+        assertEquals(1, persisted.getBreaks().size());
+        assertEquals(LocalTime.of(12, 0), persisted.getBreaks().get(0).getBreakStart());
+        assertEquals(new BigDecimal("7.00"), persisted.getTotalHours());
+        assertEquals(new BigDecimal("7.00"), result.getTotalHours());
     }
 
     @Test
@@ -184,22 +240,24 @@ public class TimeEntryServiceTest {
     }
 
     @Test
-    public void update_recalculatesPayableHoursWithExistingUnpaidBreaks() {
+    public void update_withSubmittedBreaks_replacesBreakSetAndRecalculates() {
         TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("7.00"));
-        TimeEntryBreak unpaid = breakOf(te, LocalTime.of(12, 0), LocalTime.of(13, 0), true);
-        unpaid.setId(50L);
+        TimeEntryBreak oldBreak = breakOf(te, LocalTime.of(12, 0), LocalTime.of(13, 0), true);
+        oldBreak.setId(50L);
+        te.getBreaks().add(oldBreak);
 
         when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
         when(userService.getById(1L)).thenReturn(emp1);
         when(projectService.getById(1L)).thenReturn(project);
-        when(timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(10L))
-                .thenReturn(List.of(unpaid));
         when(timeEntryRepository.findByUserIdAndEntryDate(any(Long.class), any(LocalDate.class)))
                 .thenReturn(Collections.emptyList());
-        when(timeEntryMapper.toDto(any(TimeEntry.class))).thenAnswer(invocation -> {
+        when(timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(10L))
+                .thenReturn(List.of());
+        when(timeEntryMapper.toDto(any(TimeEntry.class), anyList())).thenAnswer(invocation -> {
             TimeEntry saved = invocation.getArgument(0);
             TimeEntryDto dto = new TimeEntryDto();
             dto.setTotalHours(saved.getTotalHours());
+            dto.setBreaks(invocation.getArgument(1));
             return dto;
         });
 
@@ -208,13 +266,17 @@ public class TimeEntryServiceTest {
         request.setClockInTime(LocalTime.of(8, 0));
         request.setClockOutTime(LocalTime.of(17, 0));
         request.setProjectId(1L);
-        request.setDescription("updated");
+        request.setDescription("updated with new breaks");
+        request.setBreaks(List.of(
+                new CreateTimeEntryBreakDto(LocalTime.of(12, 0), LocalTime.of(12, 30), true)
+        ));
 
         TimeEntryDto result = timeEntryService.update(10L, request, 1L, false);
 
-        // 9h clock span - 1h unpaid break
-        assertEquals(new BigDecimal("8.00"), result.getTotalHours());
-        assertEquals(new BigDecimal("8.00"), te.getTotalHours());
+        // 9h clock span - 0.5h unpaid break
+        assertEquals(new BigDecimal("8.50"), result.getTotalHours());
+        assertEquals(1, te.getBreaks().size());
+        assertEquals(LocalTime.of(12, 30), te.getBreaks().get(0).getBreakEnd());
     }
 
     private TimeEntry pendingEntry(Long id, LocalTime in, LocalTime out, BigDecimal hours) {

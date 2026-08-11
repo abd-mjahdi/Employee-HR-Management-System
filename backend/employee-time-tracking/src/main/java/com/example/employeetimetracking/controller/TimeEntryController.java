@@ -65,7 +65,9 @@ public class TimeEntryController {
                                                              @RequestParam(required = false) LocalDate endDate,
                                                              @RequestParam(required = false) String name,
                                                              @AuthenticationPrincipal CustomUserDetails authenticatedUser){
-        List<TimeEntryDto> response = timeEntryService.getTeamEntries(authenticatedUser.getId(), status, startDate, endDate, name);
+        boolean hr = authenticatedUser.hasRole("HR_ADMIN");
+        List<TimeEntryDto> response = timeEntryService.getTeamEntries(
+                authenticatedUser.getId(), hr, status, startDate, endDate, name);
         return ResponseEntity.ok(response);
     }
 
@@ -90,8 +92,7 @@ public class TimeEntryController {
     public ResponseEntity<TimeEntryDto> update(@PathVariable Long id,
                                                @Valid @RequestBody CreateTimeEntryDto request,
                                                @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
-        TimeEntryDto response = timeEntryService.update(id, request, authenticatedUser.getId(), isManager);
+        TimeEntryDto response = timeEntryService.update(id, request, authenticatedUser.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -99,24 +100,21 @@ public class TimeEntryController {
     public ResponseEntity<TimeEntryBreakDto> addBreak(@PathVariable Long id,
                                                       @Valid @RequestBody CreateTimeEntryBreakDto request,
                                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
-        TimeEntryBreakDto dto = timeEntryService.addBreak(id, request, authenticatedUser.getId(), isManager);
+        TimeEntryBreakDto dto = timeEntryService.addBreak(id, request, authenticatedUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
     @GetMapping("/{id}/breaks")
     public ResponseEntity<List<TimeEntryBreakDto>> listBreaks(@PathVariable Long id,
                                                               @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
-        return ResponseEntity.ok(timeEntryService.listBreaks(id, authenticatedUser.getId(), isManager));
+        return ResponseEntity.ok(timeEntryService.listBreaks(id, authenticatedUser.getId()));
     }
 
     @DeleteMapping("/{id}/breaks/{breakId}")
     public ResponseEntity<Void> deleteBreak(@PathVariable Long id,
                                             @PathVariable Long breakId,
                                             @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        boolean isManager = authenticatedUser.hasRole("MANAGER") || authenticatedUser.hasRole("HR_ADMIN");
-        timeEntryService.deleteBreak(id, breakId, authenticatedUser.getId(), isManager);
+        timeEntryService.deleteBreak(id, breakId, authenticatedUser.getId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
@@ -156,6 +154,14 @@ public class TimeEntryController {
     public ResponseEntity<Void> approveCorrectionUnlock(@PathVariable Long id,
                                                         @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
         timeEntryService.approveCorrectionUnlock(id, authenticatedUser.getId());
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    @PostMapping("/{id}/correction-deny")
+    public ResponseEntity<Void> denyCorrectionUnlock(@PathVariable Long id,
+                                                     @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
+        timeEntryService.denyCorrectionUnlock(id, authenticatedUser.getId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 

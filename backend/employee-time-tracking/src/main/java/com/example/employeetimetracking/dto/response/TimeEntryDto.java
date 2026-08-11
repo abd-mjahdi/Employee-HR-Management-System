@@ -29,6 +29,7 @@ public class TimeEntryDto {
     private String projectCode;
     private String description;
     private String rejectionReason;
+    private String correctionReason;
     private Status status;
     private List<TimeEntryBreakDto> breaks;
 }

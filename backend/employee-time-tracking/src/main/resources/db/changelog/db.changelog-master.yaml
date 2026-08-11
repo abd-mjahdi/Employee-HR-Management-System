@@ -29,3 +29,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: true
+
+  - changeSet:
+      id: 004-time-entry-correction-reason
+      author: app
+      changes:
+        - sqlFile:
+            path: db/changelog/004-time-entry-correction-reason.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

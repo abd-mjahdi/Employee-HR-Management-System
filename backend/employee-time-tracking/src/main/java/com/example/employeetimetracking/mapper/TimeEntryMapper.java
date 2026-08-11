@@ -29,6 +29,7 @@ public class TimeEntryMapper {
                 timeEntry.getProject().getProjectCode(),
                 timeEntry.getDescription(),
                 timeEntry.getRejectionReason(),
+                timeEntry.getCorrectionReason(),
                 timeEntry.getStatus(),
                 breaks == null ? Collections.emptyList() : breaks
         );

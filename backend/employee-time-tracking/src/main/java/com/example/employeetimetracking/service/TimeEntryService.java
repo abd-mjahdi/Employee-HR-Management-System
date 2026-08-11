@@ -414,16 +414,44 @@ public class TimeEntryService {
                 .orElseThrow(() -> new InvalidTimeEntryException("Time entry not found with id: " + id));
     }
 
-    private boolean isDirectSupervisorOf(User approver, User entryOwner) {
-        return entryOwner.getManager() != null
-                && entryOwner.getManager().getId() != null
-                && entryOwner.getManager().getId().equals(approver.getId());
+    private boolean isOwner(User actor, TimeEntry te) {
+        return te.getUser() != null
+                && te.getUser().getId() != null
+                && te.getUser().getId().equals(actor.getId());
     }
 
-    private void assertCanManageEntry(User approver, TimeEntry te) {
-        if (!isDirectSupervisorOf(approver, te.getUser())) {
-            throw new InvalidTimeEntryException("You cannot manage this time entry");
+    private boolean isHrAdmin(User actor) {
+        return actor.getUserRole() == UserRole.HR_ADMIN;
+    }
+
+    private boolean isDirectSupervisorOf(User actor, User entryOwner) {
+        return entryOwner.getManager() != null
+                && entryOwner.getManager().getId() != null
+                && entryOwner.getManager().getId().equals(actor.getId());
+    }
+
+    /** Owner, direct manager, or HR can view an entry (and its breaks). */
+    private void assertCanViewEntry(User actor, TimeEntry te) {
+        if (isOwner(actor, te) || isHrAdmin(actor) || isDirectSupervisorOf(actor, te.getUser())) {
+            return;
         }
+        throw new InvalidTimeEntryException("You cannot access this time entry");
+    }
+
+    /** Owner, direct manager, or HR can edit a pending entry / its breaks. */
+    private void assertCanEditPendingEntry(User actor, TimeEntry te) {
+        assertCanViewEntry(actor, te);
+    }
+
+    /** Direct manager or HR can approve/reject/unlock — never the entry owner. */
+    private void assertCanDecideOnEntry(User actor, TimeEntry te) {
+        if (isOwner(actor, te)) {
+            throw new InvalidTimeEntryException("You cannot approve or reject your own time entry");
+        }
+        if (isHrAdmin(actor) || isDirectSupervisorOf(actor, te.getUser())) {
+            return;
+        }
+        throw new InvalidTimeEntryException("You cannot manage this time entry");
     }
 
     @Transactional
@@ -443,13 +471,22 @@ public class TimeEntryService {
         return toDtos(timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate")));
     }
 
-    public List<TimeEntryDto> getTeamEntries(Long managerId, Status status, LocalDate startDate, LocalDate endDate, String name) {
+    public List<TimeEntryDto> getTeamEntries(
+            Long actorId,
+            boolean hrAdmin,
+            Status status,
+            LocalDate startDate,
+            LocalDate endDate,
+            String name
+    ) {
         Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatus(status)
-                .and(TimeEntrySpecification.hasManagerId(managerId))
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate))
                 .and(TimeEntrySpecification.hasName(name)));
-        return toDtos(timeEntryRepository.findAll(spec));
+        if (!hrAdmin) {
+            spec = spec.and(TimeEntrySpecification.hasManagerId(actorId));
+        }
+        return toDtos(timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "entryDate")));
     }
 
     @Transactional
@@ -459,12 +496,11 @@ public class TimeEntryService {
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Only pending time entries can be approved");
         }
-        if(approver.getUserRole() != UserRole.HR_ADMIN){
-            assertCanManageEntry(approver, te);
-        }
+        assertCanDecideOnEntry(approver, te);
         te.setStatus(Status.APPROVED);
         te.setApprovedBy(approver);
         te.setApprovedAt(LocalDateTime.now());
+        te.setRejectionReason(null);
     }
 
     @Transactional
@@ -474,9 +510,7 @@ public class TimeEntryService {
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Only pending time entries can be rejected");
         }
-        if(approver.getUserRole() != UserRole.HR_ADMIN){
-            assertCanManageEntry(approver, te);
-        }
+        assertCanDecideOnEntry(approver, te);
         te.setStatus(Status.DENIED);
         te.setApprovedBy(approver);
         te.setApprovedAt(LocalDateTime.now());
@@ -484,17 +518,13 @@ public class TimeEntryService {
     }
 
     @Transactional
-    public TimeEntryDto update(Long id, CreateTimeEntryDto request, Long actorId, boolean isManager) {
+    public TimeEntryDto update(Long id, CreateTimeEntryDto request, Long actorId) {
         TimeEntry te = getById(id);
         User actor = userService.getById(actorId);
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Only pending time entries can be updated");
         }
-        if (isManager) {
-            assertCanManageEntry(actor, te);
-        } else if (!te.getUser().getId().equals(actorId)) {
-            throw new InvalidTimeEntryException("You cannot update this time entry");
-        }
+        assertCanEditPendingEntry(actor, te);
         Project project = projectService.getById(request.getProjectId());
         te.setEntryDate(request.getEntryDate());
         te.setClockInTime(request.getClockInTime());
@@ -515,31 +545,25 @@ public class TimeEntryService {
     @Transactional
     public void deletePending(Long id, Long actorId) {
         TimeEntry te = getById(id);
-        if (!te.getUser().getId().equals(actorId)) {
-            throw new InvalidTimeEntryException("You cannot delete this time entry");
+        User actor = userService.getById(actorId);
+        if (!isOwner(actor, te)) {
+            throw new InvalidTimeEntryException("Only the entry owner can cancel a pending time entry");
         }
         if (te.getStatus() != Status.PENDING) {
-            throw new InvalidTimeEntryException("Only pending time entries can be deleted");
-        }
-        if (te.getCreatedAt() == null || te.getCreatedAt().isBefore(LocalDateTime.now().minusHours(24))) {
-            throw new InvalidTimeEntryException("Time entry can only be deleted within 24 hours of creation");
+            throw new InvalidTimeEntryException("Only pending time entries can be cancelled");
         }
         te.setStatus(Status.CANCELLED);
     }
 
     @Transactional
-    public TimeEntryBreakDto addBreak(Long timeEntryId, CreateTimeEntryBreakDto dto, Long actorId, boolean isManager) {
+    public TimeEntryBreakDto addBreak(Long timeEntryId, CreateTimeEntryBreakDto dto, Long actorId) {
         TimeEntry te = getById(timeEntryId);
         User actor = userService.getById(actorId);
 
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Breaks can only be updated for pending time entries");
         }
-        if (isManager) {
-            assertCanManageEntry(actor, te);
-        } else if (!te.getUser().getId().equals(actorId)) {
-            throw new InvalidTimeEntryException("You cannot add a break to this time entry");
-        }
+        assertCanEditPendingEntry(actor, te);
 
         Boolean unpaid = dto.getIsUnpaid() == null ? true : dto.getIsUnpaid();
         assertBreakValid(dto.getBreakStart(), dto.getBreakEnd(), te.getClockInTime(), te.getClockOutTime());
@@ -559,31 +583,23 @@ public class TimeEntryService {
     }
 
     @Transactional
-    public List<TimeEntryBreakDto> listBreaks(Long timeEntryId, Long actorId, boolean isManager) {
+    public List<TimeEntryBreakDto> listBreaks(Long timeEntryId, Long actorId) {
         TimeEntry te = getById(timeEntryId);
         User actor = userService.getById(actorId);
-        if (isManager) {
-            assertCanManageEntry(actor, te);
-        } else if (!te.getUser().getId().equals(actorId)) {
-            throw new InvalidTimeEntryException("You cannot view breaks for this time entry");
-        }
+        assertCanViewEntry(actor, te);
         return timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(timeEntryId).stream()
                 .map(this::toBreakDto)
                 .toList();
     }
 
     @Transactional
-    public void deleteBreak(Long timeEntryId, Long breakId, Long actorId, boolean isManager) {
+    public void deleteBreak(Long timeEntryId, Long breakId, Long actorId) {
         TimeEntry te = getById(timeEntryId);
         User actor = userService.getById(actorId);
         if (te.getStatus() != Status.PENDING) {
             throw new InvalidTimeEntryException("Breaks can only be updated for pending time entries");
         }
-        if (isManager) {
-            assertCanManageEntry(actor, te);
-        } else if (!te.getUser().getId().equals(actorId)) {
-            throw new InvalidTimeEntryException("You cannot delete a break from this time entry");
-        }
+        assertCanEditPendingEntry(actor, te);
 
         TimeEntryBreak b = timeEntryBreakRepository.findById(breakId)
                 .orElseThrow(() -> new InvalidTimeEntryException("Break not found with id: " + breakId));
@@ -601,15 +617,14 @@ public class TimeEntryService {
     @Transactional
     public void requestCorrection(Long id, Long userId, String explanation) {
         TimeEntry te = getById(id);
-        if (!te.getUser().getId().equals(userId)) {
-            throw new InvalidTimeEntryException("You cannot request a correction for this time entry");
+        User actor = userService.getById(userId);
+        if (!isOwner(actor, te)) {
+            throw new InvalidTimeEntryException("Only the entry owner can request a correction");
         }
         if (te.getStatus() != Status.APPROVED) {
             throw new InvalidTimeEntryException("Only approved entries can be sent for correction");
         }
-        String base = te.getDescription() == null ? "" : te.getDescription().trim();
-        String tag = "Correction request: " + (explanation == null ? "" : explanation.trim());
-        te.setDescription(base.isEmpty() ? tag : base + "\n" + tag);
+        te.setCorrectionReason(explanation);
         te.setStatus(Status.PENDING_CORRECTION);
     }
 
@@ -620,22 +635,33 @@ public class TimeEntryService {
         if (te.getStatus() != Status.PENDING_CORRECTION) {
             throw new InvalidTimeEntryException("Entry is not pending correction");
         }
-        assertCanManageEntry(approver, te);
+        assertCanDecideOnEntry(approver, te);
+        // Unlock for edit: treat as a fresh pending submission
         te.setStatus(Status.PENDING);
+        te.setApprovedBy(null);
+        te.setApprovedAt(null);
+    }
+
+    @Transactional
+    public void denyCorrectionUnlock(Long id, Long approverId) {
+        User approver = userService.getById(approverId);
+        TimeEntry te = getById(id);
+        if (te.getStatus() != Status.PENDING_CORRECTION) {
+            throw new InvalidTimeEntryException("Entry is not pending correction");
+        }
+        assertCanDecideOnEntry(approver, te);
+        // Keep the original approval; correction is refused
+        te.setStatus(Status.APPROVED);
     }
 
     @Transactional
     public List<TimeEntryDto> getPendingApprovalQueue(Long actorId, boolean hrAdmin) {
-        List<TimeEntry> list;
-        if (hrAdmin) {
-            list = timeEntryRepository.findAll(
-                    Specification.where(TimeEntrySpecification.hasStatus(Status.PENDING)),
-                    Sort.by(Sort.Direction.ASC, "createdAt")
-            );
-        } else {
-            list = timeEntryRepository.findByUserManagerIdAndStatusOrderByCreatedAtAsc(actorId, Status.PENDING);
+        List<Status> queueStatuses = List.of(Status.PENDING, Status.PENDING_CORRECTION);
+        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatusIn(queueStatuses));
+        if (!hrAdmin) {
+            spec = spec.and(TimeEntrySpecification.hasManagerId(actorId));
         }
-        return toDtos(list);
+        return toDtos(timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "createdAt")));
     }
 
     @Transactional

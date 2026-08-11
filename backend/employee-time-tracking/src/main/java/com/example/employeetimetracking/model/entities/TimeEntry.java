@@ -54,6 +54,9 @@ public class TimeEntry {
     @Column(name = "rejection_reason")
     private String rejectionReason;
 
+    @Column(name = "correction_reason")
+    private String correctionReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name="status")
     private Status status;

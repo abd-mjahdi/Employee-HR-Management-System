@@ -15,6 +15,13 @@ public class TimeEntrySpecification {
         return (root,query,cb)-> status==null ? cb.conjunction(): cb.equal(root.get("status"), status);
     }
 
+    public static Specification<TimeEntry> hasStatusIn(java.util.Collection<Status> statuses){
+        return (root, query, cb) ->
+                statuses == null || statuses.isEmpty()
+                        ? cb.conjunction()
+                        : root.get("status").in(statuses);
+    }
+
     public static Specification<TimeEntry> afterDate(LocalDate date){
         return (root, query, cb) -> date==null ? cb.conjunction() : cb.greaterThanOrEqualTo(root.get("entryDate"), date);
     }

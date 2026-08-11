@@ -4,6 +4,7 @@ import com.example.employeetimetracking.dto.request.CreateTimeEntryBreakDto;
 import com.example.employeetimetracking.dto.request.CreateTimeEntryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryBreakDto;
 import com.example.employeetimetracking.dto.response.TimeEntryDto;
+import com.example.employeetimetracking.exception.InvalidTimeEntryException;
 import com.example.employeetimetracking.mapper.TimeEntryMapper;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.Project;
@@ -36,6 +37,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
@@ -195,7 +198,7 @@ public class TimeEntryServiceTest {
         });
 
         CreateTimeEntryBreakDto dto = new CreateTimeEntryBreakDto(LocalTime.of(12, 0), LocalTime.of(13, 0), true);
-        TimeEntryBreakDto result = timeEntryService.addBreak(10L, dto, 1L, false);
+        TimeEntryBreakDto result = timeEntryService.addBreak(10L, dto, 1L);
 
         assertEquals(60, result.getDurationMinutes());
         assertEquals(new BigDecimal("7.00"), te.getTotalHours());
@@ -216,7 +219,7 @@ public class TimeEntryServiceTest {
         });
 
         CreateTimeEntryBreakDto dto = new CreateTimeEntryBreakDto(LocalTime.of(12, 0), LocalTime.of(12, 30), false);
-        timeEntryService.addBreak(10L, dto, 1L, false);
+        timeEntryService.addBreak(10L, dto, 1L);
 
         assertEquals(new BigDecimal("8.00"), te.getTotalHours());
     }
@@ -233,7 +236,7 @@ public class TimeEntryServiceTest {
         when(timeEntryBreakRepository.findByTimeEntryIdOrderByBreakStartAsc(10L))
                 .thenReturn(Collections.emptyList());
 
-        timeEntryService.deleteBreak(10L, 50L, 1L, false);
+        timeEntryService.deleteBreak(10L, 50L, 1L);
 
         verify(timeEntryBreakRepository).delete(unpaid);
         assertEquals(new BigDecimal("8.00"), te.getTotalHours());
@@ -271,12 +274,128 @@ public class TimeEntryServiceTest {
                 new CreateTimeEntryBreakDto(LocalTime.of(12, 0), LocalTime.of(12, 30), true)
         ));
 
-        TimeEntryDto result = timeEntryService.update(10L, request, 1L, false);
+        TimeEntryDto result = timeEntryService.update(10L, request, 1L);
 
         // 9h clock span - 0.5h unpaid break
         assertEquals(new BigDecimal("8.50"), result.getTotalHours());
         assertEquals(1, te.getBreaks().size());
         assertEquals(LocalTime.of(12, 30), te.getBreaks().get(0).getBreakEnd());
+    }
+
+    @Test
+    public void approve_byDirectManager_succeeds() {
+        User manager = managerUser(20L);
+        emp1.setManager(manager);
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(20L)).thenReturn(manager);
+
+        timeEntryService.approve(10L, 20L);
+
+        assertEquals(Status.APPROVED, te.getStatus());
+        assertEquals(manager, te.getApprovedBy());
+        assertNull(te.getRejectionReason());
+    }
+
+    @Test
+    public void approve_ownEntry_isRejected() {
+        User manager = managerUser(20L);
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+        te.setUser(manager);
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(20L)).thenReturn(manager);
+
+        assertThrows(InvalidTimeEntryException.class, () -> timeEntryService.approve(10L, 20L));
+        assertEquals(Status.PENDING, te.getStatus());
+    }
+
+    @Test
+    public void reject_setsRejectionReasonWithoutTouchingDescription() {
+        User manager = managerUser(20L);
+        emp1.setManager(manager);
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+        te.setDescription("worked on ACME");
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(20L)).thenReturn(manager);
+
+        timeEntryService.reject(10L, 20L, "Hours look inflated");
+
+        assertEquals(Status.DENIED, te.getStatus());
+        assertEquals("Hours look inflated", te.getRejectionReason());
+        assertEquals("worked on ACME", te.getDescription());
+    }
+
+    @Test
+    public void deletePending_ownerCanCancelWithoutTimeLimit() {
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+        te.setCreatedAt(LocalDateTime.now().minusDays(5));
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(1L)).thenReturn(emp1);
+
+        timeEntryService.deletePending(10L, 1L);
+
+        assertEquals(Status.CANCELLED, te.getStatus());
+    }
+
+    @Test
+    public void correctionFlow_unlockClearsApprovalAndAllowsPendingEdit() {
+        User manager = managerUser(20L);
+        emp1.setManager(manager);
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+        te.setStatus(Status.APPROVED);
+        te.setApprovedBy(manager);
+        te.setApprovedAt(LocalDateTime.now().minusDays(1));
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(1L)).thenReturn(emp1);
+        when(userService.getById(20L)).thenReturn(manager);
+
+        timeEntryService.requestCorrection(10L, 1L, "Forgot lunch break");
+        assertEquals(Status.PENDING_CORRECTION, te.getStatus());
+        assertEquals("Forgot lunch break", te.getCorrectionReason());
+
+        timeEntryService.approveCorrectionUnlock(10L, 20L);
+        assertEquals(Status.PENDING, te.getStatus());
+        assertNull(te.getApprovedBy());
+        assertNull(te.getApprovedAt());
+    }
+
+    @Test
+    public void denyCorrection_restoresApproved() {
+        User manager = managerUser(20L);
+        emp1.setManager(manager);
+        TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
+        te.setStatus(Status.PENDING_CORRECTION);
+        te.setApprovedBy(manager);
+        te.setApprovedAt(LocalDateTime.now().minusDays(1));
+        te.setCorrectionReason("Need to fix hours");
+
+        when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
+        when(userService.getById(20L)).thenReturn(manager);
+
+        timeEntryService.denyCorrectionUnlock(10L, 20L);
+
+        assertEquals(Status.APPROVED, te.getStatus());
+        assertEquals(manager, te.getApprovedBy());
+        assertEquals("Need to fix hours", te.getCorrectionReason());
+    }
+
+    private User managerUser(Long id) {
+        User manager = new User();
+        manager.setId(id);
+        manager.setUsername("mgr");
+        manager.setEmail("mgr@example.com");
+        manager.setPasswordHash("hash");
+        manager.setFirstName("Mgr");
+        manager.setLastName("User");
+        manager.setUserRole(UserRole.MANAGER);
+        manager.setDepartment(dept);
+        manager.setIsActive(true);
+        return manager;
     }
 
     private TimeEntry pendingEntry(Long id, LocalTime in, LocalTime out, BigDecimal hours) {

@@ -127,13 +127,6 @@ public class TimeEntryController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PostMapping("/bulk")
-    public ResponseEntity<List<TimeEntryDto>> bulkCreate(@Valid @RequestBody List<CreateTimeEntryDto> requests,
-                                                         @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        List<TimeEntryDto> response = timeEntryService.bulkCreate(requests, authenticatedUser.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @GetMapping("/summary")
     public ResponseEntity<TimeEntrySummaryDto> summary(@RequestParam LocalDate startDate,

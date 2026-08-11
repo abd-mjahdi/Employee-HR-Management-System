@@ -203,29 +203,6 @@ public class TimeEntryService {
         }
     }
 
-    private void assertNoOverlapInBatch(List<TimeEntry> batch) {
-        Map<LocalDate, List<TimeEntry>> byDate = batch.stream()
-                .collect(Collectors.groupingBy(TimeEntry::getEntryDate));
-        for (Map.Entry<LocalDate, List<TimeEntry>> e : byDate.entrySet()) {
-            List<TimeEntry> list = e.getValue();
-            for (int i = 0; i < list.size(); i++) {
-                for (int j = i + 1; j < list.size(); j++) {
-                    TimeEntry a = list.get(i);
-                    TimeEntry b = list.get(j);
-                    if (intervalsOverlap(
-                            a.getClockInTime(), a.getClockOutTime(),
-                            b.getClockInTime(), b.getClockOutTime()
-                    )) {
-                        throw new InvalidTimeEntryException("Bulk entries overlap on " + e.getKey());
-                    }
-                }
-            }
-        }
-        for (TimeEntry te : batch) {
-            assertNoTimeOverlap(te.getUser(), te.getEntryDate(), te.getClockInTime(), te.getClockOutTime(), null);
-        }
-    }
-
     public void validateTimeEntry(TimeEntry te) {
         LocalDate now = LocalDate.now();
         if (te.getClockOutTime().isBefore(te.getClockInTime())) {
@@ -553,24 +530,6 @@ public class TimeEntryService {
     }
 
     @Transactional
-    public List<TimeEntryDto> bulkCreate(List<CreateTimeEntryDto> requests, Long userId) {
-        if (requests == null || requests.isEmpty()) {
-            throw new InvalidTimeEntryException("Bulk request cannot be empty");
-        }
-        User user = userService.getById(userId);
-        List<TimeEntry> entities = requests.stream()
-                .map(request -> {
-                    Project project = projectService.getById(request.getProjectId());
-                    TimeEntry te = createTimeEntryEntity(request, user, project);
-                    validateTimeEntryWithoutOverlap(te);
-                    return te;
-                })
-                .toList();
-        assertNoOverlapInBatch(entities);
-        return toDtos(timeEntryRepository.saveAll(entities));
-    }
-
-    @Transactional
     public TimeEntryBreakDto addBreak(Long timeEntryId, CreateTimeEntryBreakDto dto, Long actorId, boolean isManager) {
         TimeEntry te = getById(timeEntryId);
         User actor = userService.getById(actorId);
@@ -639,27 +598,6 @@ public class TimeEntryService {
             te.getBreaks().removeIf(existing -> existing.getId() != null && existing.getId().equals(breakId));
         }
         recalculateHoursFromDb(te);
-    }
-
-    /** Validates everything except same-day DB overlap; used before batch grouping. */
-    private void validateTimeEntryWithoutOverlap(TimeEntry te) {
-        LocalDate now = LocalDate.now();
-        if (te.getClockOutTime().isBefore(te.getClockInTime())) {
-            throw new InvalidTimeEntryException("Clock out time must be after clock in time");
-        }
-        if (te.getEntryDate().isAfter(now)) {
-            throw new InvalidTimeEntryException("Entry date cannot be in the future");
-        }
-        if (leaveRequestService.hasActiveLeaveRequestOnDate(te.getUser(), te.getEntryDate(),
-                List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING))) {
-            throw new InvalidTimeEntryException("Time entry not allowed: user is on leave for this date");
-        }
-        if (te.getTotalHours().compareTo(BigDecimal.valueOf(24)) > 0) {
-            throw new InvalidTimeEntryException("Total hours cannot exceed 24 hours for a single day");
-        }
-        if (!te.getProject().getIsActive()) {
-            throw new InvalidTimeEntryException("Project is not active");
-        }
     }
 
     @Transactional

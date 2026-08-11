@@ -19,5 +19,6 @@ public class UserResponseDto {
     private String lastName;
     private UserRole userRole;
     private Long departmentId;
+    private Long managerId;
     private Boolean isActive;
 }

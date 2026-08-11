@@ -15,12 +15,14 @@ public class CustomUserDetails implements UserDetails {
     @Getter
     private String email;
     private String password;
+    private boolean active;
     private Collection<? extends SimpleGrantedAuthority> authorities;
 
     public CustomUserDetails(User user){
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
+        this.active = Boolean.TRUE.equals(user.getIsActive());
         this.authorities = List.of(
                 new SimpleGrantedAuthority("ROLE_"+user.getUserRole().name())
         );
@@ -39,6 +41,11 @@ public class CustomUserDetails implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return active;
     }
 
     public boolean hasRole(String role) {

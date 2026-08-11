@@ -56,7 +56,8 @@ public class GlobalExceptionHandler {
             LeaveApprovalException.class,
             InvalidLeaveRequestException.class,
             ProjectNotFoundException.class,
-            InvalidTimeEntryException.class
+            InvalidTimeEntryException.class,
+            InvalidUserException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

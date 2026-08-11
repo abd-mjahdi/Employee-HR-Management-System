@@ -14,7 +14,8 @@ public class UserMapper {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getUserRole(),
-                user.getDepartment().getId(),
+                user.getDepartment() != null ? user.getDepartment().getId() : null,
+                user.getManager() != null ? user.getManager().getId() : null,
                 user.getIsActive()
         );
     }

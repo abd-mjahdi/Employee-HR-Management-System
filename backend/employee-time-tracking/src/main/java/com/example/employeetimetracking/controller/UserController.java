@@ -80,8 +80,9 @@ public class UserController {
 
     @PreAuthorize("hasRole('HR_ADMIN')")
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<Void> deactivateUser(@PathVariable Long id){
-        userService.deactivateUserById(id);
+    public ResponseEntity<Void> deactivateUser(@PathVariable Long id,
+                                               @AuthenticationPrincipal CustomUserDetails authenticatedUser){
+        userService.deactivateUserById(id, authenticatedUser.getId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
@@ -104,7 +105,6 @@ public class UserController {
         return ResponseEntity.ok(results);
     }
 
-    @PreAuthorize("hasAnyRole('MANAGER' , 'EMPLOYEE')")
     @PatchMapping("/me/profile")
     public ResponseEntity<Void> updateProfile(@RequestBody UserUpdateDto userUpdateDto ,@AuthenticationPrincipal CustomUserDetails authenticatedUser){
         userService.updateProfile(authenticatedUser.getId(),userUpdateDto);

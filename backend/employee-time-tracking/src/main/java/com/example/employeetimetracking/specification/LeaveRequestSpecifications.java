@@ -11,6 +11,10 @@ public class LeaveRequestSpecifications {
         return (root, query, cb) -> cb.equal(root.get("user").get("manager").get("id"), id);
     }
 
+    public static Specification<LeaveRequest> hasUserId(Long userId){
+        return (root, query, cb) -> userId == null ? cb.conjunction() : cb.equal(root.get("user").get("id"), userId);
+    }
+
     public static Specification<LeaveRequest> hasStatus(Status status){
         return (root, query, cb) -> status==null ? cb.conjunction() : cb.equal(root.get("status"), status);
     }

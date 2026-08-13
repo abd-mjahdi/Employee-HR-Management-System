@@ -13,6 +13,8 @@ import com.example.employeetimetracking.service.LeaveApprovalService;
 import com.example.employeetimetracking.service.LeaveRequestService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,6 +46,28 @@ public class LeaveRequestController {
     public ResponseEntity<List<LeaveRequestDto>> getAuthenticatedUserLeaveRequests(@AuthenticationPrincipal CustomUserDetails authenticatedUser){
         List<LeaveRequestDto> leaveRequests = leaveRequestService.getByUserIdOrderByCreatedAtDesc(authenticatedUser.getId());
         return ResponseEntity.ok(leaveRequests);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<LeaveRequestDto> getLeaveRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails authenticatedUser
+    ) {
+        return ResponseEntity.ok(leaveRequestService.getIfAllowed(id, authenticatedUser));
+    }
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @GetMapping
+    public ResponseEntity<Page<LeaveRequestReviewDto>> listAllLeaveRequests(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Status status,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(
+                leaveRequestService.searchAll(userId, status, startDate, endDate, pageable)
+        );
     }
 
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")

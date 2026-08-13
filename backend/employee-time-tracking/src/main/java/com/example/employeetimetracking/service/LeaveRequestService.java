@@ -10,13 +10,17 @@ import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
+import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class LeaveRequestService {
@@ -58,6 +63,44 @@ public class LeaveRequestService {
 
     public LeaveRequest getById(Long id){
         return leaveRequestRepository.findById(id).orElseThrow(()-> new LeaveRequestNotFoundException("Leave request not found with the id :"+id));
+    }
+
+    public LeaveRequestDto getIfAllowed(Long id, CustomUserDetails authenticatedUser) {
+        LeaveRequest lr = getById(id);
+        User owner = lr.getUser();
+        Long ownerId = owner != null ? owner.getId() : null;
+        Long managerId = owner != null && owner.getManager() != null ? owner.getManager().getId() : null;
+
+        boolean isOwner = Objects.equals(authenticatedUser.getId(), ownerId);
+        boolean isManager = Objects.equals(authenticatedUser.getId(), managerId);
+        boolean isHrAdmin = authenticatedUser.hasRole("HR_ADMIN");
+        if (isOwner || isManager || isHrAdmin) {
+            return leaveRequestMapper.toDto(lr);
+        }
+        throw new AccessDeniedException("You cannot access this resource");
+    }
+
+    public Page<LeaveRequestReviewDto> searchAll(
+            Long userId,
+            Status status,
+            LocalDate startDate,
+            LocalDate endDate,
+            Pageable pageable
+    ) {
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt")
+            );
+        }
+        Specification<LeaveRequest> spec = Specification
+                .where(LeaveRequestSpecifications.hasUserId(userId))
+                .and(LeaveRequestSpecifications.hasStatus(status))
+                .and(LeaveRequestSpecifications.afterDate(startDate))
+                .and(LeaveRequestSpecifications.beforeDate(endDate));
+        return leaveRequestRepository.findAll(spec, pageable)
+                .map(leaveRequestMapper::toLeaveRequestReviewDto);
     }
 
     // Self approved leave requests

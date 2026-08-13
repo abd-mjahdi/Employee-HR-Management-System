@@ -139,7 +139,7 @@ public class LeaveRequestController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @PostMapping("/{id}/cancel-approve")
     public ResponseEntity<Void> approveCancellation(@PathVariable Long id,
                                                     @RequestBody(required = false) LeaveApprovalNotesDto request,
@@ -148,7 +148,7 @@ public class LeaveRequestController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @PostMapping("/{id}/cancel-deny")
     public ResponseEntity<Void> denyCancellation(@PathVariable Long id,
                                                  @Valid @RequestBody LeaveDenyRequestDto request,

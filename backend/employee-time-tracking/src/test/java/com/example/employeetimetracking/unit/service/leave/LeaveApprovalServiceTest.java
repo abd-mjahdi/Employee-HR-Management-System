@@ -66,12 +66,16 @@ public class LeaveApprovalServiceTest {
     }
 
     @Test
-    void testCancelApprovedLeaveIsRejected() {
+    void testCancelApprovedLeaveSetsCancellationPending() {
         when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
 
-        assertThrows(LeaveApprovalException.class, () ->
-                leaveApprovalService.cancel(100L, ownerDetails, "Need to cancel"));
+        leaveApprovalService.cancel(100L, ownerDetails, "Need to cancel");
+
+        assertEquals(Status.CANCELLATION_PENDING, leaveRequest.getStatus());
+        assertEquals("Need to cancel", leaveRequest.getCancellationReason());
         verify(leaveRequestService, never()).cancel(leaveRequest);
+        verify(leaveBalanceService, never()).restoreLeaveBalance(leaveRequest, owner);
+        verify(notificationService).notifyCancellationRequested(leaveRequest);
     }
 
     @Test

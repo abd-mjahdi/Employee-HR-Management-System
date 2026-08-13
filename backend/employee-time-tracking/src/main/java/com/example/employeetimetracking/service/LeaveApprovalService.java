@@ -94,25 +94,14 @@ public class LeaveApprovalService {
             throw new AccessDeniedException("You can't cancel this leave request");
         }
 
-        if (lr.getStatus() == Status.PENDING) {
-            if (reason != null && !reason.isBlank()) {
-                lr.setCancellationReason(reason);
-            }
-            leaveRequestService.cancel(lr);
-            notificationService.notifyLeaveCancelled(lr);
-            return;
+        if (lr.getStatus() != Status.PENDING) {
+            throw new LeaveApprovalException("Leave request cannot be cancelled");
         }
-
-        if (lr.getStatus() == Status.APPROVED) {
-            lr.setStatus(Status.CANCELLATION_PENDING);
-            if (reason != null && !reason.isBlank()) {
-                lr.setCancellationReason(reason);
-            }
-            notificationService.notifyCancellationRequested(lr);
-            return;
+        if (reason != null && !reason.isBlank()) {
+            lr.setCancellationReason(reason);
         }
-
-        throw new LeaveApprovalException("Leave request cannot be cancelled");
+        leaveRequestService.cancel(lr);
+        notificationService.notifyLeaveCancelled(lr);
     }
 
     @Transactional

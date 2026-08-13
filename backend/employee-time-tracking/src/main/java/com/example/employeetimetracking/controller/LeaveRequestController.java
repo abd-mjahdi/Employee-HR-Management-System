@@ -33,6 +33,7 @@ public class LeaveRequestController {
         this.leaveApprovalService = leaveApprovalService;
     }
 
+    @PreAuthorize("hasAnyRole('EMPLOYEE','MANAGER')")
     @PostMapping
     public ResponseEntity<LeaveRequestDto> createLeaveRequest(@Valid @RequestBody CreateLeaveRequestDto request , @AuthenticationPrincipal CustomUserDetails authenticatedUser){
         LeaveRequestDto lr = leaveRequestService.create(request ,authenticatedUser.getId());

@@ -88,13 +88,6 @@ public class LeaveRequestController {
         return ResponseEntity.ok(leaveRequestService.getCalendarView(authenticatedUser.getId(), startDate, endDate));
     }
 
-    @PreAuthorize("hasRole('HR_ADMIN')")
-    @GetMapping("/hr/pending")
-    public ResponseEntity<List<LeaveRequestReviewDto>> getHrPendingRequests() {
-        List<LeaveRequestReviewDto> leaveRequests = leaveRequestService.getHrPendingRequests();
-        return ResponseEntity.ok(leaveRequests);
-    }
-
     @PreAuthorize("hasRole('MANAGER')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id,
@@ -110,24 +103,6 @@ public class LeaveRequestController {
                                      @Valid @RequestBody LeaveDenyRequestDto request,
                                      @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
         leaveApprovalService.deny(id, authenticatedUser, request.getReason());
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
-    }
-
-    @PreAuthorize("hasRole('HR_ADMIN')")
-    @PostMapping("/{id}/hr-approve")
-    public ResponseEntity<Void> hrApprove(@PathVariable Long id,
-                                          @RequestBody(required = false) LeaveApprovalNotesDto request,
-                                          @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        leaveApprovalService.hrApprove(id, authenticatedUser, request != null ? request.getNotes() : null);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
-    }
-
-    @PreAuthorize("hasRole('HR_ADMIN')")
-    @PostMapping("/{id}/hr-deny")
-    public ResponseEntity<Void> hrDeny(@PathVariable Long id,
-                                       @Valid @RequestBody LeaveDenyRequestDto request,
-                                       @AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        leaveApprovalService.hrDeny(id, authenticatedUser, request.getReason());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 

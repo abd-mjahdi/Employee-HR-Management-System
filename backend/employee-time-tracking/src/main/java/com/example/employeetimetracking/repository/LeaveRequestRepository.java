@@ -40,8 +40,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status IN :statuses AND :date BETWEEN lr.startDate AND lr.endDate")
     Integer teamMembersOnLeaveTodayInStatuses(@Param("managerId") Long managerId, @Param("statuses") List<Status> statuses, @Param("date") LocalDate date);
 
-    Integer countByManagerApprovalStatusAndHrApprovalStatus(Status managerApprovalStatus , Status hrAdminApprovalStatus);
-
     @Query("""
     SELECT lr FROM LeaveRequest lr
     WHERE lr.user.id = :userId
@@ -124,11 +122,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             Long managerId,
             List<Status> statuses,
             LocalDate startDate
-    );
-    List<LeaveRequest> findByStatusAndManagerApprovalStatusAndHrApprovalStatus(
-            Status status,
-            Status managerApprovalStatus,
-            Status hrApprovalStatus
     );
 
     @Query("""

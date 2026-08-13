@@ -24,5 +24,4 @@ public class DashboardStatsDto {
 
     // HR-specific stats (null for non-HR)
     private Integer totalActiveEmployees;
-    private Integer pendingHrApprovalsCount;
 }

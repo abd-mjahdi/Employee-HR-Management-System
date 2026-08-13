@@ -97,11 +97,6 @@ public class LeaveRequestService {
         LocalDate today = LocalDate.now();
         return leaveRequestRepository.teamMembersOnLeaveTodayInStatuses(managerId , List.of(Status.APPROVED, Status.CANCELLATION_PENDING) , today);
     }
-    // Number of leave requests across the whole company with manager_approval_status=APPROVED
-    // but hr_approval_status=PENDING (leave requests waiting for HR's final approval after manager already approved)
-    public Integer getPendingHrApprovalsCount(){
-        return leaveRequestRepository.countByManagerApprovalStatusAndHrApprovalStatus(Status.APPROVED , Status.PENDING);
-    }
 
     public void validateLeaveRequest(LeaveRequest lr, LeavePolicy policy, LeaveBalance balance){
         // leavetype and user are fine to access via getters because they are loaded by setters
@@ -183,20 +178,8 @@ public class LeaveRequestService {
                 .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
-    public List<LeaveRequestReviewDto> getHrPendingRequests() {
-        return leaveRequestRepository
-                .findByStatusAndManagerApprovalStatusAndHrApprovalStatus(
-                        Status.PENDING,
-                        Status.APPROVED,
-                        Status.PENDING
-                )
-                .stream()
-                .map(leaveRequestMapper::toLeaveRequestReviewDto)
-                .toList();
-    }
-
     @Transactional
-    public void approveDirectly(LeaveRequest lr, Long approverId, String approverNotes){
+    public void approve(LeaveRequest lr, Long approverId, String approverNotes){
         LocalDateTime now = LocalDateTime.now();
         User approver = userService.getById(approverId);
         lr.setManagerApprovalStatus(Status.APPROVED);
@@ -205,17 +188,6 @@ public class LeaveRequestService {
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
         lr.setManagerNotes(approverNotes);
-    }
-
-    @Transactional
-    public void approvePendingHr(LeaveRequest lr, Long approverId, String approverNotes){
-        LocalDateTime now = LocalDateTime.now();
-        User approver = userService.getById(approverId);
-        lr.setManagerApprovalStatus(Status.APPROVED);
-        lr.setManagerApprovedBy(approver);
-        lr.setManagerApprovedAt(now);
-        lr.setManagerNotes(approverNotes);
-
     }
 
     @Transactional
@@ -228,38 +200,6 @@ public class LeaveRequestService {
         lr.setManagerNotes(denialReason);
         lr.setManagerApprovedBy(approver);
         lr.setManagerApprovedAt(now);
-    }
-
-    @Transactional
-    public void hrApprove(LeaveRequest lr, Long hrApproverId, String hrNotes) {
-        LocalDateTime now = LocalDateTime.now();
-        User approver = userService.getById(hrApproverId);
-        if (lr.getManagerApprovalStatus() == Status.PENDING) {
-            lr.setManagerApprovalStatus(Status.APPROVED);
-            lr.setManagerApprovedBy(approver);
-            lr.setManagerApprovedAt(now);
-        }
-        lr.setHrApprovalStatus(Status.APPROVED);
-        lr.setHrApprovedBy(approver);
-        lr.setHrApprovedAt(now);
-        lr.setHrNotes(hrNotes);
-        lr.setStatus(Status.APPROVED);
-    }
-
-    @Transactional
-    public void hrDeny(LeaveRequest lr, Long hrApproverId, String denialReason) {
-        LocalDateTime now = LocalDateTime.now();
-        User approver = userService.getById(hrApproverId);
-        if (lr.getManagerApprovalStatus() == Status.PENDING) {
-            lr.setManagerApprovalStatus(Status.DENIED);
-            lr.setManagerApprovedBy(approver);
-            lr.setManagerApprovedAt(now);
-        }
-        lr.setStatus(Status.DENIED);
-        lr.setHrApprovalStatus(Status.DENIED);
-        lr.setHrApprovedBy(approver);
-        lr.setHrApprovedAt(now);
-        lr.setHrNotes(denialReason);
     }
 
     @Transactional

@@ -61,7 +61,6 @@ public class DashboardService {
         Integer pendingLeaveApprovals = null;
         Integer teamOnLeave = null;
         Integer activeUsers = null;
-        Integer hrPending = null;
 
         if (role == UserRole.MANAGER || role == UserRole.HR_ADMIN) {
             pendingTimeApprovals = timeEntryService.getPendingTimeApprovalsCount(userId);
@@ -71,7 +70,6 @@ public class DashboardService {
 
         if (role == UserRole.HR_ADMIN) {
             activeUsers = userRepository.countByIsActive(true);
-            hrPending = leaveRequestService.getPendingHrApprovalsCount();
         }
 
         return new DashboardStatsDto(
@@ -82,8 +80,7 @@ public class DashboardService {
                 pendingTimeApprovals,
                 pendingLeaveApprovals,
                 teamOnLeave,
-                activeUsers,
-                hrPending
+                activeUsers
         );
     }
 

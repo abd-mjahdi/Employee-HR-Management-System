@@ -89,7 +89,7 @@ public class LeaveRequestController {
         return ResponseEntity.ok(leaveRequestService.getCalendarView(authenticatedUser.getId(), startDate, endDate));
     }
 
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @PostMapping("/{id}/approve")
     public ResponseEntity<Void> approve(@PathVariable Long id,
                                         @RequestBody(required = false) LeaveApprovalNotesDto request,
@@ -98,7 +98,7 @@ public class LeaveRequestController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
     }
 
-    @PreAuthorize("hasRole('MANAGER')")
+    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @PostMapping("/{id}/deny")
     public ResponseEntity<Void> deny(@PathVariable Long id,
                                      @Valid @RequestBody LeaveDenyRequestDto request,

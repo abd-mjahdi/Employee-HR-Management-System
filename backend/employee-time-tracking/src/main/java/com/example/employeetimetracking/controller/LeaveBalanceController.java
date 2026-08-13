@@ -3,7 +3,6 @@ package com.example.employeetimetracking.controller;
 import com.example.employeetimetracking.dto.response.LeaveBalanceDto;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.LeaveBalanceService;
-import com.example.employeetimetracking.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -26,7 +26,8 @@ public class LeaveBalanceController {
 
     @GetMapping("/me")
     public ResponseEntity<List<LeaveBalanceDto>> getLeaveBalances(@AuthenticationPrincipal CustomUserDetails authenticatedUser){
-        List<LeaveBalanceDto> leaveBalances = leaveBalanceService.getByUserIdAndYear(authenticatedUser.getId() ,2025);
+        List<LeaveBalanceDto> leaveBalances = leaveBalanceService.getByUserIdAndYear(
+                authenticatedUser.getId(), LocalDate.now().getYear());
         return ResponseEntity.ok(leaveBalances);
     }
 

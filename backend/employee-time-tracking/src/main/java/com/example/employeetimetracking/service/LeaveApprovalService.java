@@ -4,6 +4,7 @@ import com.example.employeetimetracking.exception.LeaveApprovalException;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ public class LeaveApprovalService {
     @Transactional
     public void approve(Long lrId, CustomUserDetails authenticatedUser, String approverNotes) {
         LeaveRequest lr = leaveRequestService.getById(lrId);
-        User owner = requireAssignedManager(lr, authenticatedUser,
+        User owner = requireCanDecide(lr, authenticatedUser,
                 "You can't approve your own leave request",
                 "You can't approve this user");
         if (lr.getStatus() != Status.PENDING || lr.getManagerApprovalStatus() != Status.PENDING) {
@@ -42,7 +43,7 @@ public class LeaveApprovalService {
     @Transactional
     public void deny(Long lrId, CustomUserDetails authenticatedUser, String denialReason) {
         LeaveRequest lr = leaveRequestService.getById(lrId);
-        requireAssignedManager(lr, authenticatedUser,
+        requireCanDecide(lr, authenticatedUser,
                 "You can't deny your own leave request",
                 "You can't deny this user");
         if (lr.getStatus() != Status.PENDING || lr.getManagerApprovalStatus() != Status.PENDING) {
@@ -87,7 +88,7 @@ public class LeaveApprovalService {
     @Transactional
     public void approveCancellation(Long lrId, CustomUserDetails authenticatedUser, String notes) {
         LeaveRequest lr = leaveRequestService.getById(lrId);
-        User owner = requireAssignedManager(lr, authenticatedUser,
+        User owner = requireCanDecide(lr, authenticatedUser,
                 "You can't cancel your own leave request",
                 "You can't cancel this user's leave request");
         if (lr.getStatus() != Status.CANCELLATION_PENDING) {
@@ -104,7 +105,7 @@ public class LeaveApprovalService {
     @Transactional
     public void denyCancellation(Long lrId, CustomUserDetails authenticatedUser, String reason) {
         LeaveRequest lr = leaveRequestService.getById(lrId);
-        requireAssignedManager(lr, authenticatedUser,
+        requireCanDecide(lr, authenticatedUser,
                 "You can't deny cancellation of your own leave request",
                 "You can't deny this cancellation request");
         if (lr.getStatus() != Status.CANCELLATION_PENDING) {
@@ -117,8 +118,8 @@ public class LeaveApprovalService {
         notificationService.notifyCancellationDenied(lr);
     }
 
-    private User requireAssignedManager(LeaveRequest lr, CustomUserDetails authenticatedUser,
-                                        String selfMessage, String otherMessage) {
+    private User requireCanDecide(LeaveRequest lr, CustomUserDetails authenticatedUser,
+                                  String selfMessage, String otherMessage) {
         User owner = lr.getUser();
         if (owner == null) {
             throw new LeaveApprovalException("Leave request has no owner");
@@ -126,12 +127,14 @@ public class LeaveApprovalService {
         if (owner.getId() != null && owner.getId().equals(authenticatedUser.getId())) {
             throw new AccessDeniedException(selfMessage);
         }
-        if (owner.getManager() == null || owner.getManager().getId() == null) {
-            throw new LeaveApprovalException("Leave request owner has no manager assigned");
+        boolean isAssignedManager = owner.getManager() != null
+                && owner.getManager().getId() != null
+                && owner.getManager().getId().equals(authenticatedUser.getId());
+        boolean peerHr = owner.getUserRole() == UserRole.HR_ADMIN
+                && authenticatedUser.hasRole("HR_ADMIN");
+        if (isAssignedManager || peerHr) {
+            return owner;
         }
-        if (!owner.getManager().getId().equals(authenticatedUser.getId())) {
-            throw new AccessDeniedException(otherMessage);
-        }
-        return owner;
+        throw new AccessDeniedException(otherMessage);
     }
 }

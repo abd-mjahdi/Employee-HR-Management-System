@@ -64,7 +64,8 @@ public class DashboardService {
 
         if (role == UserRole.MANAGER || role == UserRole.HR_ADMIN) {
             pendingTimeApprovals = timeEntryService.getPendingTimeApprovalsCount(userId);
-            pendingLeaveApprovals = leaveRequestService.getPendingLeaveApprovalsCount(userId);
+            pendingLeaveApprovals = leaveRequestService.getPendingLeaveApprovalsCount(
+                    userId, role == UserRole.HR_ADMIN);
             teamOnLeave = leaveRequestService.getTeamMembersOnLeaveToday(userId);
         }
 

@@ -17,7 +17,7 @@ public class LeaveRequestDto {
     private Long id;
     private Long userId;
     private Long leaveTypeId;
-    private String LeaveTypeName;
+    private String leaveTypeName;
     private LocalDate startDate;
     private LocalDate endDate;
     private BigDecimal totalDays;

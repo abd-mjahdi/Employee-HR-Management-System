@@ -37,8 +37,12 @@ public class LeaveApprovalServiceTest {
 
     private User owner;
     private User manager;
+    private User hrOwner;
+    private User peerHr;
     private CustomUserDetails ownerDetails;
     private CustomUserDetails managerDetails;
+    private CustomUserDetails hrOwnerDetails;
+    private CustomUserDetails peerHrDetails;
     private LeaveRequest leaveRequest;
 
     @BeforeEach
@@ -59,10 +63,39 @@ public class LeaveApprovalServiceTest {
         ownerDetails = new CustomUserDetails(owner);
         managerDetails = new CustomUserDetails(manager);
 
+        hrOwner = new User();
+        hrOwner.setId(2L);
+        hrOwner.setEmail("hr1@test.com");
+        hrOwner.setPasswordHash("password");
+        hrOwner.setUserRole(UserRole.HR_ADMIN);
+        hrOwner.setManager(null);
+
+        peerHr = new User();
+        peerHr.setId(3L);
+        peerHr.setEmail("hr2@test.com");
+        peerHr.setPasswordHash("password");
+        peerHr.setUserRole(UserRole.HR_ADMIN);
+
+        hrOwnerDetails = new CustomUserDetails(hrOwner);
+        peerHrDetails = new CustomUserDetails(peerHr);
+
         leaveRequest = new LeaveRequest();
         leaveRequest.setId(100L);
         leaveRequest.setUser(owner);
         leaveRequest.setStatus(Status.APPROVED);
+    }
+
+    @Test
+    void testCancelPendingLeaveCancelsImmediately() {
+        leaveRequest.setStatus(Status.PENDING);
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        leaveApprovalService.cancel(100L, ownerDetails, "Changed plans");
+
+        verify(leaveRequestService).cancel(leaveRequest);
+        verify(leaveBalanceService, never()).restoreLeaveBalance(any(), any());
+        verify(notificationService).notifyLeaveCancelled(leaveRequest);
+        assertEquals("Changed plans", leaveRequest.getCancellationReason());
     }
 
     @Test
@@ -118,5 +151,40 @@ public class LeaveApprovalServiceTest {
 
         assertThrows(LeaveApprovalException.class, () ->
                 leaveApprovalService.denyCancellation(100L, managerDetails, "Reason"));
+    }
+
+    @Test
+    void testPeerHrCanApproveAnotherHrLeave() {
+        leaveRequest.setUser(hrOwner);
+        leaveRequest.setStatus(Status.PENDING);
+        leaveRequest.setManagerApprovalStatus(Status.PENDING);
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        leaveApprovalService.approve(100L, peerHrDetails, "ok");
+
+        verify(leaveRequestService).approve(leaveRequest, peerHr.getId(), "ok");
+        verify(leaveBalanceService).deductLeaveBalance(leaveRequest, hrOwner);
+    }
+
+    @Test
+    void testHrCannotApproveOwnLeave() {
+        leaveRequest.setUser(hrOwner);
+        leaveRequest.setStatus(Status.PENDING);
+        leaveRequest.setManagerApprovalStatus(Status.PENDING);
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () ->
+                leaveApprovalService.approve(100L, hrOwnerDetails, "ok"));
+    }
+
+    @Test
+    void testManagerCannotApproveHrLeave() {
+        leaveRequest.setUser(hrOwner);
+        leaveRequest.setStatus(Status.PENDING);
+        leaveRequest.setManagerApprovalStatus(Status.PENDING);
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class, () ->
+                leaveApprovalService.approve(100L, managerDetails, "ok"));
     }
 }

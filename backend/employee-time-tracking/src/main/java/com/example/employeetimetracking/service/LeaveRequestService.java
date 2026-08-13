@@ -1,14 +1,13 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.CreateLeaveRequestDto;
-import com.example.employeetimetracking.dto.response.CalendarDayDto;
-import com.example.employeetimetracking.dto.response.CalendarEmployeeDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestDto;
 import com.example.employeetimetracking.dto.response.LeaveRequestReviewDto;
 import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
@@ -132,8 +131,48 @@ public class LeaveRequestService {
         return leaveRequestRepository.countByUserIdAndStatus(userId ,Status.PENDING);
     }
     // Number of leave requests from their direct reports with manager_approval_status=PENDING waiting for the manager to approve
-    public Integer getPendingLeaveApprovalsCount(Long managerId){
-        return leaveRequestRepository.countByManagerIdAndStatus(managerId , Status.PENDING);
+    public Integer getPendingLeaveApprovalsCount(Long actorId){
+        return getPendingLeaveApprovalsCount(actorId, false);
+    }
+
+    public Integer getPendingLeaveApprovalsCount(Long actorId, boolean hrAdmin){
+        int reports = nz(leaveRequestRepository.countByManagerIdAndStatus(actorId, Status.PENDING));
+        if (!hrAdmin) {
+            return reports;
+        }
+        return reports + nz(leaveRequestRepository.countByUserUserRoleAndStatusAndUserIdNot(
+                UserRole.HR_ADMIN, Status.PENDING, actorId));
+    }
+
+    public List<LeaveRequestReviewDto> getDirectReportPendingRequests(Long actorId){
+        return getPendingForReviewer(actorId, false);
+    }
+
+    public List<LeaveRequestReviewDto> getPendingForReviewer(Long actorId, boolean hrAdmin) {
+        return requestsForReviewer(actorId, hrAdmin, Status.PENDING);
+    }
+
+    public List<LeaveRequestReviewDto> getDirectReportCancellationPendingRequests(Long actorId){
+        return getCancellationPendingForReviewer(actorId, false);
+    }
+
+    public List<LeaveRequestReviewDto> getCancellationPendingForReviewer(Long actorId, boolean hrAdmin) {
+        return requestsForReviewer(actorId, hrAdmin, Status.CANCELLATION_PENDING);
+    }
+
+    private List<LeaveRequestReviewDto> requestsForReviewer(Long actorId, boolean hrAdmin, Status status) {
+        List<LeaveRequest> requests = new ArrayList<>(
+                leaveRequestRepository.findByUserManagerIdAndStatus(actorId, status)
+        );
+        if (hrAdmin) {
+            requests.addAll(leaveRequestRepository.findByUserUserRoleAndStatusAndUserIdNot(
+                    UserRole.HR_ADMIN, status, actorId));
+        }
+        return requests.stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
+    }
+
+    private int nz(Integer value) {
+        return value == null ? 0 : value;
     }
     // Number of their direct reports who have approved leave for today's date
     public Integer getTeamMembersOnLeaveToday(Long managerId){
@@ -189,20 +228,18 @@ public class LeaveRequestService {
         lr.setManagerApprovalStatus(Status.PENDING);
         lr.setHrApprovalStatus(Status.PENDING);
 
+        if (user.getUserRole() != UserRole.HR_ADMIN
+                && (user.getManager() == null || user.getManager().getId() == null)) {
+            throw new InvalidLeaveRequestException("You must have a manager assigned before requesting leave");
+        }
+        if (lr.getTotalDays() == null || lr.getTotalDays().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidLeaveRequestException("Leave request must include at least one working day");
+        }
+
         validateLeaveRequest(lr,policy,balance);
 
         return leaveRequestMapper.toDto(leaveRequestRepository.save(lr));
 
-    }
-
-    public List<LeaveRequestReviewDto> getDirectReportPendingRequests(Long managerId){
-        return leaveRequestRepository.findByUserManagerIdAndStatus(managerId,Status.PENDING)
-                .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
-    }
-
-    public List<LeaveRequestReviewDto> getDirectReportCancellationPendingRequests(Long managerId){
-        return leaveRequestRepository.findByUserManagerIdAndStatus(managerId, Status.CANCELLATION_PENDING)
-                .stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
 
     public List<LeaveRequestReviewDto> getTeamLeaveRequests(
@@ -250,29 +287,6 @@ public class LeaveRequestService {
         lr.setStatus(Status.CANCELLED);
         lr.setManagerApprovalStatus(Status.CANCELLED);
         lr.setHrApprovalStatus(Status.CANCELLED);
-    }
-
-    public List<CalendarDayDto> getCalendarView(Long managerId, LocalDate startDate, LocalDate endDate){
-        List<LeaveRequest> leaveRequests = leaveRequestRepository
-                .findByStatusInAndDateRangeOverlap(managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate);
-        LocalDate current = startDate;
-        List<CalendarDayDto> calendarDays=new ArrayList<>();
-        while(!current.isAfter(endDate)){
-            CalendarDayDto day = new CalendarDayDto();
-            day.setDate(current);
-            LocalDate finalCurrent = current;
-            List<CalendarEmployeeDto> employeesOnLeaveThatDay = leaveRequests.stream()
-                    .filter(lr->!finalCurrent.isBefore(lr.getStartDate()) && !finalCurrent.isAfter(lr.getEndDate()))
-                    .map(lr->new CalendarEmployeeDto(lr.getUser().getId(), lr.getUser().getFirstName()+" "+lr.getUser().getLastName(), lr.getLeaveType().getTypeName()))
-                    .toList();
-            day.setEmployees(employeesOnLeaveThatDay);
-            if (!employeesOnLeaveThatDay.isEmpty()) {
-                calendarDays.add(day);
-            }
-            current=current.plusDays(1);
-        }
-        return calendarDays;
-
     }
 
     public boolean hasActiveLeaveRequestOnDate(User user, LocalDate entryDate, List<Status> statuses){

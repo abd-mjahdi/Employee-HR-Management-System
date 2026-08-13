@@ -3,6 +3,7 @@ package com.example.employeetimetracking.repository;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.model.enums.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -113,6 +114,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     );
 
     List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
+    List<LeaveRequest> findByUserUserRoleAndStatusAndUserIdNot(UserRole userRole, Status status, Long userId);
+    Integer countByUserUserRoleAndStatusAndUserIdNot(UserRole userRole, Status status, Long userId);
     List<LeaveRequest> findByUserManagerIdAndStatusAndStartDateAfterOrderByStartDateAsc(
             Long managerId,
             Status status,

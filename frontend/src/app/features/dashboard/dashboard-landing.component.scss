@@ -1,0 +1,28 @@
+.stats-list {
+  list-style: none;
+  margin-bottom: 1.5rem;
+  border: 1px solid #111111;
+  border-radius: 0;
+}
+
+.stats-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.stats-list li:last-child {
+  border-bottom: none;
+}
+
+h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.data-table {
+  margin-bottom: 0.5rem;
+}

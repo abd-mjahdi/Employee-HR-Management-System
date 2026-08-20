@@ -3,8 +3,16 @@ import { LoginComponent } from './features/auth/login.component';
 import { InviteAcceptComponent } from './features/auth/invite-accept.component';
 import { MarketingHomeComponent } from './features/auth/marketing-home.component';
 import { DashboardLandingComponent } from './features/dashboard/dashboard-landing.component';
+import { DepartmentsComponent } from './features/departments/departments.component';
 import { AppLayoutComponent } from './features/layout/app-layout.component';
 import { PagePlaceholderComponent } from './features/layout/page-placeholder.component';
+import { ProfileComponent } from './features/profile/profile.component';
+import { ProjectsComponent } from './features/projects/projects.component';
+import { InviteCreateComponent } from './features/users/invite-create.component';
+import { TeamComponent } from './features/users/team.component';
+import { UserCreateComponent } from './features/users/user-create.component';
+import { UserDetailComponent } from './features/users/user-detail.component';
+import { UsersListComponent } from './features/users/users-list.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { marketingHomeGuard, tenantGuard } from './core/guards/tenant.guard';
@@ -36,7 +44,7 @@ export const routes: Routes = [
     canActivate: [tenantGuard, authGuard],
     children: [
       { path: 'dashboard', component: DashboardLandingComponent },
-      { path: 'profile', component: PagePlaceholderComponent },
+      { path: 'profile', component: ProfileComponent },
       { path: 'time/new', component: PagePlaceholderComponent },
       {
         path: 'time/approvals',
@@ -74,43 +82,43 @@ export const routes: Routes = [
       { path: 'leave', component: PagePlaceholderComponent },
       {
         path: 'people/new',
-        component: PagePlaceholderComponent,
+        component: UserCreateComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
       {
         path: 'people/invite',
-        component: PagePlaceholderComponent,
+        component: InviteCreateComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
       {
         path: 'people/:id',
-        component: PagePlaceholderComponent,
+        component: UserDetailComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
       {
         path: 'people',
-        component: PagePlaceholderComponent,
+        component: UsersListComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
       {
         path: 'team',
-        component: PagePlaceholderComponent,
+        component: TeamComponent,
         canActivate: [roleGuard],
         data: { roles: MANAGER_PLUS }
       },
       {
         path: 'departments',
-        component: PagePlaceholderComponent,
+        component: DepartmentsComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
       {
         path: 'projects',
-        component: PagePlaceholderComponent,
+        component: ProjectsComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       }

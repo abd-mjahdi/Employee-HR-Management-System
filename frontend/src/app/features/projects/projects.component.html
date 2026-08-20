@@ -1,0 +1,73 @@
+<div class="page-header">
+  <h1>Projects</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <div class="form-field">
+    <label for="projectName">Name</label>
+    <input id="projectName" type="text" formControlName="projectName" />
+    @if (form.get('projectName')?.invalid && form.get('projectName')?.touched) {
+      <span class="field-error">Name is required.</span>
+    }
+  </div>
+  <div class="form-field">
+    <label for="projectCode">Code</label>
+    <input id="projectCode" type="text" formControlName="projectCode" />
+    @if (form.get('projectCode')?.invalid && form.get('projectCode')?.touched) {
+      <span class="field-error">Code is required.</span>
+    }
+  </div>
+  <div class="form-field">
+    <label for="description">Description</label>
+    <textarea id="description" formControlName="description" rows="3"></textarea>
+  </div>
+  @if (editingId() != null) {
+    <div class="form-field">
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isActive" />
+        Active
+      </label>
+    </div>
+  }
+  <div class="form-actions">
+    <button type="submit" class="btn-primary" [disabled]="saving()">
+      {{ saving() ? 'Saving...' : editingId() != null ? 'Save' : 'Add project' }}
+    </button>
+    @if (editingId() != null) {
+      <button type="button" class="btn-secondary" (click)="cancelEdit()">Cancel</button>
+    }
+  </div>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (projects().length === 0) {
+  <p class="muted">No projects.</p>
+} @else {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Code</th>
+        <th>Description</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of projects(); track row.id) {
+        <tr>
+          <td>{{ row.projectName }}</td>
+          <td>{{ row.projectCode }}</td>
+          <td>{{ row.description }}</td>
+          <td>
+            <button type="button" class="btn-link" (click)="edit(row)">Edit</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

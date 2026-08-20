@@ -1,0 +1,86 @@
+<div class="page-header">
+  <h1>People</h1>
+  <a routerLink="/people/new" class="btn-primary">Add person</a>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<form [formGroup]="filters" (ngSubmit)="applyFilters()" novalidate class="filters">
+  <div class="form-field">
+    <label for="name">Name</label>
+    <input id="name" type="text" formControlName="name" />
+  </div>
+  <div class="form-field">
+    <label for="departmentId">Department</label>
+    <select id="departmentId" formControlName="departmentId">
+      <option value="">All</option>
+      @for (dept of departments(); track dept.id) {
+        <option [value]="dept.id">{{ dept.departmentName }}</option>
+      }
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="role">Role</label>
+    <select id="role" formControlName="role">
+      <option value="">All</option>
+      @for (role of roles; track role) {
+        <option [value]="role">{{ role }}</option>
+      }
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="active">Active</label>
+    <select id="active" formControlName="active">
+      <option value="">All</option>
+      <option value="true">Yes</option>
+      <option value="false">No</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button type="submit" class="btn-primary">Filter</button>
+    <button type="button" class="btn-secondary" (click)="clearFilters()">Clear</button>
+  </div>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (users().length === 0) {
+  <p class="muted">No people.</p>
+} @else {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Department</th>
+        <th>Active</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of users(); track row.id) {
+        <tr (click)="open(row.id)">
+          <td>{{ row.firstName }} {{ row.lastName }}</td>
+          <td>{{ row.email }}</td>
+          <td>{{ row.userRole }}</td>
+          <td>{{ departmentLabel(row.departmentId) }}</td>
+          <td>{{ row.isActive ? 'Yes' : 'No' }}</td>
+          <td>
+            <a routerLink="/people/{{ row.id }}" class="btn-link" (click)="$event.stopPropagation()">Edit</a>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}
+
+@if (!filtering() && totalPages() > 1) {
+  <div class="pager">
+    <button type="button" class="btn-secondary" [disabled]="page() === 0" (click)="prevPage()">Prev</button>
+    <span class="muted">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+    <button type="button" class="btn-secondary" [disabled]="page() + 1 >= totalPages()" (click)="nextPage()">Next</button>
+  </div>
+}

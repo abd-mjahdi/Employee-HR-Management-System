@@ -1,5 +1,8 @@
-import { Component, inject } from '@angular/core';
-import { AuthService } from '../../core/services/auth.service';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { apiErrorMessage } from '../../core/http/api-error';
+import { UserDashboard } from '../../core/models/dashboard.model';
+import { DashboardService } from '../../core/services/dashboard.service';
 
 @Component({
   selector: 'app-dashboard-landing',
@@ -7,6 +10,23 @@ import { AuthService } from '../../core/services/auth.service';
   templateUrl: './dashboard-landing.component.html',
   styleUrl: './dashboard-landing.component.scss'
 })
-export class DashboardLandingComponent {
-  readonly currentUser = inject(AuthService).currentUser;
+export class DashboardLandingComponent implements OnInit {
+  private readonly dashboardService = inject(DashboardService);
+
+  readonly dashboard = signal<UserDashboard | null>(null);
+  readonly error = signal<string | null>(null);
+  readonly loading = signal(true);
+
+  ngOnInit(): void {
+    this.dashboardService.getMine().subscribe({
+      next: (data) => {
+        this.dashboard.set(data);
+        this.loading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error.set(apiErrorMessage(err));
+        this.loading.set(false);
+      }
+    });
+  }
 }

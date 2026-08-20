@@ -27,6 +27,8 @@ app:
     local-dev-suffix: localhost
     allow-apex: false
     allow-www: false
+    trust-forwarded-host: false
+    dev-default-slug: acme
     reserved-slugs:
       - www
       - api

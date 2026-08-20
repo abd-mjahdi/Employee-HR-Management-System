@@ -35,6 +35,9 @@ app:
     local-dev-suffix: localhost
     allow-apex: false
     allow-www: false
+    trust-forwarded-host: false
+    # Production must leave this empty. Local API on localhost:8080: TENANT_DEV_DEFAULT_SLUG=acme
+    dev-default-slug: ${TENANT_DEV_DEFAULT_SLUG:}
     reserved-slugs:
       - www
       - api

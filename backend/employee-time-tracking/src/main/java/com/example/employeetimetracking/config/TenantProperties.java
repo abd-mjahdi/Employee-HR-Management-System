@@ -21,6 +21,16 @@ public class TenantProperties {
     private String localDevSuffix = "localhost";
     private boolean allowApex = false;
     private boolean allowWww = false;
+    /**
+     * When true, {@code X-Forwarded-Host} may supply the tenant host (first value if comma-separated).
+     * Must stay false in production unless a trusted reverse proxy overwrites that header.
+     */
+    private boolean trustForwardedHost = false;
+    /**
+     * Used only when the request host is bare {@code localhost}/{@code 127.0.0.1}.
+     * Empty means disabled (required in production). Tests set this to {@code acme}.
+     */
+    private String devDefaultSlug = "";
     private List<String> reservedSlugs = new ArrayList<>(List.of(
             "www", "api", "app", "admin", "mail", "localhost"
     ));

@@ -1,5 +1,6 @@
 package com.example.employeetimetracking.tenant;
 
+import com.example.employeetimetracking.exception.InvalidTenantException;
 import com.example.employeetimetracking.model.enums.CompanyStatus;
 
 public final class TenantContext {
@@ -15,6 +16,14 @@ public final class TenantContext {
 
     public static TenantInfo get() {
         return CURRENT.get();
+    }
+
+    public static TenantInfo require() {
+        TenantInfo tenant = CURRENT.get();
+        if (tenant == null) {
+            throw new InvalidTenantException("Tenant not found");
+        }
+        return tenant;
     }
 
     public static Long getCompanyId() {

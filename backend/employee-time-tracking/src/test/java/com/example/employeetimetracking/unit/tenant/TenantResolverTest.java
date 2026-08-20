@@ -41,6 +41,11 @@ class TenantResolverTest {
     }
 
     @Test
+    void globexLocalhost_resolvesGlobex() {
+        assertEquals("globex", resolver.resolveSlug("globex.localhost"));
+    }
+
+    @Test
     void hostWithPort_stripsPort() {
         assertEquals("acme", resolver.resolveSlug("acme.localhost:4200"));
     }

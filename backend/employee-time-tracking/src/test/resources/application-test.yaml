@@ -23,7 +23,7 @@ spring:
 
 app:
   bootstrap:
-    key: ${BOOTSTRAP_KEY:}
+    key: it-bootstrap-key
   tenant:
     base-domain: myhr.com
     local-dev-suffix: localhost
@@ -39,7 +39,7 @@ app:
       - mail
       - localhost
   login:
-    max-failed-attempts: 10
+    max-failed-attempts: 0
     window-ms: 900000
 
 logging:

@@ -27,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -115,7 +116,32 @@ class LoginServiceTest {
     }
 
     @Test
-    void login_unknownEmail_isInvalidCredentials() {
+    void login_success_jwtContainsMatchingCompanyId() {
+        JwtUtil realJwt = new JwtUtil();
+        ReflectionTestUtils.setField(realJwt, "expirationDuration", 3_600_000L);
+        ReflectionTestUtils.setField(
+                realJwt,
+                "jwtSecret",
+                "0ef2d553cf17c6a144e82d71ca3d5d1f931f4b42d637a6d0b3ae645be2e1e67a"
+        );
+        LoginService service = new LoginService(
+                userRepository, companyMembershipRepository, realJwt, passwordEncoder, loginAttemptService);
+
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
+        when(companyMembershipRepository.findByUserIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(membership));
+
+        LoginResponseDto response = service.login(new LoginRequestDto(user.getEmail(), "secret"), IP);
+
+        assertEquals(1L, realJwt.extractCompanyId(response.getToken()));
+        assertEquals(10L, realJwt.extractUserId(response.getToken()));
+        assertEquals(10L, realJwt.extractMembershipId(response.getToken()));
+        assertEquals(user.getEmail(), realJwt.extractEmail(response.getToken()));
+        assertEquals("HR_ADMIN", realJwt.extractRole(response.getToken()));
+    }
+
+    @Test
+    void login_validPasswordWrongEmail_isInvalidCredentials() {
         when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
         assertThrows(InvalidCredentialsException.class,
                 () -> loginService.login(new LoginRequestDto("nope@x.com", "secret"), IP));

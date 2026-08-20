@@ -1,8 +1,11 @@
 -- ============================================================
 -- SEED DATA - HR / Time Tracking System
 -- Password hash for all users: $2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W
+-- Plaintext for that hash (dev/test only): password
 -- Dates are relative to ~April 2026 for realistic usage
 -- Company 1 slug=acme (existing org). Company 2 slug=globex (second tenant).
+-- Row identities are not shared: globex depts 9–11, users/memberships 32–35,
+-- leave types 8–14, projects 11–12, time entries 40–41, leave request 20.
 -- ============================================================
 
 -- ============================================================

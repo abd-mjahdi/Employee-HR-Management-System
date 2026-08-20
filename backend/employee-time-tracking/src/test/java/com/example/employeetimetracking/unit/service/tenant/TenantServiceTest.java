@@ -47,6 +47,7 @@ class TenantServiceTest {
 
     @Test
     void requireActiveBySlug_inactive_throwsInactiveTenant() {
+        // Inactive companies never reach LoginService; TenantResolutionFilter maps this to the same 404 as unknown hosts.
         Company globex = new Company();
         globex.setSlug("globex");
         globex.setStatus(CompanyStatus.INACTIVE);

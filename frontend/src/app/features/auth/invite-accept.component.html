@@ -1,0 +1,45 @@
+<div class="invite-container">
+  <div class="invite-box">
+    <h1>Accept invite</h1>
+    <p class="subtitle">Join this company with the link your HR admin sent.</p>
+
+    @if (error()) {
+      <div class="error-banner">{{ error() }}</div>
+    }
+
+    @if (success()) {
+      <p>Your account is ready.</p>
+      <button type="button" class="btn-submit" (click)="goToLogin()">Sign in</button>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+        <div class="form-field">
+          <label for="firstName">First name</label>
+          <input id="firstName" type="text" formControlName="firstName" autocomplete="given-name" />
+          @if (form.get('firstName')?.invalid && form.get('firstName')?.touched) {
+            <span class="field-error">First name is required.</span>
+          }
+        </div>
+        <div class="form-field">
+          <label for="lastName">Last name</label>
+          <input id="lastName" type="text" formControlName="lastName" autocomplete="family-name" />
+          @if (form.get('lastName')?.invalid && form.get('lastName')?.touched) {
+            <span class="field-error">Last name is required.</span>
+          }
+        </div>
+        <div class="form-field">
+          <label for="password">Password</label>
+          <input id="password" type="password" formControlName="password" autocomplete="new-password" />
+          @if (form.get('password')?.invalid && form.get('password')?.touched) {
+            <span class="field-error">Password must be at least 6 characters.</span>
+          }
+        </div>
+        <button type="submit" class="btn-submit" [disabled]="isLoading()">
+          {{ isLoading() ? 'Saving...' : 'Accept invite' }}
+        </button>
+      </form>
+    }
+
+    <p class="note">No company selection. The host of this page is the company.</p>
+    <p class="note"><a routerLink="/login">Back to sign in</a></p>
+  </div>
+</div>

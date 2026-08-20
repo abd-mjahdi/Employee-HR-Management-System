@@ -5,9 +5,9 @@ import { AuthService } from '../services/auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.getToken();
+  const publicAuth = req.url.includes('/auth/login') || req.url.includes('/auth/invitations/accept');
 
-  // Skip adding token for public auth endpoints if needed, but adding Bearer token when present is standard
-  if (token) {
+  if (token && !publicAuth) {
     const clonedReq = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`

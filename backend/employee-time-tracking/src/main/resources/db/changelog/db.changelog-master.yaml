@@ -39,3 +39,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: true
+
+  - changeSet:
+      id: 005-companies-and-memberships
+      author: app
+      changes:
+        - sqlFile:
+            path: db/changelog/005-companies-and-memberships.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

@@ -1,0 +1,92 @@
+<div class="page-header">
+  <h1>Time</h1>
+  <a routerLink="/time/new" class="btn-primary">New time entry</a>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+@if (stats(); as s) {
+  <ul class="stats-list">
+    <li><span class="muted">Hours this week</span> {{ s.totalHoursThisWeek }}</li>
+    <li><span class="muted">Average hours per day this month</span> {{ s.averageHoursPerDayThisMonth }}</li>
+    <li><span class="muted">Top project this month</span> {{ s.topProjectCodeThisMonth }}</li>
+    <li><span class="muted">Top project hours this month</span> {{ s.topProjectHoursThisMonth }}</li>
+  </ul>
+}
+
+<form [formGroup]="filters" (ngSubmit)="applyFilters()" novalidate class="filters">
+  <div class="form-field">
+    <label for="status">Status</label>
+    <select id="status" formControlName="status">
+      <option value="">All</option>
+      @for (status of statuses; track status) {
+        <option [value]="status">{{ status }}</option>
+      }
+    </select>
+  </div>
+  <div class="form-field">
+    <label for="startDate">Start date</label>
+    <input id="startDate" type="date" formControlName="startDate" />
+  </div>
+  <div class="form-field">
+    <label for="endDate">End date</label>
+    <input id="endDate" type="date" formControlName="endDate" />
+  </div>
+  <div class="filter-actions">
+    <button type="submit" class="btn-primary">Filter</button>
+    <button type="button" class="btn-secondary" (click)="clearFilters()">Clear</button>
+  </div>
+</form>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (entries().length === 0) {
+  <p class="muted">No time entries.</p>
+} @else {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Clock in</th>
+        <th>Clock out</th>
+        <th>Hours</th>
+        <th>Project</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of entries(); track row.id) {
+        <tr>
+          <td>{{ row.entryDate }}</td>
+          <td>{{ row.clockInTime }}</td>
+          <td>{{ row.clockOutTime }}</td>
+          <td>{{ row.totalHours }}</td>
+          <td>{{ row.projectCode || row.projectName }}</td>
+          <td>{{ row.status }}</td>
+          <td>
+            @if (row.status === 'PENDING') {
+              <a routerLink="/time/{{ row.id }}/edit" [state]="{ entry: row }" class="btn-link">Edit</a>
+              <button type="button" class="btn-link" (click)="deleteEntry(row.id)">Delete</button>
+            }
+            @if (row.status === 'APPROVED') {
+              @if (correctingId() === row.id) {
+                <input
+                  type="text"
+                  [value]="explanation()"
+                  (input)="explanation.set($any($event.target).value)"
+                  placeholder="Explanation"
+                />
+                <button type="button" class="btn-primary" (click)="submitCorrection(row.id)">Submit</button>
+              } @else {
+                <button type="button" class="btn-link" (click)="startCorrection(row.id)">Request correction</button>
+              }
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

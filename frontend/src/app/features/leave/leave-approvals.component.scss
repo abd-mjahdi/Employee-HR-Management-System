@@ -1,0 +1,21 @@
+h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.data-table {
+  margin-bottom: 0.5rem;
+}
+
+.data-table td .btn-primary {
+  padding: 0.35rem 0.6rem;
+  margin-left: 0.35rem;
+}
+
+.data-table input[type='text'] {
+  width: auto;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #111111;
+  border-radius: 0;
+}

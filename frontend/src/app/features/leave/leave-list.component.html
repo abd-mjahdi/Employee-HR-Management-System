@@ -1,0 +1,82 @@
+<div class="page-header">
+  <h1>Leave</h1>
+  <a routerLink="/leave/new" class="btn-primary">New leave request</a>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else {
+  <h2>Balances</h2>
+  @if (balances().length === 0) {
+    <p class="muted">No leave balances.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Year</th>
+          <th>Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of balances(); track row.id) {
+          <tr>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.year }}</td>
+            <td>{{ row.currentBalance }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <h2>Requests</h2>
+  @if (requests().length === 0) {
+    <p class="muted">No leave requests.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Days</th>
+          <th>Status</th>
+          <th>Reason</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of requests(); track row.id) {
+          <tr>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }}</td>
+            <td>{{ row.endDate }}</td>
+            <td>{{ row.totalDays }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.reason }}</td>
+            <td>
+              @if (row.status === 'PENDING' || row.status === 'APPROVED') {
+                @if (cancellingId() === row.id) {
+                  <input
+                    type="text"
+                    [value]="cancelReason()"
+                    (input)="cancelReason.set($any($event.target).value)"
+                    placeholder="Reason (optional)"
+                  />
+                  <button type="button" class="btn-primary" (click)="submitCancel(row.id)">Cancel request</button>
+                } @else {
+                  <button type="button" class="btn-link" (click)="startCancel(row.id)">Cancel</button>
+                }
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

@@ -1,0 +1,54 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.filters .form-field {
+  margin-bottom: 0;
+  min-width: 160px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.stats-list {
+  list-style: none;
+  margin-bottom: 1.5rem;
+  border: 1px solid #111111;
+  border-radius: 0;
+}
+
+.stats-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.stats-list li:last-child {
+  border-bottom: none;
+}
+
+a.btn-primary {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.data-table td .btn-primary {
+  padding: 0.35rem 0.6rem;
+  margin-left: 0.35rem;
+}
+
+.data-table input[type='text'] {
+  width: auto;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #111111;
+  border-radius: 0;
+}

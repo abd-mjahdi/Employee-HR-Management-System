@@ -1,0 +1,93 @@
+<div class="page-header">
+  <h1>Leave approvals</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else {
+  <h2>Pending</h2>
+  @if (pending().length === 0) {
+    <p class="muted">No leave requests.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Type</th>
+          <th>Dates</th>
+          <th>Days</th>
+          <th>Reason</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of pending(); track row.id) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }} – {{ row.endDate }}</td>
+            <td>{{ row.totalDays }}</td>
+            <td>{{ row.reason }}</td>
+            <td>
+              @if (isActing(row.id, 'approve')) {
+                <input type="text" [value]="text()" (input)="text.set($any($event.target).value)" placeholder="Notes (optional)" />
+                <button type="button" class="btn-primary" (click)="submit()">Approve</button>
+              } @else if (isActing(row.id, 'deny')) {
+                <input type="text" [value]="text()" (input)="text.set($any($event.target).value)" placeholder="Reason" />
+                <button type="button" class="btn-primary" (click)="submit()">Deny</button>
+              } @else {
+                <button type="button" class="btn-link" (click)="start(row.id, 'approve')">Approve</button>
+                <button type="button" class="btn-link" (click)="start(row.id, 'deny')">Deny</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <h2>Cancellation pending</h2>
+  @if (cancellationPending().length === 0) {
+    <p class="muted">No leave requests.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Type</th>
+          <th>Dates</th>
+          <th>Days</th>
+          <th>Cancellation reason</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of cancellationPending(); track row.id) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }} – {{ row.endDate }}</td>
+            <td>{{ row.totalDays }}</td>
+            <td>{{ row.cancellationReason }}</td>
+            <td>
+              @if (isActing(row.id, 'cancelApprove')) {
+                <input type="text" [value]="text()" (input)="text.set($any($event.target).value)" placeholder="Notes (optional)" />
+                <button type="button" class="btn-primary" (click)="submit()">Cancel approve</button>
+              } @else if (isActing(row.id, 'cancelDeny')) {
+                <input type="text" [value]="text()" (input)="text.set($any($event.target).value)" placeholder="Reason" />
+                <button type="button" class="btn-primary" (click)="submit()">Cancel deny</button>
+              } @else {
+                <button type="button" class="btn-link" (click)="start(row.id, 'cancelApprove')">Cancel approve</button>
+                <button type="button" class="btn-link" (click)="start(row.id, 'cancelDeny')">Cancel deny</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

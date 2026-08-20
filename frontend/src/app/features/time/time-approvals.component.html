@@ -1,0 +1,57 @@
+<div class="page-header">
+  <h1>Time approvals</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (entries().length === 0) {
+  <p class="muted">No time entries.</p>
+} @else {
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Date</th>
+        <th>Hours</th>
+        <th>Project</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of entries(); track row.id) {
+        <tr>
+          <td>{{ employeeName(row) }}</td>
+          <td>{{ row.entryDate }}</td>
+          <td>{{ row.totalHours }}</td>
+          <td>{{ row.projectCode || row.projectName }}</td>
+          <td>{{ row.status }}</td>
+          <td>
+            @if (row.status === 'PENDING') {
+              <button type="button" class="btn-link" (click)="approve(row.id)">Approve</button>
+              @if (rejectingId() === row.id) {
+                <input
+                  type="text"
+                  [value]="reason()"
+                  (input)="reason.set($any($event.target).value)"
+                  placeholder="Reason"
+                />
+                <button type="button" class="btn-primary" (click)="reject(row.id)">Reject</button>
+              } @else {
+                <button type="button" class="btn-link" (click)="startReject(row.id)">Reject</button>
+              }
+            }
+            @if (row.status === 'PENDING_CORRECTION') {
+              <button type="button" class="btn-link" (click)="approveCorrection(row.id)">Approve correction</button>
+              <button type="button" class="btn-link" (click)="denyCorrection(row.id)">Deny correction</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

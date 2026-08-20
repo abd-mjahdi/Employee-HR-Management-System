@@ -4,10 +4,18 @@ import { InviteAcceptComponent } from './features/auth/invite-accept.component';
 import { MarketingHomeComponent } from './features/auth/marketing-home.component';
 import { DashboardLandingComponent } from './features/dashboard/dashboard-landing.component';
 import { DepartmentsComponent } from './features/departments/departments.component';
+import { LeaveAllComponent } from './features/leave/leave-all.component';
+import { LeaveApprovalsComponent } from './features/leave/leave-approvals.component';
+import { LeaveFormComponent } from './features/leave/leave-form.component';
+import { LeaveListComponent } from './features/leave/leave-list.component';
+import { LeaveTeamComponent } from './features/leave/leave-team.component';
 import { AppLayoutComponent } from './features/layout/app-layout.component';
-import { PagePlaceholderComponent } from './features/layout/page-placeholder.component';
 import { ProfileComponent } from './features/profile/profile.component';
 import { ProjectsComponent } from './features/projects/projects.component';
+import { TimeApprovalsComponent } from './features/time/time-approvals.component';
+import { TimeFormComponent } from './features/time/time-form.component';
+import { TimeListComponent } from './features/time/time-list.component';
+import { TimeTeamComponent } from './features/time/time-team.component';
 import { InviteCreateComponent } from './features/users/invite-create.component';
 import { TeamComponent } from './features/users/team.component';
 import { UserCreateComponent } from './features/users/user-create.component';
@@ -45,41 +53,41 @@ export const routes: Routes = [
     children: [
       { path: 'dashboard', component: DashboardLandingComponent },
       { path: 'profile', component: ProfileComponent },
-      { path: 'time/new', component: PagePlaceholderComponent },
+      { path: 'time/new', component: TimeFormComponent },
       {
         path: 'time/approvals',
-        component: PagePlaceholderComponent,
+        component: TimeApprovalsComponent,
         canActivate: [roleGuard],
         data: { roles: MANAGER_PLUS }
       },
       {
         path: 'time/team',
-        component: PagePlaceholderComponent,
+        component: TimeTeamComponent,
         canActivate: [roleGuard],
         data: { roles: MANAGER_PLUS }
       },
-      { path: 'time/:id/edit', component: PagePlaceholderComponent },
-      { path: 'time', component: PagePlaceholderComponent },
-      { path: 'leave/new', component: PagePlaceholderComponent },
+      { path: 'time/:id/edit', component: TimeFormComponent },
+      { path: 'time', component: TimeListComponent },
+      { path: 'leave/new', component: LeaveFormComponent },
       {
         path: 'leave/approvals',
-        component: PagePlaceholderComponent,
+        component: LeaveApprovalsComponent,
         canActivate: [roleGuard],
         data: { roles: MANAGER_PLUS }
       },
       {
         path: 'leave/team',
-        component: PagePlaceholderComponent,
+        component: LeaveTeamComponent,
         canActivate: [roleGuard],
         data: { roles: MANAGER_PLUS }
       },
       {
         path: 'leave/all',
-        component: PagePlaceholderComponent,
+        component: LeaveAllComponent,
         canActivate: [roleGuard],
         data: { roles: HR_ONLY }
       },
-      { path: 'leave', component: PagePlaceholderComponent },
+      { path: 'leave', component: LeaveListComponent },
       {
         path: 'people/new',
         component: UserCreateComponent,

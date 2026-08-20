@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,11 +20,27 @@ public interface CompanyMembershipRepository extends JpaRepository<CompanyMember
             SELECT m FROM CompanyMembership m
             JOIN FETCH m.user u
             JOIN FETCH m.company c
+            LEFT JOIN FETCH m.department
+            LEFT JOIN FETCH m.managerMembership mm
+            LEFT JOIN FETCH mm.user
             WHERE u.id = :userId AND c.id = :companyId
             """)
     Optional<CompanyMembership> findByUserIdAndCompanyId(
             @Param("userId") Long userId,
             @Param("companyId") Long companyId);
+
+    @Query("""
+            SELECT DISTINCT m FROM CompanyMembership m
+            JOIN FETCH m.user u
+            JOIN FETCH m.company c
+            LEFT JOIN FETCH m.department
+            LEFT JOIN FETCH m.managerMembership mm
+            LEFT JOIN FETCH mm.user
+            WHERE c.id = :companyId AND u.id IN :userIds
+            """)
+    List<CompanyMembership> findByCompanyIdAndUserIdIn(
+            @Param("companyId") Long companyId,
+            @Param("userIds") Collection<Long> userIds);
 
     @Query("""
             SELECT m FROM CompanyMembership m

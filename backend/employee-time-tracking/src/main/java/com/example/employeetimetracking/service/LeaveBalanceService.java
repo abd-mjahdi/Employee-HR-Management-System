@@ -10,6 +10,7 @@ import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import com.example.employeetimetracking.tenant.MembershipAccess;
 import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,16 +29,19 @@ public class LeaveBalanceService {
     private final UserRepository userRepository;
     private final LeaveTypeService leaveTypeService;
     private final LeaveBalanceMapper leaveBalanceMapper;
+    private final MembershipAccess membershipAccess;
     @Autowired
     public LeaveBalanceService(LeaveBalanceRepository leaveBalanceRepository,
                                LeaveTypeService leaveTypeService,
                                LeaveBalanceMapper leaveBalanceMapper,
-                               UserRepository userRepository
+                               UserRepository userRepository,
+                               MembershipAccess membershipAccess
                                ){
         this.leaveBalanceRepository = leaveBalanceRepository;
         this.leaveTypeService = leaveTypeService;
         this.leaveBalanceMapper = leaveBalanceMapper;
         this.userRepository = userRepository;
+        this.membershipAccess = membershipAccess;
     }
 
     public LeaveBalance save(LeaveBalance balance){
@@ -185,7 +189,7 @@ public class LeaveBalanceService {
             User target = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
 
-            Long managerId = target.getManager() != null ? target.getManager().getId() : null;
+            Long managerId = membershipAccess.managerUserId(target.getId());
 
             boolean isHrAdmin = authUser.hasRole("HR_ADMIN");
             boolean isManager = Objects.equals(authUser.getId(), managerId);

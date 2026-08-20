@@ -87,7 +87,6 @@ class InvitationServiceTest {
         hrUser = new User();
         hrUser.setId(1L);
         hrUser.setEmail("hr@acme.com");
-        hrUser.setUserRole(UserRole.HR_ADMIN);
         hrUser.setIsActive(true);
 
         hrMembership = new CompanyMembership();

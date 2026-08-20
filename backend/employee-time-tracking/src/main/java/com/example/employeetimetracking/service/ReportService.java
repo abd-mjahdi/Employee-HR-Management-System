@@ -25,6 +25,8 @@ import com.example.employeetimetracking.model.entities.LeaveBalance;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.entities.CompanyMembership;
+import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.enums.Status;
@@ -35,6 +37,8 @@ import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.repository.LeaveTypeRepository;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
+import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,6 +68,7 @@ public class ReportService {
     private final UserRepository userRepository;
     private final LeaveTypeRepository leaveTypeRepository;
     private final TimeEntryBreakRepository timeEntryBreakRepository;
+    private final MembershipAccess membershipAccess;
 
     @Value("${reports.payroll.overtime.daily-hours:8.0}")
     private BigDecimal dailyOvertimeThresholdHours;
@@ -83,13 +88,15 @@ public class ReportService {
                          LeaveBalanceRepository leaveBalanceRepository,
                          UserRepository userRepository,
                          LeaveTypeRepository leaveTypeRepository,
-                         TimeEntryBreakRepository timeEntryBreakRepository) {
+                         TimeEntryBreakRepository timeEntryBreakRepository,
+                         MembershipAccess membershipAccess) {
         this.timeEntryRepository = timeEntryRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
         this.userRepository = userRepository;
         this.leaveTypeRepository = leaveTypeRepository;
         this.timeEntryBreakRepository = timeEntryBreakRepository;
+        this.membershipAccess = membershipAccess;
     }
 
     public EmployeeTimeReportDto generateEmployeeTimeReport(Long userId, LocalDate startDate, LocalDate endDate) {
@@ -359,8 +366,13 @@ public class ReportService {
                 ? leaveBalanceRepository.findAllLeaveBalancesForYear(y)
                 : leaveBalanceRepository.findLeaveBalancesForYearAndDepartment(y, departmentId);
 
+        Map<Long, CompanyMembership> memberships = membershipsFor(balances.stream()
+                .map(lb -> lb.getUser() == null ? null : lb.getUser().getId())
+                .filter(Objects::nonNull)
+                .toList());
+
         List<LeaveBalanceReportItemDto> items = balances.stream()
-                .map(lb -> toLeaveBalanceItem(lb, y))
+                .map(lb -> toLeaveBalanceItem(lb, y, departmentOf(lb.getUser(), memberships)))
                 .sorted(Comparator
                         .comparing(LeaveBalanceReportItemDto::getEmployeeName, Comparator.nullsLast(String::compareTo))
                         .thenComparing(LeaveBalanceReportItemDto::getLeaveTypeName, Comparator.nullsLast(String::compareTo)))
@@ -403,7 +415,7 @@ public class ReportService {
         );
     }
 
-    private LeaveBalanceReportItemDto toLeaveBalanceItem(LeaveBalance lb, int year) {
+    private LeaveBalanceReportItemDto toLeaveBalanceItem(LeaveBalance lb, int year, Department department) {
         BigDecimal allocation = null;
         if (lb.getLeaveType() != null && lb.getLeaveType().getLeavePolicy() != null) {
             allocation = lb.getLeaveType().getLeavePolicy().getAnnualAllocation();
@@ -420,9 +432,9 @@ public class ReportService {
         return new LeaveBalanceReportItemDto(
                 lb.getUser() != null ? lb.getUser().getId() : null,
                 lb.getUser() != null ? (lb.getUser().getFirstName() + " " + lb.getUser().getLastName()) : null,
-                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getId() : null,
-                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getDepartmentCode() : null,
-                lb.getUser() != null && lb.getUser().getDepartment() != null ? lb.getUser().getDepartment().getDepartmentName() : null,
+                department == null ? null : department.getId(),
+                department == null ? null : department.getDepartmentCode(),
+                department == null ? null : department.getDepartmentName(),
                 lb.getLeaveType() != null ? lb.getLeaveType().getId() : null,
                 lb.getLeaveType() != null ? lb.getLeaveType().getTypeName() : null,
                 year,
@@ -441,14 +453,18 @@ public class ReportService {
         }
 
         List<TimeEntry> entries = timeEntryRepository.findForDepartmentUtilization(Status.APPROVED, startDate, endDate);
+        Map<Long, CompanyMembership> memberships = membershipsFor(entries.stream()
+                .map(te -> te.getUser() == null ? null : te.getUser().getId())
+                .filter(Objects::nonNull)
+                .toList());
 
         // departmentId -> entries
         Map<Long, List<TimeEntry>> byDepartmentId = entries.stream()
-                .filter(te -> te.getUser() != null && te.getUser().getDepartment() != null && te.getUser().getDepartment().getId() != null)
-                .collect(Collectors.groupingBy(te -> te.getUser().getDepartment().getId()));
+                .filter(te -> departmentOf(te.getUser(), memberships) != null)
+                .collect(Collectors.groupingBy(te -> departmentOf(te.getUser(), memberships).getId()));
 
         List<DepartmentUtilizationItemDto> departments = byDepartmentId.values().stream()
-                .map(this::toDepartmentUtilizationItem)
+                .map(list -> toDepartmentUtilizationItem(list, memberships))
                 .sorted(Comparator.comparing(DepartmentUtilizationItemDto::getTotalHours).reversed())
                 .toList();
 
@@ -473,15 +489,15 @@ public class ReportService {
         );
     }
 
-    private DepartmentUtilizationItemDto toDepartmentUtilizationItem(List<TimeEntry> entries) {
+    private DepartmentUtilizationItemDto toDepartmentUtilizationItem(List<TimeEntry> entries, Map<Long, CompanyMembership> memberships) {
         if (entries == null || entries.isEmpty()) {
             return new DepartmentUtilizationItemDto(null, null, null, BigDecimal.ZERO, 0, BigDecimal.ZERO, List.of());
         }
 
-        var dept = entries.get(0).getUser().getDepartment();
-        Long deptId = dept.getId();
-        String deptCode = dept.getDepartmentCode();
-        String deptName = dept.getDepartmentName();
+        var dept = departmentOf(entries.get(0).getUser(), memberships);
+        Long deptId = dept == null ? null : dept.getId();
+        String deptCode = dept == null ? null : dept.getDepartmentCode();
+        String deptName = dept == null ? null : dept.getDepartmentName();
 
         BigDecimal totalHours = entries.stream()
                 .map(TimeEntry::getTotalHours)
@@ -537,8 +553,10 @@ public class ReportService {
                 .filter(lr -> lr.getUser() != null && lr.getUser().getId() != null)
                 .collect(Collectors.groupingBy(lr -> lr.getUser().getId()));
 
+        Map<Long, CompanyMembership> memberships = membershipsFor(byUser.keySet());
+
         List<AbsencePatternEmployeeDto> employees = byUser.entrySet().stream()
-                .map(e -> buildAbsencePatternEmployee(e.getValue()))
+                .map(e -> buildAbsencePatternEmployee(e.getValue(), memberships))
                 .sorted(Comparator
                         .comparing(AbsencePatternEmployeeDto::getFlagged, Comparator.nullsLast(Boolean::compareTo)).reversed()
                         .thenComparing(AbsencePatternEmployeeDto::getTotalLeaveDays, Comparator.nullsLast(BigDecimal::compareTo)).reversed()
@@ -556,7 +574,7 @@ public class ReportService {
         );
     }
 
-    private AbsencePatternEmployeeDto buildAbsencePatternEmployee(List<LeaveRequest> requests) {
+    private AbsencePatternEmployeeDto buildAbsencePatternEmployee(List<LeaveRequest> requests, Map<Long, CompanyMembership> memberships) {
         requests = requests.stream()
                 .sorted(Comparator.comparing(LeaveRequest::getStartDate).thenComparing(LeaveRequest::getId, Comparator.nullsLast(Long::compareTo)))
                 .toList();
@@ -564,8 +582,9 @@ public class ReportService {
         User u = requests.isEmpty() ? null : requests.get(0).getUser();
         Long employeeId = u != null ? u.getId() : null;
         String name = u != null ? (u.getFirstName() + " " + u.getLastName()) : null;
-        Long deptId = (u != null && u.getDepartment() != null) ? u.getDepartment().getId() : null;
-        String deptCode = (u != null && u.getDepartment() != null) ? u.getDepartment().getDepartmentCode() : null;
+        Department dept = departmentOf(u, memberships);
+        Long deptId = dept != null ? dept.getId() : null;
+        String deptCode = dept != null ? dept.getDepartmentCode() : null;
 
         BigDecimal totalDays = requests.stream()
                 .map(LeaveRequest::getTotalDays)
@@ -910,6 +929,18 @@ public class ReportService {
             }
         }
         return issues;
+    }
+
+    private Map<Long, CompanyMembership> membershipsFor(java.util.Collection<Long> userIds) {
+        return membershipAccess.mapByUserId(TenantContext.getCompanyId(), userIds);
+    }
+
+    private Department departmentOf(User user, Map<Long, CompanyMembership> memberships) {
+        if (user == null || user.getId() == null || memberships == null) {
+            return null;
+        }
+        CompanyMembership membership = memberships.get(user.getId());
+        return membership == null ? null : membership.getDepartment();
     }
 }
 

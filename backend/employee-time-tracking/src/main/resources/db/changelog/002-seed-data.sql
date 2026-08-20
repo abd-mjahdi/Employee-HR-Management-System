@@ -36,71 +36,68 @@ SELECT setval('departments_id_seq', 11);
 
 
 -- ============================================================
--- 2. USERS
+-- 2. USERS (identity only; role/dept/manager live on company_memberships)
 -- All passwords hash to the same bcrypt value provided.
--- Hierarchy:
---   HR_ADMINs  : ids 1, 2          (dept: HR, no manager)
---   MANAGERs   : ids 3,4,5,6,7,8   (one per dept, manager_id → HR_ADMIN)
---   EMPLOYEEs  : ids 9–30           (report to their dept manager)
+-- Hierarchy is seeded in company_memberships (membership id matches user id).
 -- ============================================================
-INSERT INTO users (id, username, email, password_hash, first_name, last_name, user_role, department_id, manager_id, is_active) VALUES
+INSERT INTO users (id, username, email, password_hash, first_name, last_name, is_active) VALUES
 
 -- HR Admins
-(1,  'alice.morgan',    'alice.morgan@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Alice',   'Morgan',    'HR_ADMIN',  2, NULL, TRUE),
-(2,  'brian.cole',      'brian.cole@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Brian',   'Cole',      'HR_ADMIN',  2, NULL, TRUE),
+(1,  'alice.morgan',    'alice.morgan@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Alice',   'Morgan',     TRUE),
+(2,  'brian.cole',      'brian.cole@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Brian',   'Cole',       TRUE),
 
 -- Managers (one per dept; manager_id points to HR Admin 1)
-(3,  'carol.knight',    'carol.knight@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Carol',   'Knight',    'MANAGER',   1, 1, TRUE),  -- Eng
-(4,  'david.shaw',      'david.shaw@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'David',   'Shaw',      'MANAGER',   3, 1, TRUE),  -- Mkt
-(5,  'eva.stone',       'eva.stone@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Eva',     'Stone',     'MANAGER',   4, 1, TRUE),  -- Fin
-(6,  'frank.hayes',     'frank.hayes@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Frank',   'Hayes',     'MANAGER',   5, 1, TRUE),  -- Sales
-(7,  'grace.bell',      'grace.bell@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Grace',   'Bell',      'MANAGER',   6, 2, TRUE),  -- Ops
-(8,  'henry.ford',      'henry.ford@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Henry',   'Ford',      'MANAGER',   8, 2, TRUE),  -- Product
+(3,  'carol.knight',    'carol.knight@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Carol',   'Knight',     TRUE),
+(4,  'david.shaw',      'david.shaw@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'David',   'Shaw',       TRUE),
+(5,  'eva.stone',       'eva.stone@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Eva',     'Stone',      TRUE),
+(6,  'frank.hayes',     'frank.hayes@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Frank',   'Hayes',      TRUE),
+(7,  'grace.bell',      'grace.bell@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Grace',   'Bell',       TRUE),
+(8,  'henry.ford',      'henry.ford@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Henry',   'Ford',       TRUE),
 
 -- Engineering employees (manager = carol.knight, id=3)
-(9,  'ivan.petrov',     'ivan.petrov@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Ivan',    'Petrov',    'EMPLOYEE',  1, 3, TRUE),
-(10, 'julia.ross',      'julia.ross@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Julia',   'Ross',      'EMPLOYEE',  1, 3, TRUE),
-(11, 'kevin.chang',     'kevin.chang@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Kevin',   'Chang',     'EMPLOYEE',  1, 3, TRUE),
-(12, 'laura.white',     'laura.white@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Laura',   'White',     'EMPLOYEE',  1, 3, TRUE),
+(9,  'ivan.petrov',     'ivan.petrov@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Ivan',    'Petrov',     TRUE),
+(10, 'julia.ross',      'julia.ross@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Julia',   'Ross',       TRUE),
+(11, 'kevin.chang',     'kevin.chang@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Kevin',   'Chang',      TRUE),
+(12, 'laura.white',     'laura.white@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Laura',   'White',      TRUE),
 
 -- Marketing employees (manager = david.shaw, id=4)
-(13, 'mark.jensen',     'mark.jensen@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Mark',    'Jensen',    'EMPLOYEE',  3, 4, TRUE),
-(14, 'nina.brown',      'nina.brown@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Nina',    'Brown',     'EMPLOYEE',  3, 4, TRUE),
-(15, 'oscar.diaz',      'oscar.diaz@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Oscar',   'Diaz',      'EMPLOYEE',  3, 4, TRUE),
+(13, 'mark.jensen',     'mark.jensen@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Mark',    'Jensen',     TRUE),
+(14, 'nina.brown',      'nina.brown@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Nina',    'Brown',      TRUE),
+(15, 'oscar.diaz',      'oscar.diaz@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Oscar',   'Diaz',       TRUE),
 
 -- Finance employees (manager = eva.stone, id=5)
-(16, 'paula.king',      'paula.king@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Paula',   'King',      'EMPLOYEE',  4, 5, TRUE),
-(17, 'quinn.lee',       'quinn.lee@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Quinn',   'Lee',       'EMPLOYEE',  4, 5, TRUE),
-(18, 'rachel.scott',    'rachel.scott@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Rachel',  'Scott',     'EMPLOYEE',  4, 5, TRUE),
+(16, 'paula.king',      'paula.king@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Paula',   'King',       TRUE),
+(17, 'quinn.lee',       'quinn.lee@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Quinn',   'Lee',        TRUE),
+(18, 'rachel.scott',    'rachel.scott@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Rachel',  'Scott',      TRUE),
 
 -- Sales employees (manager = frank.hayes, id=6)
-(19, 'sam.turner',      'sam.turner@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Sam',     'Turner',    'EMPLOYEE',  5, 6, TRUE),
-(20, 'tina.clark',      'tina.clark@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Tina',    'Clark',     'EMPLOYEE',  5, 6, TRUE),
-(21, 'uma.patel',       'uma.patel@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Uma',     'Patel',     'EMPLOYEE',  5, 6, TRUE),
-(22, 'victor.nguyen',   'victor.nguyen@company.com',   '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Victor',  'Nguyen',    'EMPLOYEE',  5, 6, TRUE),
+(19, 'sam.turner',      'sam.turner@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Sam',     'Turner',     TRUE),
+(20, 'tina.clark',      'tina.clark@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Tina',    'Clark',      TRUE),
+(21, 'uma.patel',       'uma.patel@company.com',       '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Uma',     'Patel',      TRUE),
+(22, 'victor.nguyen',   'victor.nguyen@company.com',   '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Victor',  'Nguyen',     TRUE),
 
 -- Ops employees (manager = grace.bell, id=7)
-(23, 'wendy.hall',      'wendy.hall@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Wendy',   'Hall',      'EMPLOYEE',  6, 7, TRUE),
-(24, 'xander.adams',    'xander.adams@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Xander',  'Adams',     'EMPLOYEE',  6, 7, TRUE),
-(25, 'yara.james',      'yara.james@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Yara',    'James',     'EMPLOYEE',  6, 7, TRUE),
+(23, 'wendy.hall',      'wendy.hall@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Wendy',   'Hall',       TRUE),
+(24, 'xander.adams',    'xander.adams@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Xander',  'Adams',      TRUE),
+(25, 'yara.james',      'yara.james@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Yara',    'James',      TRUE),
 
 -- Product employees (manager = henry.ford, id=8)
-(26, 'zoe.wright',      'zoe.wright@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Zoe',     'Wright',    'EMPLOYEE',  8, 8, TRUE),
-(27, 'adam.lewis',      'adam.lewis@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Adam',    'Lewis',     'EMPLOYEE',  8, 8, TRUE),
-(28, 'bella.garcia',    'bella.garcia@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Bella',   'Garcia',    'EMPLOYEE',  8, 8, TRUE),
+(26, 'zoe.wright',      'zoe.wright@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Zoe',     'Wright',     TRUE),
+(27, 'adam.lewis',      'adam.lewis@company.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Adam',    'Lewis',      TRUE),
+(28, 'bella.garcia',    'bella.garcia@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Bella',   'Garcia',     TRUE),
 
 -- HR employees (managed by Alice, id=1)
-(29, 'carl.robinson',   'carl.robinson@company.com',   '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Carl',    'Robinson',  'EMPLOYEE',  2, 1, TRUE),
-(30, 'diana.miller',    'diana.miller@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Diana',   'Miller',    'EMPLOYEE',  2, 1, TRUE),
+(29, 'carl.robinson',   'carl.robinson@company.com',   '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Carl',    'Robinson',   TRUE),
+(30, 'diana.miller',    'diana.miller@company.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Diana',   'Miller',     TRUE),
 
 -- Inactive user (for testing is_active=false flows)
-(31, 'ex.employee',     'ex.employee@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Ex',      'Employee',  'EMPLOYEE',  1, 3, FALSE),
+(31, 'ex.employee',     'ex.employee@company.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Ex',      'Employee',   FALSE),
 
 -- Globex (company 2) — emails/usernames globally unique
-(32, 'emma.frost',      'emma.frost@globex.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Emma',    'Frost',     'HR_ADMIN',  10, NULL, TRUE),
-(33, 'oliver.grant',    'oliver.grant@globex.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Oliver',  'Grant',     'MANAGER',   9, 32, TRUE),
-(34, 'priya.sharma',    'priya.sharma@globex.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Priya',   'Sharma',    'EMPLOYEE',  9, 33, TRUE),
-(35, 'nate.brooks',     'nate.brooks@globex.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Nate',    'Brooks',    'EMPLOYEE',  9, 33, TRUE);
+(32, 'emma.frost',      'emma.frost@globex.com',      '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Emma',    'Frost',      TRUE),
+(33, 'oliver.grant',    'oliver.grant@globex.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Oliver',  'Grant',      TRUE),
+(34, 'priya.sharma',    'priya.sharma@globex.com',    '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Priya',   'Sharma',     TRUE),
+(35, 'nate.brooks',     'nate.brooks@globex.com',     '$2a$10$ZjukDbYm4QPlvbcFHqpOMeeltGjCBNj7xBDj0n6rMSiCrBpuaFR1W', 'Nate',    'Brooks',     TRUE);
 
 SELECT setval('users_id_seq', 35);
 

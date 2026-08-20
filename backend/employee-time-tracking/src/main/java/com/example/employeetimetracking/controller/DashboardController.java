@@ -21,7 +21,7 @@ public class DashboardController {
 
     @GetMapping
     public ResponseEntity<UserDashboardDto> getDashboardData(@AuthenticationPrincipal CustomUserDetails authenticatedUser) {
-        UserDashboardDto userDashboardDto = dashboardService.getDashboardData(authenticatedUser.getId());
+        UserDashboardDto userDashboardDto = dashboardService.getDashboardData(authenticatedUser);
         return ResponseEntity.ok(userDashboardDto);
     }
 }

@@ -14,11 +14,11 @@ import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
-import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
+import com.example.employeetimetracking.tenant.MembershipAccess;
 import jakarta.transaction.Transactional;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -55,6 +55,7 @@ public class TimeEntryService {
     private final ProjectService projectService;
     private final UserService userService;
     private final LeaveRequestService leaveRequestService;
+    private final MembershipAccess membershipAccess;
 
     @Autowired
     public TimeEntryService(
@@ -63,7 +64,8 @@ public class TimeEntryService {
                             TimeEntryMapper timeEntryMapper,
                             ProjectService projectService,
                             UserService userService,
-                            LeaveRequestService leaveRequestService
+                            LeaveRequestService leaveRequestService,
+                            MembershipAccess membershipAccess
     ) {
         this.timeEntryRepository = timeEntryRepository;
         this.timeEntryBreakRepository = timeEntryBreakRepository;
@@ -71,6 +73,7 @@ public class TimeEntryService {
         this.projectService = projectService;
         this.userService = userService;
         this.leaveRequestService = leaveRequestService;
+        this.membershipAccess = membershipAccess;
     }
 
     public List<TimeEntryDto> getRecentTimeEntries(User user) {
@@ -421,13 +424,12 @@ public class TimeEntryService {
     }
 
     private boolean isHrAdmin(User actor) {
-        return actor.getUserRole() == UserRole.HR_ADMIN;
+        return actor != null && membershipAccess.isHrAdmin(actor.getId());
     }
 
     private boolean isDirectSupervisorOf(User actor, User entryOwner) {
-        return entryOwner.getManager() != null
-                && entryOwner.getManager().getId() != null
-                && entryOwner.getManager().getId().equals(actor.getId());
+        return actor != null && entryOwner != null
+                && membershipAccess.isDirectManagerOf(actor.getId(), entryOwner.getId());
     }
 
     /** Owner, direct manager, or HR can view an entry (and its breaks). */

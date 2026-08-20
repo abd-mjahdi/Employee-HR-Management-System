@@ -29,19 +29,6 @@ public class CustomUserDetails implements UserDetails {
     private final boolean active;
     private final Collection<? extends SimpleGrantedAuthority> authorities;
 
-    /** Test/legacy constructor: authorities from {@code users.user_role} until Phase 8 cutover. */
-    public CustomUserDetails(User user) {
-        this.id = user.getId();
-        this.email = user.getEmail();
-        this.password = user.getPasswordHash();
-        this.active = Boolean.TRUE.equals(user.getIsActive());
-        this.companyId = null;
-        this.membershipId = null;
-        this.role = user.getUserRole();
-        this.membershipStatus = null;
-        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getUserRole().name()));
-    }
-
     public CustomUserDetails(CompanyMembership membership) {
         User user = membership.getUser();
         this.id = user.getId();

@@ -97,9 +97,6 @@ public class BootstrapService {
         admin.setPasswordHash(passwordEncoder.encode(rawPassword));
         admin.setFirstName(request.getAdminFirstName().trim());
         admin.setLastName(request.getAdminLastName().trim());
-        admin.setUserRole(UserRole.HR_ADMIN);
-        admin.setDepartment(department);
-        admin.setManager(null);
         admin.setIsActive(true);
         admin = userRepository.save(admin);
 

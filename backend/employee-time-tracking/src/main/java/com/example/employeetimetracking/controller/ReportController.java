@@ -9,10 +9,9 @@ import com.example.employeetimetracking.dto.response.OvertimeSummaryReportDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
 import com.example.employeetimetracking.dto.response.ProjectHoursReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
-import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.ReportService;
-import com.example.employeetimetracking.service.UserService;
+import com.example.employeetimetracking.tenant.MembershipAccess;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -32,12 +31,12 @@ import java.time.LocalDate;
 @RequestMapping("/reports")
 public class ReportController {
     private final ReportService reportService;
-    private final UserService userService;
+    private final MembershipAccess membershipAccess;
 
     @Autowired
-    public ReportController(ReportService reportService, UserService userService) {
+    public ReportController(ReportService reportService, MembershipAccess membershipAccess) {
         this.reportService = reportService;
-        this.userService = userService;
+        this.membershipAccess = membershipAccess;
     }
 
     // Task 135
@@ -93,8 +92,9 @@ public class ReportController {
     ) {
         boolean isHr = authenticatedUser.hasRole("HR_ADMIN");
         if (!isHr) {
-            User me = userService.getById(authenticatedUser.getId());
-            Long myDeptId = me.getDepartment() != null ? me.getDepartment().getId() : null;
+            Long myDeptId = membershipAccess.findFor(authenticatedUser, authenticatedUser.getId())
+                    .map(m -> m.getDepartment() == null ? null : m.getDepartment().getId())
+                    .orElse(null);
             if (departmentId != null && myDeptId != null && !departmentId.equals(myDeptId)) {
                 throw new AccessDeniedException("You can only access leave balances for your department");
             }
@@ -163,9 +163,7 @@ public class ReportController {
             return;
         }
         if (caller.hasRole("MANAGER")) {
-            User target = userService.getById(targetUserId);
-            if (target.getManager() != null && target.getManager().getId() != null
-                    && target.getManager().getId().equals(caller.getId())) {
+            if (membershipAccess.isDirectManagerOf(caller.getId(), targetUserId)) {
                 return;
             }
         }

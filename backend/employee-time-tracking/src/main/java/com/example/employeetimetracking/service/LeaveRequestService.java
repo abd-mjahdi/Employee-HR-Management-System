@@ -11,6 +11,7 @@ import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
+import com.example.employeetimetracking.tenant.MembershipAccess;
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ public class LeaveRequestService {
     private final LeaveBalanceService leaveBalanceService;
     private final UserService userService;
     private final WorkingDaysCalculator workingDaysCalculator;
+    private final MembershipAccess membershipAccess;
 
     @Autowired
     public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
@@ -47,7 +49,8 @@ public class LeaveRequestService {
                                LeavePolicyService leavePolicyService,
                                LeaveBalanceService leaveBalanceService,
                                UserService userService,
-                               WorkingDaysCalculator workingDaysCalculator) {
+                               WorkingDaysCalculator workingDaysCalculator,
+                               MembershipAccess membershipAccess) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveTypeService = leaveTypeService;
         this.leaveRequestMapper = leaveRequestMapper;
@@ -55,6 +58,7 @@ public class LeaveRequestService {
         this.leaveBalanceService = leaveBalanceService;
         this.userService = userService;
         this.workingDaysCalculator = workingDaysCalculator;
+        this.membershipAccess = membershipAccess;
     }
     public List<LeaveRequestDto> getByUserIdOrderByCreatedAtDesc(Long userId){
         return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(leaveRequestMapper::toDto).toList();
@@ -68,7 +72,7 @@ public class LeaveRequestService {
         LeaveRequest lr = getById(id);
         User owner = lr.getUser();
         Long ownerId = owner != null ? owner.getId() : null;
-        Long managerId = owner != null && owner.getManager() != null ? owner.getManager().getId() : null;
+        Long managerId = owner != null ? membershipAccess.managerUserId(ownerId) : null;
 
         boolean isOwner = Objects.equals(authenticatedUser.getId(), ownerId);
         boolean isManager = Objects.equals(authenticatedUser.getId(), managerId);
@@ -228,8 +232,12 @@ public class LeaveRequestService {
         lr.setManagerApprovalStatus(Status.PENDING);
         lr.setHrApprovalStatus(Status.PENDING);
 
-        if (user.getUserRole() != UserRole.HR_ADMIN
-                && (user.getManager() == null || user.getManager().getId() == null)) {
+        var membership = membershipAccess.findInCurrentCompany(id)
+                .orElseThrow(() -> new InvalidLeaveRequestException("You must have a manager assigned before requesting leave"));
+        if (membership.getRole() != UserRole.HR_ADMIN
+                && (membership.getManagerMembership() == null
+                || membership.getManagerMembership().getUser() == null
+                || membership.getManagerMembership().getUser().getId() == null)) {
             throw new InvalidLeaveRequestException("You must have a manager assigned before requesting leave");
         }
         if (lr.getTotalDays() == null || lr.getTotalDays().compareTo(BigDecimal.ZERO) <= 0) {

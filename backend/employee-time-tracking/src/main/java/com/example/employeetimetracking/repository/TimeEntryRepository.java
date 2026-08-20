@@ -32,15 +32,40 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     List<TimeEntry> findByUserIdAndEntryDateBetweenAndStatus(Long userId, LocalDate startDate, LocalDate endDate ,Status status);
     List<TimeEntry> findByUserIdOrderByEntryDateDesc(Long userId , Pageable limit);
     List<TimeEntry> findByUserIdAndEntryDate(Long userId, LocalDate entryDate);
-    List<TimeEntry> findByUserManagerIdAndStatusOrderByCreatedAtAsc(Long managerId, Status status);
-    Integer countByUserIdAndStatus(Long userId, Status status);
-    Integer countByUserManagerIdAndStatus(Long managerId , Status status);
 
     @Query("""
-    SELECT te
+    SELECT te FROM TimeEntry te
+    JOIN te.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = te.company
+      AND te.status = :status
+    ORDER BY te.createdAt ASC
+    """)
+    List<TimeEntry> findByUserManagerIdAndStatusOrderByCreatedAtAsc(
+            @Param("managerId") Long managerId,
+            @Param("status") Status status);
+
+    Integer countByUserIdAndStatus(Long userId, Status status);
+
+    @Query("""
+    SELECT COUNT(te) FROM TimeEntry te
+    JOIN te.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = te.company
+      AND te.status = :status
+    """)
+    Integer countByUserManagerIdAndStatus(@Param("managerId") Long managerId, @Param("status") Status status);
+
+    @Query("""
+    SELECT DISTINCT te
     FROM TimeEntry te
     JOIN FETCH te.user u
-    JOIN FETCH u.department d
     JOIN FETCH te.project p
     WHERE te.status = :status
       AND te.entryDate BETWEEN :startDate AND :endDate
@@ -52,10 +77,9 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     );
 
     @Query("""
-    SELECT te
+    SELECT DISTINCT te
     FROM TimeEntry te
     JOIN FETCH te.user u
-    JOIN FETCH u.department d
     JOIN FETCH te.project p
     WHERE te.status = :status
       AND te.entryDate BETWEEN :startDate AND :endDate
@@ -67,10 +91,9 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     );
 
     @Query("""
-    SELECT te
+    SELECT DISTINCT te
     FROM TimeEntry te
     JOIN FETCH te.user u
-    JOIN FETCH u.department d
     JOIN FETCH te.project p
     WHERE te.company.id = :companyId
       AND te.status = :status
@@ -84,10 +107,9 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     );
 
     @Query("""
-    SELECT te
+    SELECT DISTINCT te
     FROM TimeEntry te
     JOIN FETCH te.user u
-    JOIN FETCH u.department d
     JOIN FETCH te.project p
     WHERE te.company.id = :companyId
       AND te.status = :status

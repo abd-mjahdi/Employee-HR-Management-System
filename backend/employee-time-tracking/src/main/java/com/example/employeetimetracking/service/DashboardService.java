@@ -6,6 +6,7 @@ import com.example.employeetimetracking.mapper.UserMapper;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,24 +33,24 @@ public class DashboardService {
         this.leaveBalanceService = leaveBalanceService;
         this.userMapper = userMapper;
     }
-    public UserDashboardDto getDashboardData(Long id){
-        User authenticatedUser = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User not found"));
+    public UserDashboardDto getDashboardData(CustomUserDetails authenticatedUser){
+        Long id = authenticatedUser.getId();
+        User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User not found"));
 
-        UserResponseDto userResponseDto = userMapper.toDto(authenticatedUser);
+        UserResponseDto userResponseDto = userMapper.toDto(user);
         int currentYear = LocalDate.now().getYear();
         List<LeaveBalanceDto> leaveBalances = leaveBalanceService.getByUserIdAndYear(id, currentYear);
         List<LeaveRequestDto> upcomingLeave = leaveRequestService.getUpcomingLeave(id, 10);
         List<LeaveRequestDto> recentLeaveRequests = leaveRequestService.getRecentLeaveRequests(id, 7);
 
         // 7 most recent time entries
-        List<TimeEntryDto> recentTimeEntries = timeEntryService.getRecentTimeEntries(authenticatedUser);
+        List<TimeEntryDto> recentTimeEntries = timeEntryService.getRecentTimeEntries(user);
 
-        DashboardStatsDto stats = getDashboardStats(authenticatedUser);
+        DashboardStatsDto stats = getDashboardStats(user, authenticatedUser.getRole());
         return new UserDashboardDto(userResponseDto,leaveBalances,upcomingLeave,recentLeaveRequests,recentTimeEntries,stats);
     }
 
-    public DashboardStatsDto getDashboardStats(User user) {
-        UserRole role = user.getUserRole();
+    public DashboardStatsDto getDashboardStats(User user, UserRole role) {
         Long userId = user.getId();
 
         BigDecimal hoursWeek = timeEntryService.getHoursThisWeek(userId);

@@ -27,5 +27,8 @@ public class UserRequestDto {
 
     private Long departmentId;
 
+    private Long managerMembershipId;
+
+    /** @deprecated Prefer {@link #managerMembershipId}; resolved to a membership in the current company. */
     private Long managerId;
 }

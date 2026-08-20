@@ -20,7 +20,6 @@ import com.example.employeetimetracking.repository.CompanyMembershipRepository;
 import com.example.employeetimetracking.repository.CompanyRepository;
 import com.example.employeetimetracking.repository.DepartmentRepository;
 import com.example.employeetimetracking.repository.UserRepository;
-import com.example.employeetimetracking.service.DepartmentService;
 import com.example.employeetimetracking.service.LeaveBalanceService;
 import com.example.employeetimetracking.service.UserService;
 import com.example.employeetimetracking.tenant.TenantContext;
@@ -55,8 +54,6 @@ class UserServiceTest {
     @Mock
     UserRepository userRepository;
     @Mock
-    DepartmentService departmentService;
-    @Mock
     DepartmentRepository departmentRepository;
     @Mock
     CompanyRepository companyRepository;
@@ -79,6 +76,7 @@ class UserServiceTest {
     User employee;
     CompanyMembership hrMembership;
     CompanyMembership managerMembership;
+    CompanyMembership employeeMembership;
 
     @BeforeEach
     void setUp() {
@@ -94,12 +92,13 @@ class UserServiceTest {
         dept.setDepartmentName("Engineering");
         dept.setIsActive(true);
 
-        hrAdmin = user(1L, "hr", UserRole.HR_ADMIN, null);
-        manager = user(2L, "mgr", UserRole.MANAGER, hrAdmin);
-        employee = user(3L, "emp", UserRole.EMPLOYEE, manager);
+        hrAdmin = user(1L, "hr");
+        manager = user(2L, "mgr");
+        employee = user(3L, "emp");
 
         hrMembership = membership(1L, hrAdmin, UserRole.HR_ADMIN, null);
         managerMembership = membership(2L, manager, UserRole.MANAGER, hrMembership);
+        employeeMembership = membership(3L, employee, UserRole.EMPLOYEE, managerMembership);
     }
 
     @AfterEach
@@ -144,7 +143,7 @@ class UserServiceTest {
             return u;
         });
         when(companyMembershipRepository.save(any(CompanyMembership.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toDto(any(User.class))).thenReturn(new UserResponseDto());
+        when(userMapper.toDto(any(User.class), any())).thenReturn(new UserResponseDto());
 
         CreateUserRequestDto dto = new CreateUserRequestDto(
                 "newemp", "new@ex.com", "New", "Emp", UserRole.EMPLOYEE, 1L, 2L);
@@ -166,7 +165,7 @@ class UserServiceTest {
 
     @Test
     void createUser_existingEmailInOtherCompany_doesNotResetPassword() {
-        User existing = user(40L, "pat", UserRole.EMPLOYEE, manager);
+        User existing = user(40L, "pat");
         existing.setEmail("pat@ex.com");
         existing.setPasswordHash("original-hash");
 
@@ -177,7 +176,7 @@ class UserServiceTest {
         when(companyMembershipRepository.findByUserIdAndCompanyId(40L, 1L)).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         when(companyMembershipRepository.save(any(CompanyMembership.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(userMapper.toDto(any(User.class))).thenReturn(new UserResponseDto());
+        when(userMapper.toDto(any(User.class), any())).thenReturn(new UserResponseDto());
 
         CreateUserRequestDto dto = new CreateUserRequestDto(
                 "ignored", "pat@ex.com", "Pat", "Lee", UserRole.EMPLOYEE, 1L, 2L);
@@ -219,6 +218,8 @@ class UserServiceTest {
     @Test
     void update_roleToManager_revalidatesExistingSupervisor() {
         when(userRepository.findById(3L)).thenReturn(Optional.of(employee));
+        when(companyMembershipRepository.findByUserIdAndCompanyId(3L, 1L)).thenReturn(Optional.of(employeeMembership));
+        when(companyMembershipRepository.findByIdAndCompanyId(2L, 1L)).thenReturn(Optional.of(managerMembership));
         UserRequestDto dto = new UserRequestDto();
         dto.setUserRole(UserRole.MANAGER);
 
@@ -228,6 +229,8 @@ class UserServiceTest {
     @Test
     void update_selfAsManager_rejected() {
         when(userRepository.findById(3L)).thenReturn(Optional.of(employee));
+        when(companyMembershipRepository.findByUserIdAndCompanyId(3L, 1L)).thenReturn(Optional.of(employeeMembership));
+        when(companyMembershipRepository.findByIdAndCompanyId(3L, 1L)).thenReturn(Optional.of(employeeMembership));
         UserRequestDto dto = new UserRequestDto();
         dto.setManagerId(3L);
 
@@ -242,7 +245,9 @@ class UserServiceTest {
     @Test
     void deactivate_lastHrAdmin_rejected() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(hrAdmin));
-        when(userRepository.countByUserRoleAndIsActive(UserRole.HR_ADMIN, true)).thenReturn(1L);
+        when(companyMembershipRepository.findByUserIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(hrMembership));
+        when(companyMembershipRepository.countByCompanyIdAndRoleAndStatus(1L, UserRole.HR_ADMIN, MembershipStatus.ACTIVE))
+                .thenReturn(1L);
 
         assertThrows(InvalidUserException.class, () -> userService.deactivateUserById(1L, 2L));
     }
@@ -250,7 +255,9 @@ class UserServiceTest {
     @Test
     void deactivate_withActiveReports_rejected() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
-        when(userRepository.findByManagerIdAndIsActive(2L, true)).thenReturn(List.of(employee));
+        when(companyMembershipRepository.findByUserIdAndCompanyId(2L, 1L)).thenReturn(Optional.of(managerMembership));
+        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE))
+                .thenReturn(List.of(employeeMembership));
 
         assertThrows(InvalidUserException.class, () -> userService.deactivateUserById(2L, 1L));
     }
@@ -258,22 +265,27 @@ class UserServiceTest {
     @Test
     void deactivate_okWhenNoReports() {
         when(userRepository.findById(3L)).thenReturn(Optional.of(employee));
-        when(userRepository.findByManagerIdAndIsActive(3L, true)).thenReturn(Collections.emptyList());
+        when(companyMembershipRepository.findByUserIdAndCompanyId(3L, 1L)).thenReturn(Optional.of(employeeMembership));
+        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(3L, MembershipStatus.ACTIVE))
+                .thenReturn(Collections.emptyList());
 
         userService.deactivateUserById(3L, 1L);
 
         assertFalse(employee.getIsActive());
+        assertEquals(MembershipStatus.DEACTIVATED, employeeMembership.getStatus());
     }
 
     @Test
     void getTeamMembers_returnsOnlyActiveReports() {
-        when(userRepository.findByManagerIdAndIsActive(2L, true)).thenReturn(List.of(employee));
-        when(userMapper.toDto(employee)).thenReturn(new UserResponseDto());
+        when(companyMembershipRepository.findByUserIdAndCompanyId(2L, 1L)).thenReturn(Optional.of(managerMembership));
+        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE))
+                .thenReturn(List.of(employeeMembership));
+        when(userMapper.toDto(employee, employeeMembership)).thenReturn(new UserResponseDto());
 
         List<UserResponseDto> team = userService.getTeamMembers(2L);
 
         assertEquals(1, team.size());
-        verify(userRepository).findByManagerIdAndIsActive(2L, true);
+        verify(companyMembershipRepository).findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE);
     }
 
     private CompanyMembership membership(Long id, User user, UserRole role, CompanyMembership manager) {
@@ -288,7 +300,7 @@ class UserServiceTest {
         return membership;
     }
 
-    private User user(Long id, String username, UserRole role, User manager) {
+    private User user(Long id, String username) {
         User u = new User();
         u.setId(id);
         u.setUsername(username);
@@ -296,9 +308,6 @@ class UserServiceTest {
         u.setPasswordHash("hash");
         u.setFirstName(username);
         u.setLastName("User");
-        u.setUserRole(role);
-        u.setDepartment(dept);
-        u.setManager(manager);
         u.setIsActive(true);
         return u;
     }

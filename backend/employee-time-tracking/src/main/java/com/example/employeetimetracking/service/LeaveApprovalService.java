@@ -1,11 +1,13 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.exception.LeaveApprovalException;
+import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import com.example.employeetimetracking.tenant.MembershipAccess;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,14 +18,17 @@ public class LeaveApprovalService {
     private final LeaveRequestService leaveRequestService;
     private final LeaveBalanceService leaveBalanceService;
     private final NotificationService notificationService;
+    private final MembershipAccess membershipAccess;
 
     @Autowired
     public LeaveApprovalService(LeaveRequestService leaveRequestService,
                                 LeaveBalanceService leaveBalanceService,
-                                NotificationService notificationService) {
+                                NotificationService notificationService,
+                                MembershipAccess membershipAccess) {
         this.leaveRequestService = leaveRequestService;
         this.leaveBalanceService = leaveBalanceService;
         this.notificationService = notificationService;
+        this.membershipAccess = membershipAccess;
     }
 
     @Transactional
@@ -127,10 +132,14 @@ public class LeaveApprovalService {
         if (owner.getId() != null && owner.getId().equals(authenticatedUser.getId())) {
             throw new AccessDeniedException(selfMessage);
         }
-        boolean isAssignedManager = owner.getManager() != null
-                && owner.getManager().getId() != null
-                && owner.getManager().getId().equals(authenticatedUser.getId());
-        boolean peerHr = owner.getUserRole() == UserRole.HR_ADMIN
+        CompanyMembership ownerMembership = membershipAccess
+                .findFor(authenticatedUser, owner.getId())
+                .orElseThrow(() -> new AccessDeniedException(otherMessage));
+        boolean isAssignedManager = ownerMembership.getManagerMembership() != null
+                && ownerMembership.getManagerMembership().getUser() != null
+                && ownerMembership.getManagerMembership().getUser().getId() != null
+                && ownerMembership.getManagerMembership().getUser().getId().equals(authenticatedUser.getId());
+        boolean peerHr = ownerMembership.getRole() == UserRole.HR_ADMIN
                 && authenticatedUser.hasRole("HR_ADMIN");
         if (isAssignedManager || peerHr) {
             return owner;

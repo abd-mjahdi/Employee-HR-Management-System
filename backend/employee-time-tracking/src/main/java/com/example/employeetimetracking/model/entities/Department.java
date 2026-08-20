@@ -51,5 +51,5 @@ public class Department {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "department")
-    private List<User> users;
+    private List<CompanyMembership> memberships;
 }

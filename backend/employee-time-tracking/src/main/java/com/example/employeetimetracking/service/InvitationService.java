@@ -167,9 +167,6 @@ public class InvitationService {
             }
         }
 
-        user.setUserRole(invitation.getRole());
-        user.setDepartment(invitation.getDepartment());
-        user.setManager(invitation.getManagerMembership() == null ? null : invitation.getManagerMembership().getUser());
         user = userRepository.save(user);
 
         CompanyMembership membership = new CompanyMembership();

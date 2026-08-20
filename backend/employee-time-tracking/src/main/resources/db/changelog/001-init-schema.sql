@@ -35,9 +35,6 @@ CREATE TABLE users (
     password_hash   TEXT NOT NULL,
     first_name      VARCHAR(50) NOT NULL,
     last_name       VARCHAR(50) NOT NULL,
-    user_role       TEXT NOT NULL CHECK (user_role IN ('EMPLOYEE', 'MANAGER', 'HR_ADMIN')),
-    department_id   BIGINT NOT NULL REFERENCES departments(id),
-    manager_id      BIGINT REFERENCES users(id),
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

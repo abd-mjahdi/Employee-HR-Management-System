@@ -38,13 +38,42 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByUserIdAndStatusInAndStartDateAfterOrderByStartDateAsc(Long userId, List<Status> statuses, LocalDate startDate, Pageable pageable);
     Integer countByUserIdAndStatus(Long userId, Status status);
 
-    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status = :status")
+    @Query("""
+    SELECT COUNT(lr) FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status = :status
+    """)
     Integer countByManagerIdAndStatus(@Param("managerId") Long managerId, @Param("status") Status status);
 
-    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status = :status AND :date BETWEEN lr.startDate AND lr.endDate")
+    @Query("""
+    SELECT COUNT(lr) FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status = :status
+      AND :date BETWEEN lr.startDate AND lr.endDate
+    """)
     Integer teamMembersOnLeaveToday(@Param("managerId") Long managerId, @Param("status") Status status, @Param("date") LocalDate date);
 
-    @Query("SELECT COUNT(lr) FROM LeaveRequest lr WHERE lr.user.manager.id = :managerId AND lr.status IN :statuses AND :date BETWEEN lr.startDate AND lr.endDate")
+    @Query("""
+    SELECT COUNT(lr) FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status IN :statuses
+      AND :date BETWEEN lr.startDate AND lr.endDate
+    """)
     Integer teamMembersOnLeaveTodayInStatuses(@Param("managerId") Long managerId, @Param("statuses") List<Status> statuses, @Param("date") LocalDate date);
 
     @Query("""
@@ -63,10 +92,15 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     @Query("""
     SELECT lr FROM LeaveRequest lr
-    WHERE lr.user.manager.id = :managerId
-    AND lr.status = :status
-    AND lr.startDate <= :endDate
-    AND lr.endDate >= :startDate
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status = :status
+      AND lr.startDate <= :endDate
+      AND lr.endDate >= :startDate
     """)
     List<LeaveRequest> findByStatusAndDateRangeOverlap(
             @Param(("managerId"))  Long managerId,
@@ -76,10 +110,15 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     @Query("""
     SELECT lr FROM LeaveRequest lr
-    WHERE lr.user.manager.id = :managerId
-    AND lr.status IN :statuses
-    AND lr.startDate <= :endDate
-    AND lr.endDate >= :startDate
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status IN :statuses
+      AND lr.startDate <= :endDate
+      AND lr.endDate >= :startDate
     """)
     List<LeaveRequest> findByStatusInAndDateRangeOverlap(
             @Param("managerId") Long managerId,
@@ -88,10 +127,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("endDate") LocalDate endDate);
 
     @Query("""
-    SELECT lr
+    SELECT DISTINCT lr
     FROM LeaveRequest lr
     JOIN FETCH lr.user u
-    JOIN FETCH u.department d
     JOIN FETCH lr.leaveType lt
     WHERE lr.status = :status
       AND lr.startDate <= :endDate
@@ -104,10 +142,9 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     );
 
     @Query("""
-    SELECT lr
+    SELECT DISTINCT lr
     FROM LeaveRequest lr
     JOIN FETCH lr.user u
-    JOIN FETCH u.department d
     JOIN FETCH lr.leaveType lt
     WHERE lr.status IN :statuses
       AND lr.startDate <= :endDate
@@ -119,18 +156,82 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
             @Param("endDate") LocalDate endDate
     );
 
-    List<LeaveRequest> findByUserManagerIdAndStatus(Long managerId ,Status status);
-    List<LeaveRequest> findByUserUserRoleAndStatusAndUserIdNot(UserRole userRole, Status status, Long userId);
-    Integer countByUserUserRoleAndStatusAndUserIdNot(UserRole userRole, Status status, Long userId);
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status = :status
+    """)
+    List<LeaveRequest> findByUserManagerIdAndStatus(@Param("managerId") Long managerId, @Param("status") Status status);
+
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    WHERE om.role = :userRole
+      AND om.status = com.example.employeetimetracking.model.enums.MembershipStatus.ACTIVE
+      AND om.company = lr.company
+      AND lr.status = :status
+      AND u.id <> :userId
+    """)
+    List<LeaveRequest> findByUserUserRoleAndStatusAndUserIdNot(
+            @Param("userRole") UserRole userRole,
+            @Param("status") Status status,
+            @Param("userId") Long userId);
+
+    @Query("""
+    SELECT COUNT(lr) FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    WHERE om.role = :userRole
+      AND om.status = com.example.employeetimetracking.model.enums.MembershipStatus.ACTIVE
+      AND om.company = lr.company
+      AND lr.status = :status
+      AND u.id <> :userId
+    """)
+    Integer countByUserUserRoleAndStatusAndUserIdNot(
+            @Param("userRole") UserRole userRole,
+            @Param("status") Status status,
+            @Param("userId") Long userId);
+
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status = :status
+      AND lr.startDate > :startDate
+    ORDER BY lr.startDate ASC
+    """)
     List<LeaveRequest> findByUserManagerIdAndStatusAndStartDateAfterOrderByStartDateAsc(
-            Long managerId,
-            Status status,
-            LocalDate startDate
+            @Param("managerId") Long managerId,
+            @Param("status") Status status,
+            @Param("startDate") LocalDate startDate
     );
+
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    JOIN lr.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company = lr.company
+      AND lr.status IN :statuses
+      AND lr.startDate > :startDate
+    ORDER BY lr.startDate ASC
+    """)
     List<LeaveRequest> findByUserManagerIdAndStatusInAndStartDateAfterOrderByStartDateAsc(
-            Long managerId,
-            List<Status> statuses,
-            LocalDate startDate
+            @Param("managerId") Long managerId,
+            @Param("statuses") List<Status> statuses,
+            @Param("startDate") LocalDate startDate
     );
 
     @Query("""

@@ -110,10 +110,8 @@ class BootstrapServiceTest {
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         User admin = userCaptor.getValue();
-        assertEquals(UserRole.HR_ADMIN, admin.getUserRole());
         assertEquals("hashed", admin.getPasswordHash());
         assertTrue(admin.getIsActive());
-        assertNull(admin.getManager());
 
         ArgumentCaptor<CompanyMembership> membershipCaptor = ArgumentCaptor.forClass(CompanyMembership.class);
         verify(companyMembershipRepository).save(membershipCaptor.capture());

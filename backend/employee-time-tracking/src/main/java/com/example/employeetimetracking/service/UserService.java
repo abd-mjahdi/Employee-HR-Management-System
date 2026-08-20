@@ -49,7 +49,6 @@ public class UserService {
     private final UserMapper userMapper;
     private final BCryptPasswordEncoder encoder;
     private final UserRepository userRepository;
-    private final DepartmentService departmentService;
     private final DepartmentRepository departmentRepository;
     private final CompanyRepository companyRepository;
     private final CompanyMembershipRepository companyMembershipRepository;
@@ -57,7 +56,6 @@ public class UserService {
 
     @Autowired
     public UserService(UserRepository userRepository,
-                       DepartmentService departmentService,
                        DepartmentRepository departmentRepository,
                        CompanyRepository companyRepository,
                        CompanyMembershipRepository companyMembershipRepository,
@@ -65,7 +63,6 @@ public class UserService {
                        UserMapper userMapper,
                        LeaveBalanceService leaveBalanceService) {
         this.userRepository = userRepository;
-        this.departmentService = departmentService;
         this.departmentRepository = departmentRepository;
         this.companyRepository = companyRepository;
         this.companyMembershipRepository = companyMembershipRepository;
@@ -104,47 +101,72 @@ public class UserService {
             throw new InvalidUserException("You cannot deactivate your own account");
         }
         User user = getById(id);
-        if (!Boolean.TRUE.equals(user.getIsActive())) {
+        Long companyId = TenantContext.require().companyId();
+        CompanyMembership membership = companyMembershipRepository.findByUserIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (membership.getStatus() != MembershipStatus.ACTIVE) {
             throw new InvalidUserException("User is already deactivated");
         }
-        if (user.getUserRole() == UserRole.HR_ADMIN
-                && userRepository.countByUserRoleAndIsActive(UserRole.HR_ADMIN, true) <= 1) {
+        if (membership.getRole() == UserRole.HR_ADMIN
+                && companyMembershipRepository.countByCompanyIdAndRoleAndStatus(
+                        companyId, UserRole.HR_ADMIN, MembershipStatus.ACTIVE) <= 1) {
             throw new InvalidUserException("Cannot deactivate the last active HR admin");
         }
-        List<User> activeReports = userRepository.findByManagerIdAndIsActive(id, true);
+        List<CompanyMembership> activeReports = companyMembershipRepository
+                .findByManagerMembershipIdAndStatus(membership.getId(), MembershipStatus.ACTIVE);
         if (!activeReports.isEmpty()) {
             throw new InvalidUserException(
                     "Cannot deactivate user who still has active direct reports; reassign them first");
         }
+        membership.setStatus(MembershipStatus.DEACTIVATED);
         user.setIsActive(false);
     }
 
     @Transactional
     public void activateUserById(Long id) {
         User user = getById(id);
-        if (Boolean.TRUE.equals(user.getIsActive())) {
+        Long companyId = TenantContext.require().companyId();
+        CompanyMembership membership = companyMembershipRepository.findByUserIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        if (membership.getStatus() == MembershipStatus.ACTIVE && Boolean.TRUE.equals(user.getIsActive())) {
             throw new InvalidUserException("User is already active");
         }
-        // Re-validate hierarchy before bringing the account back online
-        assertManagerAssignmentValid(id, user.getUserRole(), user.getManager());
+        resolveManagerMembership(
+                membership.getManagerMembership() == null ? null : membership.getManagerMembership().getId(),
+                membership.getRole(),
+                companyId,
+                id);
+        membership.setStatus(MembershipStatus.ACTIVE);
         user.setIsActive(true);
     }
 
     public List<User> getAllByDepartment(Long id, boolean bool) {
-        return userRepository.findByDepartmentIdAndIsActive(id, bool);
+        Long companyId = TenantContext.require().companyId();
+        MembershipStatus status = bool ? MembershipStatus.ACTIVE : MembershipStatus.DEACTIVATED;
+        return companyMembershipRepository.findByCompanyIdAndDepartmentIdAndStatus(companyId, id, status)
+                .stream()
+                .map(CompanyMembership::getUser)
+                .toList();
     }
 
     /** Prevent enumeration: missing and unauthorized look the same. */
     public UserResponseDto getUserIfAllowed(Long id, CustomUserDetails authenticatedUser) {
         try {
+            Long companyId = TenantContext.require().companyId();
             User targetUser = getById(id);
-            Long managerId = targetUser.getManager() != null ? targetUser.getManager().getId() : null;
+            CompanyMembership targetMembership = companyMembershipRepository
+                    .findByUserIdAndCompanyId(id, companyId)
+                    .orElseThrow(() -> new AccessDeniedException("You cannot access this resource"));
+            Long managerId = targetMembership.getManagerMembership() != null
+                    && targetMembership.getManagerMembership().getUser() != null
+                    ? targetMembership.getManagerMembership().getUser().getId()
+                    : null;
             boolean isHrAdmin = authenticatedUser.hasRole("HR_ADMIN");
             boolean isManager = Objects.equals(authenticatedUser.getId(), managerId);
             boolean isSameUser = Objects.equals(authenticatedUser.getId(), id);
 
             if (isHrAdmin || isManager || isSameUser) {
-                return userMapper.toDto(targetUser);
+                return userMapper.toDto(targetUser, targetMembership);
             }
             throw new AccessDeniedException("You cannot access this resource");
         } catch (UserNotFoundException | AccessDeniedException e) {
@@ -164,32 +186,51 @@ public class UserService {
     }
 
     public List<UserResponseDto> getTeamMembers(Long id) {
-        return userRepository.findByManagerIdAndIsActive(id, true).stream()
-                .map(userMapper::toDto)
+        Long companyId = TenantContext.require().companyId();
+        CompanyMembership managerMembership = companyMembershipRepository
+                .findByUserIdAndCompanyId(id, companyId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        return companyMembershipRepository
+                .findByManagerMembershipIdAndStatus(managerMembership.getId(), MembershipStatus.ACTIVE)
+                .stream()
+                .map(m -> userMapper.toDto(m.getUser(), m))
                 .toList();
     }
 
     private void updateAllFields(User targetUser, UserRequestDto dto) {
         validateUniqueIdentityOnUpdate(dto, targetUser.getId());
+        Long companyId = TenantContext.require().companyId();
+        CompanyMembership membership = companyMembershipRepository
+                .findByUserIdAndCompanyId(targetUser.getId(), companyId)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        UserRole effectiveRole = dto.getUserRole() != null ? dto.getUserRole() : targetUser.getUserRole();
-
+        UserRole effectiveRole = dto.getUserRole() != null ? dto.getUserRole() : membership.getRole();
         if (dto.getUserRole() != null) {
-            targetUser.setUserRole(dto.getUserRole());
+            membership.setRole(dto.getUserRole());
+        }
+
+        Long managerMembershipId = dto.getManagerMembershipId();
+        if (managerMembershipId == null && dto.getManagerId() != null) {
+            managerMembershipId = companyMembershipRepository
+                    .findByUserIdAndCompanyId(dto.getManagerId(), companyId)
+                    .map(CompanyMembership::getId)
+                    .orElseThrow(() -> invalidManager(effectiveRole));
         }
 
         if (effectiveRole == UserRole.HR_ADMIN) {
-            if (dto.getManagerId() != null) {
+            if (managerMembershipId != null) {
                 throw new InvalidUserException("HR admin accounts cannot have a manager");
             }
-            targetUser.setManager(null);
-        } else if (dto.getManagerId() != null) {
-            User manager = getById(dto.getManagerId());
-            assertManagerAssignmentValid(targetUser.getId(), effectiveRole, manager);
-            targetUser.setManager(manager);
+            membership.setManagerMembership(null);
+        } else if (managerMembershipId != null) {
+            membership.setManagerMembership(resolveManagerMembership(
+                    managerMembershipId, effectiveRole, companyId, targetUser.getId()));
         } else if (dto.getUserRole() != null) {
-            // Role changed but manager left as-is — re-validate against new role
-            assertManagerAssignmentValid(targetUser.getId(), effectiveRole, targetUser.getManager());
+            Long currentManagerMembershipId = membership.getManagerMembership() == null
+                    ? null
+                    : membership.getManagerMembership().getId();
+            membership.setManagerMembership(resolveManagerMembership(
+                    currentManagerMembershipId, effectiveRole, companyId, targetUser.getId()));
         }
 
         if (dto.getUsername() != null) {
@@ -205,7 +246,8 @@ public class UserService {
             targetUser.setLastName(dto.getLastName());
         }
         if (dto.getDepartmentId() != null) {
-            targetUser.setDepartment(departmentService.getById(dto.getDepartmentId()));
+            membership.setDepartment(departmentRepository.findByIdAndCompanyId(dto.getDepartmentId(), companyId)
+                    .orElseThrow(() -> new DepartmentNotFoundException("Department does not exist")));
         }
     }
 
@@ -245,7 +287,6 @@ public class UserService {
             }
         }
 
-        dualWriteUser(user, requestDto.getUserRole(), department, managerMembership);
         user = userRepository.save(user);
 
         CompanyMembership membership = new CompanyMembership();
@@ -258,16 +299,7 @@ public class UserService {
         companyMembershipRepository.save(membership);
 
         leaveBalanceService.initializeLeaveBalances(user);
-        return new UserCreatedResponse(userMapper.toDto(user), tempPassword);
-    }
-
-    private void dualWriteUser(User user,
-                               UserRole role,
-                               Department department,
-                               CompanyMembership managerMembership) {
-        user.setUserRole(role);
-        user.setDepartment(department);
-        user.setManager(managerMembership == null ? null : managerMembership.getUser());
+        return new UserCreatedResponse(userMapper.toDto(user, membership), tempPassword);
     }
 
     public CompanyMembership requireManagerMembership(Long managerMembershipId, UserRole userRole, Long companyId) {
@@ -331,62 +363,6 @@ public class UserService {
                 throw new InvalidUserException("Manager assignment would create a cycle");
             }
             current = current.getManagerMembership();
-        }
-    }
-
-    /**
-     * Hierarchy rules:
-     * - EMPLOYEE → active MANAGER supervisor (required)
-     * - MANAGER → active HR_ADMIN supervisor (required)
-     * - HR_ADMIN → no manager
-     * - No self-manager, no cycles, manager must be active
-     */
-    private void assertManagerAssignmentValid(Long userId, UserRole userRole, User manager) {
-        if (userRole == UserRole.HR_ADMIN) {
-            if (manager != null) {
-                throw new InvalidUserException("HR admin accounts cannot have a manager");
-            }
-            return;
-        }
-
-        if (manager == null) {
-            if (userRole == UserRole.EMPLOYEE) {
-                throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
-            }
-            throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
-        }
-
-        if (userId != null && Objects.equals(userId, manager.getId())) {
-            throw new InvalidUserException("A user cannot be their own manager");
-        }
-        if (!Boolean.TRUE.equals(manager.getIsActive())) {
-            throw new InvalidUserException("Assigned manager must be an active user");
-        }
-
-        if (userRole == UserRole.EMPLOYEE && manager.getUserRole() != UserRole.MANAGER) {
-            throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
-        }
-        if (userRole == UserRole.MANAGER && manager.getUserRole() != UserRole.HR_ADMIN) {
-            throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
-        }
-
-        assertNoManagerCycle(userId, manager);
-    }
-
-    private void assertNoManagerCycle(Long userId, User manager) {
-        if (userId == null) {
-            return;
-        }
-        Set<Long> seen = new HashSet<>();
-        User current = manager;
-        while (current != null) {
-            if (!seen.add(current.getId())) {
-                throw new InvalidUserException("Manager hierarchy contains a cycle");
-            }
-            if (Objects.equals(current.getId(), userId)) {
-                throw new InvalidUserException("Manager assignment would create a cycle");
-            }
-            current = current.getManager();
         }
     }
 

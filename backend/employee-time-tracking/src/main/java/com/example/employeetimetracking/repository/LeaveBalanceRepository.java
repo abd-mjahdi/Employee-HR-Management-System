@@ -37,7 +37,6 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     SELECT DISTINCT lb
     FROM LeaveBalance lb
     JOIN FETCH lb.user u
-    JOIN FETCH u.department d
     JOIN FETCH lb.leaveType lt
     JOIN FETCH lt.leavePolicy
     WHERE lb.year = :year
@@ -48,10 +47,12 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     SELECT DISTINCT lb
     FROM LeaveBalance lb
     JOIN FETCH lb.user u
-    JOIN FETCH u.department d
+    JOIN u.memberships m
     JOIN FETCH lb.leaveType lt
     JOIN FETCH lt.leavePolicy
-    WHERE lb.year = :year AND d.id = :departmentId
+    WHERE lb.year = :year
+      AND m.company = lb.company
+      AND m.department.id = :departmentId
     """)
     List<LeaveBalance> findLeaveBalancesForYearAndDepartment(@Param("year") int year, @Param("departmentId") Long departmentId);
 
@@ -59,7 +60,6 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     SELECT DISTINCT lb
     FROM LeaveBalance lb
     JOIN FETCH lb.user u
-    JOIN FETCH u.department d
     JOIN FETCH lb.leaveType lt
     JOIN FETCH lt.leavePolicy
     WHERE lb.year = :year AND lb.company.id = :companyId
@@ -71,10 +71,13 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     SELECT DISTINCT lb
     FROM LeaveBalance lb
     JOIN FETCH lb.user u
-    JOIN FETCH u.department d
+    JOIN u.memberships m
     JOIN FETCH lb.leaveType lt
     JOIN FETCH lt.leavePolicy
-    WHERE lb.year = :year AND d.id = :departmentId AND lb.company.id = :companyId
+    WHERE lb.year = :year
+      AND m.department.id = :departmentId
+      AND lb.company.id = :companyId
+      AND m.company.id = :companyId
     """)
     List<LeaveBalance> findLeaveBalancesForYearAndDepartmentAndCompany(
             @Param("year") int year,

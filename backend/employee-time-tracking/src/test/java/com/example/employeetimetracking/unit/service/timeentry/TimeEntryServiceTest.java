@@ -11,14 +11,17 @@ import com.example.employeetimetracking.model.entities.Project;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.CompanyStatus;
 import com.example.employeetimetracking.model.enums.Status;
-import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.service.LeaveRequestService;
 import com.example.employeetimetracking.service.ProjectService;
 import com.example.employeetimetracking.service.TimeEntryService;
 import com.example.employeetimetracking.service.UserService;
+import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +66,9 @@ public class TimeEntryServiceTest {
     @Mock
     TimeEntryBreakRepository timeEntryBreakRepository;
 
+    @Mock
+    MembershipAccess membershipAccess;
+
     @InjectMocks
     TimeEntryService timeEntryService;
 
@@ -72,6 +78,7 @@ public class TimeEntryServiceTest {
 
     @BeforeEach
     public void setup() {
+        TenantContext.set(new TenantContext.TenantInfo(1L, "acme", CompanyStatus.ACTIVE));
         dept = new Department();
         dept.setId(1L);
         dept.setDepartmentName("Engineering");
@@ -85,9 +92,6 @@ public class TimeEntryServiceTest {
         emp1.setPasswordHash("$2a$10$fakehashfakehashfakehashfakehashfakehashfake");
         emp1.setFirstName("test");
         emp1.setLastName("test");
-        emp1.setUserRole(UserRole.EMPLOYEE);
-        emp1.setDepartment(dept);
-        emp1.setManager(null);
         emp1.setIsActive(true);
 
         project = new Project();
@@ -96,6 +100,11 @@ public class TimeEntryServiceTest {
         project.setProjectCode("ACM-001");
         project.setDescription("Internal rebuild");
         project.setIsActive(true);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        TenantContext.clear();
     }
 
     @Test
@@ -285,11 +294,11 @@ public class TimeEntryServiceTest {
     @Test
     public void approve_byDirectManager_succeeds() {
         User manager = managerUser(20L);
-        emp1.setManager(manager);
         TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
 
         when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
         when(userService.getById(20L)).thenReturn(manager);
+        when(membershipAccess.isDirectManagerOf(20L, 1L)).thenReturn(true);
 
         timeEntryService.approve(10L, 20L);
 
@@ -314,12 +323,12 @@ public class TimeEntryServiceTest {
     @Test
     public void reject_setsRejectionReasonWithoutTouchingDescription() {
         User manager = managerUser(20L);
-        emp1.setManager(manager);
         TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
         te.setDescription("worked on ACME");
 
         when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
         when(userService.getById(20L)).thenReturn(manager);
+        when(membershipAccess.isDirectManagerOf(20L, 1L)).thenReturn(true);
 
         timeEntryService.reject(10L, 20L, "Hours look inflated");
 
@@ -344,7 +353,6 @@ public class TimeEntryServiceTest {
     @Test
     public void correctionFlow_unlockClearsApprovalAndAllowsPendingEdit() {
         User manager = managerUser(20L);
-        emp1.setManager(manager);
         TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
         te.setStatus(Status.APPROVED);
         te.setApprovedBy(manager);
@@ -353,6 +361,7 @@ public class TimeEntryServiceTest {
         when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
         when(userService.getById(1L)).thenReturn(emp1);
         when(userService.getById(20L)).thenReturn(manager);
+        when(membershipAccess.isDirectManagerOf(20L, 1L)).thenReturn(true);
 
         timeEntryService.requestCorrection(10L, 1L, "Forgot lunch break");
         assertEquals(Status.PENDING_CORRECTION, te.getStatus());
@@ -367,7 +376,6 @@ public class TimeEntryServiceTest {
     @Test
     public void denyCorrection_restoresApproved() {
         User manager = managerUser(20L);
-        emp1.setManager(manager);
         TimeEntry te = pendingEntry(10L, LocalTime.of(9, 0), LocalTime.of(17, 0), new BigDecimal("8.00"));
         te.setStatus(Status.PENDING_CORRECTION);
         te.setApprovedBy(manager);
@@ -376,6 +384,7 @@ public class TimeEntryServiceTest {
 
         when(timeEntryRepository.findById(10L)).thenReturn(Optional.of(te));
         when(userService.getById(20L)).thenReturn(manager);
+        when(membershipAccess.isDirectManagerOf(20L, 1L)).thenReturn(true);
 
         timeEntryService.denyCorrectionUnlock(10L, 20L);
 
@@ -392,8 +401,6 @@ public class TimeEntryServiceTest {
         manager.setPasswordHash("hash");
         manager.setFirstName("Mgr");
         manager.setLastName("User");
-        manager.setUserRole(UserRole.MANAGER);
-        manager.setDepartment(dept);
         manager.setIsActive(true);
         return manager;
     }

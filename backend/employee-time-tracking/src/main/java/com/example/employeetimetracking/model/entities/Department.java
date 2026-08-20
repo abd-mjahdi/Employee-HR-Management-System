@@ -16,12 +16,22 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name="departments")
+@Table(
+        name = "departments",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"company_id", "department_code"}),
+                @UniqueConstraint(columnNames = {"company_id", "department_name"})
+        }
+)
 public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
     private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(name="department_name" , length=50 ,nullable = false)
     private String departmentName;

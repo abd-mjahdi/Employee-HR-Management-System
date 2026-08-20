@@ -10,8 +10,18 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, JpaSpecificationExecutor<TimeEntry> {
+
+    Optional<TimeEntry> findByIdAndCompanyId(Long id, Long companyId);
+
+    List<TimeEntry> findByCompanyIdAndUserIdOrderByEntryDateDesc(Long companyId, Long userId, Pageable limit);
+
+    List<TimeEntry> findByCompanyIdAndUserIdAndEntryDate(Long companyId, Long userId, LocalDate entryDate);
+
+    List<TimeEntry> findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+            Long companyId, Long userId, LocalDate startDate, LocalDate endDate, Status status);
 
     List<TimeEntry> findByUserId(Long userId);
     List<TimeEntry> findByUserIdAndStatus(Long userId, Status status);
@@ -56,4 +66,37 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
             @Param("endDate") LocalDate endDate
     );
 
+    @Query("""
+    SELECT te
+    FROM TimeEntry te
+    JOIN FETCH te.user u
+    JOIN FETCH u.department d
+    JOIN FETCH te.project p
+    WHERE te.company.id = :companyId
+      AND te.status = :status
+      AND te.entryDate BETWEEN :startDate AND :endDate
+    """)
+    List<TimeEntry> findForDepartmentUtilizationByCompany(
+            @Param("companyId") Long companyId,
+            @Param("status") Status status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("""
+    SELECT te
+    FROM TimeEntry te
+    JOIN FETCH te.user u
+    JOIN FETCH u.department d
+    JOIN FETCH te.project p
+    WHERE te.company.id = :companyId
+      AND te.status = :status
+      AND te.entryDate BETWEEN :startDate AND :endDate
+    """)
+    List<TimeEntry> findForProjectHoursByCompany(
+            @Param("companyId") Long companyId,
+            @Param("status") Status status,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

@@ -15,12 +15,19 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name="projects")
+@Table(
+        name = "projects",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"company_id", "project_code"})
+)
 public class Project {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
     private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(name="project_name" , length=50 ,nullable = false)
     private String projectName;

@@ -11,6 +11,10 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Identity lookups ({@code findByEmail}, {@code existsByUsername}) stay global.
+ * Tenant people lists go through {@link CompanyMembershipRepository}.
+ */
 @Repository
 public interface UserRepository extends JpaRepository<User,Long> , JpaSpecificationExecutor<User> {
     Optional<User> findByUsername(String username);

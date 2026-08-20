@@ -15,12 +15,19 @@ import java.util.List;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name="leave_types")
+@Table(
+        name = "leave_types",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"company_id", "type_name"})
+)
 public class LeaveType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name="id")
     private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
     @Column(name = "type_name" ,nullable = false)
     private String typeName;

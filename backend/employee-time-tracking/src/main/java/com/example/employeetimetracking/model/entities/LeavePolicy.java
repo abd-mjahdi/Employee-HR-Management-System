@@ -24,6 +24,10 @@ public class LeavePolicy {
     @Column(name="id")
     private Long id;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
     @OneToOne
     @JoinColumn(name="leave_type_id")
     private LeaveType leaveType;

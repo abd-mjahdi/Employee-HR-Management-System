@@ -6,8 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
+
+    Optional<AuditLog> findByIdAndCompanyId(Long id, Long companyId);
+
+    List<AuditLog> findAllByCompanyId(Long companyId);
+
+    List<AuditLog> findByCompanyIdAndUserId(Long companyId, Long userId);
+
+    List<AuditLog> findByCompanyIdAndTableNameAndRecordId(Long companyId, String tableName, Long recordId);
 
     List<AuditLog> findByUserId(Long userId);
     List<AuditLog> findByTableName(String tableName);

@@ -1,9 +1,12 @@
 package com.example.employeetimetracking.repository;
 
-/**
- * Spring Data JPA mapping is added in Phase 3 after Liquibase 005.
- * Does not extend {@code JpaRepository} yet because {@link com.example.employeetimetracking.model.entities.Company}
- * is not a JPA entity in this phase.
- */
-public interface CompanyRepository {
+import com.example.employeetimetracking.model.entities.Company;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface CompanyRepository extends JpaRepository<Company, Long> {
+    Optional<Company> findBySlugIgnoreCase(String slug);
+
+    boolean existsBySlugIgnoreCase(String slug);
 }

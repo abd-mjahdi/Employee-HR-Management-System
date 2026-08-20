@@ -42,22 +42,38 @@ public class User {
     @Column(name="last_name" ,length = 50 ,nullable = false)
     private String lastName;
 
+    /**
+     * @deprecated Dual-write until Phase 8. Authorization must use {@link CompanyMembership#getRole()}
+     * in the current tenant, not this column.
+     */
+    @Deprecated
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name="user_role" ,nullable = false)
     private UserRole userRole;
 
+    /**
+     * @deprecated Dual-write until Phase 8. Tenant department lives on {@link CompanyMembership}.
+     */
+    @Deprecated
     @ManyToOne
     @NotNull
     @JoinColumn(name="department_id" ,nullable = false)
     private Department department;
 
+    /**
+     * @deprecated Dual-write until Phase 8. Tenant manager lives on {@link CompanyMembership#getManagerMembership()}.
+     */
+    @Deprecated
     @ManyToOne
     @JoinColumn(name="manager_id")
     private User manager;
 
     @OneToMany(mappedBy = "manager")
     private List<User> teamMembers;
+
+    @OneToMany(mappedBy = "user")
+    private List<CompanyMembership> memberships;
 
     @NotNull
     private Boolean isActive = true;

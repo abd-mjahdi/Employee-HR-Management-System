@@ -28,6 +28,10 @@ public class TimeEntry {
     @Column(name="id")
     private Long id;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
+
     @ManyToOne
     @JoinColumn(name="user_id")
     private User user;

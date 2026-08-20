@@ -1,9 +1,16 @@
 package com.example.employeetimetracking.repository;
 
-/**
- * Spring Data JPA mapping is added in Phase 3 after Liquibase 005.
- * Does not extend {@code JpaRepository} yet because {@link com.example.employeetimetracking.model.entities.Invitation}
- * is not a JPA entity in this phase.
- */
-public interface InvitationRepository {
+import com.example.employeetimetracking.model.entities.Invitation;
+import com.example.employeetimetracking.model.enums.InvitationStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface InvitationRepository extends JpaRepository<Invitation, Long> {
+    Optional<Invitation> findByIdAndCompanyId(Long id, Long companyId);
+
+    Optional<Invitation> findByTokenHashAndStatus(String tokenHash, InvitationStatus status);
+
+    List<Invitation> findByCompanyIdAndEmailAndStatus(Long companyId, String email, InvitationStatus status);
 }

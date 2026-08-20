@@ -16,6 +16,12 @@ import java.util.Optional;
 
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> , JpaSpecificationExecutor<LeaveRequest> {
 
+    Optional<LeaveRequest> findByIdAndCompanyId(Long id, Long companyId);
+
+    List<LeaveRequest> findByCompanyIdAndUserIdOrderByCreatedAtDesc(Long companyId, Long userId);
+
+    List<LeaveRequest> findByCompanyIdAndUserIdOrderByCreatedAtDesc(Long companyId, Long userId, Pageable pageable);
+
     List<LeaveRequest> findByUserId(Long userId);
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
@@ -138,5 +144,32 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
                                       @Param("entryDate") LocalDate entryDate,
                                       @Param("statuses") List<Status> statuses);
 
+    @Query("""
+    SELECT COUNT(lr)
+    FROM LeaveRequest lr
+    WHERE lr.user = :user
+    AND lr.company.id = :companyId
+    AND lr.status IN :statuses
+    AND :entryDate BETWEEN lr.startDate AND lr.endDate
+    """)
+    long countInRangeAndStatusForUserAndCompany(@Param("user") User user,
+                                                @Param("companyId") Long companyId,
+                                                @Param("entryDate") LocalDate entryDate,
+                                                @Param("statuses") List<Status> statuses);
 
+    @Query("""
+    SELECT lr FROM LeaveRequest lr
+    WHERE lr.user.id = :userId
+    AND lr.company.id = :companyId
+    AND lr.status IN :statuses
+    AND :startDate <= lr.endDate
+    AND :endDate >= lr.startDate
+    """)
+    List<LeaveRequest> findOverlappingRequestsForCompany(
+            @Param("userId") Long userId,
+            @Param("companyId") Long companyId,
+            @Param("statuses") List<Status> statuses,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
 }

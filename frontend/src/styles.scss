@@ -17,3 +17,159 @@ button, input, select, textarea {
   font-size: 0.95rem;
   border-radius: 0;
 }
+
+.error-banner {
+  border: 1px solid #111111;
+  border-radius: 0;
+  background-color: #f8f8f8;
+  color: #111111;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-field {
+  margin-bottom: 1.25rem;
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    color: #111111;
+  }
+
+  input[type='email'],
+  input[type='text'],
+  input[type='password'],
+  input[type='number'],
+  input[type='date'],
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #111111;
+    border-radius: 0;
+    background-color: #ffffff;
+    color: #111111;
+    outline: none;
+  }
+
+  input[type='email']:focus,
+  input[type='text']:focus,
+  input[type='password']:focus,
+  input[type='number']:focus,
+  input[type='date']:focus,
+  select:focus,
+  textarea:focus {
+    border-width: 2px;
+  }
+
+  .field-error {
+    display: block;
+    font-size: 0.75rem;
+    color: #000000;
+    margin-top: 0.25rem;
+    font-weight: 600;
+  }
+}
+
+.btn-primary {
+  padding: 0.75rem;
+  background-color: #111111;
+  color: #ffffff;
+  border: 1px solid #111111;
+  border-radius: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #333333;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 0.75rem;
+  background-color: #ffffff;
+  color: #111111;
+  border: 1px solid #111111;
+  border-radius: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #eeeeee;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  border-radius: 0;
+  text-decoration: underline;
+  color: #111111;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: #444444;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #111111;
+  border-radius: 0;
+  background-color: #ffffff;
+  color: #111111;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #dddddd;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+}
+
+.data-table th {
+  font-weight: 600;
+  background-color: #f8f8f8;
+  border-color: #111111;
+}
+
+.data-table thead th {
+  border-bottom: 1px solid #111111;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.page-header h1,
+.page-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111111;
+  margin: 0;
+}
+
+.muted {
+  font-size: 0.875rem;
+  color: #555555;
+}

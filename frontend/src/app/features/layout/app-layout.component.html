@@ -1,0 +1,24 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">{{ tenant.slug }}</div>
+    <nav class="sidebar-nav">
+      @for (item of visibleNav(); track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+        >{{ item.label }}</a>
+      }
+    </nav>
+  </aside>
+
+  <div class="shell-main">
+    <header class="top-bar">
+      <span class="top-user">{{ displayName() }} ({{ currentUser()?.role }})</span>
+      <button type="button" class="btn-secondary" (click)="logout()">Sign Out</button>
+    </header>
+    <main class="shell-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

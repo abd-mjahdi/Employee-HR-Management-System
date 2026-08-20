@@ -66,12 +66,21 @@ public class SecurityConfig {
     }
 
     /**
-     * Keep the tenant filter in the security chain only; do not also register it as a servlet Filter.
+     * Keep tenant and JWT filters in the security chain only; do not also register them as servlet Filters.
+     * JWT must run after tenant resolution so company_id can be compared to Host.
      */
     @Bean
     public FilterRegistrationBean<TenantResolutionFilter> tenantResolutionFilterRegistration(
             TenantResolutionFilter filter) {
         FilterRegistrationBean<TenantResolutionFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(
+            JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

@@ -1,7 +1,6 @@
 package com.example.employeetimetracking.dto.response;
 
 import com.example.employeetimetracking.model.enums.UserRole;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,22 +16,26 @@ public class LoginResponseDto {
     private String token;
     private String email;
     private UserRole role;
+    private String companySlug;
+    private String companyName;
 
-    //constructor for success
-    public LoginResponseDto(String token, String email, UserRole role) {
+    public LoginResponseDto(String token, String email, UserRole role, String companySlug, String companyName) {
         this.success = true;
         this.message = "Login successful";
         this.token = token;
         this.email = email;
         this.role = role;
+        this.companySlug = companySlug;
+        this.companyName = companyName;
     }
 
-    //constructor for failure
     public LoginResponseDto(String message) {
         this.success = false;
         this.message = message;
         this.token = null;
         this.email = null;
         this.role = null;
+        this.companySlug = null;
+        this.companyName = null;
     }
 }

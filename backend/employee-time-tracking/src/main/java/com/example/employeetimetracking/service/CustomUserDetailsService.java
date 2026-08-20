@@ -1,29 +1,26 @@
 package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.exception.UserNotFoundException;
-import com.example.employeetimetracking.model.entities.User;
-import com.example.employeetimetracking.repository.UserRepository;
+import com.example.employeetimetracking.model.entities.CompanyMembership;
+import com.example.employeetimetracking.repository.CompanyMembershipRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class CustomUserDetailsService implements UserDetailsService {
+public class CustomUserDetailsService {
 
-    private final UserRepository userRepository;
-    @Autowired
-    public CustomUserDetailsService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    private final CompanyMembershipRepository companyMembershipRepository;
+
+    public CustomUserDetailsService(CompanyMembershipRepository companyMembershipRepository) {
+        this.companyMembershipRepository = companyMembershipRepository;
     }
 
-    // treat email as username , too lazy to change to username
-    @Override
-    public UserDetails loadUserByUsername(String email) {
-        User user = userRepository.findByEmail(email)
+    @Transactional(readOnly = true)
+    public CustomUserDetails loadForTenant(String email, Long companyId) {
+        CompanyMembership membership = companyMembershipRepository
+                .findByCompanyIdAndUserEmail(companyId, email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
-
-        return new CustomUserDetails(user);
+        return new CustomUserDetails(membership);
     }
 }

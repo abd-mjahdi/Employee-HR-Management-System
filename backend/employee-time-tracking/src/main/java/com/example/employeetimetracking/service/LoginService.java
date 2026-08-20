@@ -3,44 +3,76 @@ package com.example.employeetimetracking.service;
 import com.example.employeetimetracking.dto.request.LoginRequestDto;
 import com.example.employeetimetracking.dto.response.LoginResponseDto;
 import com.example.employeetimetracking.exception.AccountDeactivatedException;
-import com.example.employeetimetracking.exception.AuthenticationException;
 import com.example.employeetimetracking.exception.InvalidCredentialsException;
-import com.example.employeetimetracking.exception.UserNotFoundException;
+import com.example.employeetimetracking.exception.MembershipInactiveException;
+import com.example.employeetimetracking.model.entities.Company;
+import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.MembershipStatus;
+import com.example.employeetimetracking.repository.CompanyMembershipRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.BadCredentialsException;
+import com.example.employeetimetracking.tenant.TenantContext;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LoginService {
-    private final UserService userService;
+    private static final String INVALID_CREDENTIALS = "invalid credentials";
+
+    private final UserRepository userRepository;
+    private final CompanyMembershipRepository companyMembershipRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
 
-    @Autowired
-    public LoginService(UserService userService, JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder) {
-        this.userService = userService;
+    public LoginService(UserRepository userRepository,
+                        CompanyMembershipRepository companyMembershipRepository,
+                        JwtUtil jwtUtil,
+                        BCryptPasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.companyMembershipRepository = companyMembershipRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
     }
 
-    public LoginResponseDto login(LoginRequestDto requestDto){
-        User user = userService.getByEmail(requestDto.getEmail());
+    @Transactional(readOnly = true)
+    public LoginResponseDto login(LoginRequestDto requestDto) {
+        Long companyId = TenantContext.require().companyId();
+
+        User user = userRepository.findByEmail(requestDto.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
-            throw new InvalidCredentialsException("invalid credentials");
+            throw new InvalidCredentialsException(INVALID_CREDENTIALS);
         }
 
-        if (!user.getIsActive()) {
+        CompanyMembership membership = companyMembershipRepository
+                .findByUserIdAndCompanyId(user.getId(), companyId)
+                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new AccountDeactivatedException("Account deactivated");
         }
+        if (membership.getStatus() != MembershipStatus.ACTIVE) {
+            throw new MembershipInactiveException("Account deactivated");
+        }
 
-        String token = jwtUtil.generateJwtToken(user.getEmail(), user.getId(), user.getUserRole());
+        Company company = membership.getCompany();
+        String token = jwtUtil.generateJwtToken(
+                user.getEmail(),
+                user.getId(),
+                company.getId(),
+                membership.getId(),
+                membership.getRole()
+        );
 
-        return new LoginResponseDto(token, user.getEmail(), user.getUserRole());
-
+        return new LoginResponseDto(
+                token,
+                user.getEmail(),
+                membership.getRole(),
+                company.getSlug(),
+                company.getName()
+        );
     }
 }

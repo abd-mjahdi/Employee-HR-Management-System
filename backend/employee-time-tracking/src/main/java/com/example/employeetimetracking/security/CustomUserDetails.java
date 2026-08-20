@@ -1,6 +1,9 @@
 package com.example.employeetimetracking.security;
 
+import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.MembershipStatus;
+import com.example.employeetimetracking.model.enums.UserRole;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,21 +14,45 @@ import java.util.List;
 
 public class CustomUserDetails implements UserDetails {
     @Getter
-    private Long id;
+    private final Long id;
     @Getter
-    private String email;
-    private String password;
-    private boolean active;
-    private Collection<? extends SimpleGrantedAuthority> authorities;
+    private final String email;
+    @Getter
+    private final Long companyId;
+    @Getter
+    private final Long membershipId;
+    @Getter
+    private final UserRole role;
+    @Getter
+    private final MembershipStatus membershipStatus;
+    private final String password;
+    private final boolean active;
+    private final Collection<? extends SimpleGrantedAuthority> authorities;
 
-    public CustomUserDetails(User user){
+    /** Test/legacy constructor: authorities from {@code users.user_role} until Phase 8 cutover. */
+    public CustomUserDetails(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
         this.active = Boolean.TRUE.equals(user.getIsActive());
-        this.authorities = List.of(
-                new SimpleGrantedAuthority("ROLE_"+user.getUserRole().name())
-        );
+        this.companyId = null;
+        this.membershipId = null;
+        this.role = user.getUserRole();
+        this.membershipStatus = null;
+        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getUserRole().name()));
+    }
+
+    public CustomUserDetails(CompanyMembership membership) {
+        User user = membership.getUser();
+        this.id = user.getId();
+        this.email = user.getEmail();
+        this.password = user.getPasswordHash();
+        this.active = Boolean.TRUE.equals(user.getIsActive());
+        this.companyId = membership.getCompany().getId();
+        this.membershipId = membership.getId();
+        this.role = membership.getRole();
+        this.membershipStatus = membership.getStatus();
+        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + membership.getRole().name()));
     }
 
     @Override
@@ -48,9 +75,8 @@ public class CustomUserDetails implements UserDetails {
         return active;
     }
 
-    public boolean hasRole(String role) {
+    public boolean hasRole(String roleName) {
         return authorities.stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + roleName));
     }
-
 }

@@ -3,8 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-
-const API_BASE_URL = 'http://localhost:8080';
+import { TenantService } from '../../core/tenant/tenant.service';
 
 interface AcceptInvitationResponse {
   email: string;
@@ -17,17 +16,19 @@ interface AcceptInvitationResponse {
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './invite-accept.component.html',
-  styleUrl: './invite-accept.component.scss'
+  styleUrl: './login.component.scss'
 })
 export class InviteAcceptComponent {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private http = inject(HttpClient);
   private router = inject(Router);
+  readonly tenant = inject(TenantService);
 
   isLoading = signal(false);
   error = signal<string | null>(null);
   success = signal(false);
+  showPassword = signal(false);
 
   form = this.fb.group({
     firstName: ['', [Validators.required, Validators.maxLength(50)]],
@@ -51,7 +52,7 @@ export class InviteAcceptComponent {
     this.isLoading.set(true);
     this.error.set(null);
 
-    this.http.post<AcceptInvitationResponse>(`${API_BASE_URL}/auth/invitations/accept`, {
+    this.http.post<AcceptInvitationResponse>(this.tenant.url('/auth/invitations/accept'), {
       token,
       firstName,
       lastName,
@@ -68,13 +69,17 @@ export class InviteAcceptComponent {
     });
   }
 
+  togglePasswordVisibility(): void {
+    this.showPassword.update((prev) => !prev);
+  }
+
   goToLogin(): void {
     this.router.navigate(['/login']);
   }
 
   private messageFrom(err: HttpErrorResponse): string {
     if (err.status === 0) {
-      return 'Unable to connect to the server.';
+      return 'Unable to connect to the backend on this company host (port 8080).';
     }
     if (err.error && typeof err.error === 'object' && err.error.message) {
       return err.error.message;

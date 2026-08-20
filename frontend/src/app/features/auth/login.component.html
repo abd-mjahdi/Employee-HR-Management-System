@@ -1,66 +1,100 @@
 <div class="login-container">
   <div class="login-box">
-    <h1>Sign In</h1>
-    <p class="subtitle">Employee HR Management System</p>
+    @if (!tenant.hasTenant) {
+      <h1>Log in</h1>
+      <p class="subtitle">Enter your company domain</p>
 
-    @if (authError()) {
-      <div class="error-banner">
-        {{ authError() }}
+      @if (domainError()) {
+        <div class="error-banner">{{ domainError() }}</div>
+      }
+
+      <form [formGroup]="domainForm" (ngSubmit)="onFindCompany()" novalidate>
+        <div class="form-field">
+          <label for="company">Company domain</label>
+          <div class="password-row">
+            <input
+              id="company"
+              type="text"
+              formControlName="company"
+              placeholder="acme"
+              autocomplete="organization"
+            />
+            <span class="input-suffix">{{ domainSuffix }}</span>
+          </div>
+          @if (domainForm.get('company')?.invalid && domainForm.get('company')?.touched) {
+            <span class="field-error">Company domain is required.</span>
+          }
+        </div>
+
+        <button type="submit" class="btn-submit">Continue</button>
+      </form>
+
+      <div class="note">
+        <a routerLink="/">Back</a>
       </div>
-    }
+    } @else {
+      <h1>Sign In</h1>
+      <p class="subtitle">{{ tenant.slug }}</p>
 
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-      <div class="form-field">
-        <label for="email">Work Email</label>
-        <input
-          id="email"
-          type="email"
-          formControlName="email"
-          placeholder="adminadmin@example.com"
-          autocomplete="email"
-        />
-        @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
-          <span class="field-error">Valid email is required.</span>
-        }
-      </div>
+      @if (authError()) {
+        <div class="error-banner">
+          {{ authError() }}
+        </div>
+      }
 
-      <div class="form-field">
-        <label for="password">Password</label>
-        <div class="password-row">
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
+        <div class="form-field">
+          <label for="email">Work Email</label>
           <input
-            id="password"
-            [type]="showPassword() ? 'text' : 'password'"
-            formControlName="password"
-            placeholder="Password"
-            autocomplete="current-password"
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="you@company.com"
+            autocomplete="email"
           />
-          <button type="button" class="btn-toggle" (click)="togglePasswordVisibility()">
-            {{ showPassword() ? 'Hide' : 'Show' }}
+          @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+            <span class="field-error">Valid email is required.</span>
+          }
+        </div>
+
+        <div class="form-field">
+          <label for="password">Password</label>
+          <div class="password-row">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              placeholder="Password"
+              autocomplete="current-password"
+            />
+            <button type="button" class="btn-toggle" (click)="togglePasswordVisibility()">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+          @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+            <span class="field-error">Password is required.</span>
+          }
+        </div>
+
+        <div class="form-actions-row">
+          <label class="checkbox-label">
+            <input type="checkbox" [checked]="rememberMe()" (change)="rememberMe.set(!rememberMe())" />
+            <span>Remember me</span>
+          </label>
+
+          <button type="button" class="btn-link" (click)="fillDemoCredentials()">
+            Fill demo HR login
           </button>
         </div>
-        @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
-          <span class="field-error">Password is required.</span>
-        }
-      </div>
 
-      <div class="form-actions-row">
-        <label class="checkbox-label">
-          <input type="checkbox" [checked]="rememberMe()" (change)="rememberMe.set(!rememberMe())" />
-          <span>Remember me</span>
-        </label>
-
-        <button type="button" class="btn-link" (click)="fillAdminCredentials()">
-          Fill Admin Credentials
+        <button type="submit" class="btn-submit" [disabled]="isLoading()">
+          {{ isLoading() ? 'Signing in...' : 'Sign In' }}
         </button>
+      </form>
+
+      <div class="note">
+        Accounts are created by HR on this company host. There is no company picker.
       </div>
-
-      <button type="submit" class="btn-submit" [disabled]="isLoading()">
-        {{ isLoading() ? 'Signing in...' : 'Sign In' }}
-      </button>
-    </form>
-
-    <div class="note">
-      User registration is done by Admin at <code>POST /users</code>.
-    </div>
+    }
   </div>
 </div>

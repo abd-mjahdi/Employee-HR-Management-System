@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
+import { TenantService } from '../../core/tenant/tenant.service';
 
 @Component({
   selector: 'app-dashboard-landing',
@@ -11,6 +12,7 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class DashboardLandingComponent {
   private authService = inject(AuthService);
+  readonly tenant = inject(TenantService);
 
   currentUser = this.authService.currentUser;
   token = this.authService.token;

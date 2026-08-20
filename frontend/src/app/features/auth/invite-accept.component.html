@@ -1,14 +1,14 @@
-<div class="invite-container">
-  <div class="invite-box">
+<div class="login-container">
+  <div class="login-box">
     <h1>Accept invite</h1>
-    <p class="subtitle">Join this company with the link your HR admin sent.</p>
+    <p class="subtitle">{{ tenant.slug }}</p>
 
     @if (error()) {
       <div class="error-banner">{{ error() }}</div>
     }
 
     @if (success()) {
-      <p>Your account is ready.</p>
+      <p class="subtitle">Your account is ready.</p>
       <button type="button" class="btn-submit" (click)="goToLogin()">Sign in</button>
     } @else {
       <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
@@ -28,7 +28,17 @@
         </div>
         <div class="form-field">
           <label for="password">Password</label>
-          <input id="password" type="password" formControlName="password" autocomplete="new-password" />
+          <div class="password-row">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="new-password"
+            />
+            <button type="button" class="btn-toggle" (click)="togglePasswordVisibility()">
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
           @if (form.get('password')?.invalid && form.get('password')?.touched) {
             <span class="field-error">Password must be at least 6 characters.</span>
           }
@@ -39,7 +49,7 @@
       </form>
     }
 
-    <p class="note">No company selection. The host of this page is the company.</p>
+    <p class="note">The host of this page is the company. Role comes from the invitation.</p>
     <p class="note"><a routerLink="/login">Back to sign in</a></p>
   </div>
 </div>

@@ -1,5 +1,6 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -7,14 +8,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = authService.getToken();
   const publicAuth = req.url.includes('/auth/login') || req.url.includes('/auth/invitations/accept');
 
-  if (token && !publicAuth) {
-    const clonedReq = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-    return next(clonedReq);
-  }
+  const outbound = token && !publicAuth
+    ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
+    : req;
 
-  return next(req);
+  return next(outbound).pipe(
+    catchError((err: HttpErrorResponse) => {
+      if (err.status === 401 && token && !publicAuth) {
+        authService.logout(true);
+      }
+      return throwError(() => err);
+    })
+  );
 };

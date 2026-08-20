@@ -1,10 +1,10 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError, of } from 'rxjs';
+import { Observable, tap, catchError, throwError, map } from 'rxjs';
 import { LoginRequest, LoginResponse, User, UserRole } from '../models/auth.model';
+import { TenantService } from '../tenant/tenant.service';
 
-const API_BASE_URL = 'http://localhost:8080';
 const TOKEN_KEY = 'auth_jwt_token';
 const USER_KEY = 'auth_user_data';
 
@@ -14,21 +14,19 @@ const USER_KEY = 'auth_user_data';
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private tenant = inject(TenantService);
 
-  // Reactive state signals
   readonly token = signal<string | null>(this.getStoredToken());
   readonly currentUser = signal<User | null>(this.getStoredUser());
   readonly isLoading = signal<boolean>(false);
   readonly authError = signal<string | null>(null);
 
-  // Computed state
   readonly isAuthenticated = computed(() => !!this.token());
 
   constructor() {
-    // If token exists on app init, attempt to refresh current user profile
-    if (this.token()) {
+    if (this.token() && this.tenant.hasTenant) {
       this.fetchCurrentUser().subscribe({
-        error: () => this.logout() // token invalid/expired
+        error: () => this.logout(false)
       });
     }
   }
@@ -37,7 +35,14 @@ export class AuthService {
     this.isLoading.set(true);
     this.authError.set(null);
 
-    return this.http.post<LoginResponse>(`${API_BASE_URL}/auth/login`, credentials).pipe(
+    if (!this.tenant.hasTenant) {
+      this.isLoading.set(false);
+      const errorMsg = 'Open your company login URL before signing in.';
+      this.authError.set(errorMsg);
+      return throwError(() => new Error(errorMsg));
+    }
+
+    return this.http.post<LoginResponse>(this.tenant.url('/auth/login'), credentials).pipe(
       tap((res) => {
         this.isLoading.set(false);
         if (res.success && res.token) {
@@ -45,7 +50,6 @@ export class AuthService {
             email: res.email || credentials.email,
             role: res.role || 'EMPLOYEE'
           });
-          // Fetch full user profile
           this.fetchCurrentUser().subscribe();
         } else {
           this.authError.set(res.message || 'Login failed');
@@ -53,18 +57,7 @@ export class AuthService {
       }),
       catchError((err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        let errorMsg = 'An unexpected error occurred. Please try again.';
-
-        if (err.status === 401) {
-          errorMsg = 'Invalid email or password. Please check your credentials.';
-        } else if (err.status === 403) {
-          errorMsg = 'Your account has been deactivated. Please contact your HR administrator.';
-        } else if (err.error && typeof err.error === 'object' && err.error.message) {
-          errorMsg = err.error.message;
-        } else if (err.status === 0) {
-          errorMsg = 'Unable to connect to the backend server. Please verify the server is running on port 8080.';
-        }
-
+        const errorMsg = this.messageFrom(err);
         this.authError.set(errorMsg);
         return throwError(() => new Error(errorMsg));
       })
@@ -72,24 +65,25 @@ export class AuthService {
   }
 
   fetchCurrentUser(): Observable<User> {
-    return this.http.get<User>(`${API_BASE_URL}/users/me`).pipe(
+    return this.http.get<Record<string, unknown>>(this.tenant.url('/users/me')).pipe(
+      map((dto) => this.toUser(dto)),
       tap((user) => {
         this.currentUser.set(user);
         localStorage.setItem(USER_KEY, JSON.stringify(user));
       }),
-      catchError((err) => {
-        return throwError(() => err);
-      })
+      catchError((err) => throwError(() => err))
     );
   }
 
-  logout(): void {
+  logout(redirectToLogin = true): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     this.token.set(null);
     this.currentUser.set(null);
     this.authError.set(null);
-    this.router.navigate(['/login']);
+    if (redirectToLogin) {
+      this.router.navigate(['/login']);
+    }
   }
 
   hasRole(role: UserRole): boolean {
@@ -112,6 +106,38 @@ export class AuthService {
 
     this.currentUser.set(user);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+
+  private toUser(dto: Record<string, unknown>, fallback?: Partial<User>): User {
+    const role = (dto['userRole'] || dto['role'] || fallback?.role || 'EMPLOYEE') as UserRole;
+    return {
+      id: dto['id'] as number | undefined,
+      email: (dto['email'] as string) || fallback?.email || '',
+      firstName: dto['firstName'] as string | undefined,
+      lastName: dto['lastName'] as string | undefined,
+      role,
+      departmentId: dto['departmentId'] as number | undefined,
+      active: (dto['isActive'] as boolean | undefined) ?? (dto['active'] as boolean | undefined)
+    };
+  }
+
+  private messageFrom(err: HttpErrorResponse): string {
+    if (err.status === 401) {
+      return 'Invalid email or password. Please check your credentials.';
+    }
+    if (err.status === 403) {
+      return 'Your account has been deactivated. Please contact your HR administrator.';
+    }
+    if (err.status === 404) {
+      return 'Company not found for this address.';
+    }
+    if (err.error && typeof err.error === 'object' && err.error.message) {
+      return err.error.message;
+    }
+    if (err.status === 0) {
+      return 'Unable to connect to the backend on this company host (port 8080).';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 
   private getStoredToken(): string | null {

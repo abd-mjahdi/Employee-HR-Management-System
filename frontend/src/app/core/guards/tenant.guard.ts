@@ -3,25 +3,24 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { TenantService } from '../tenant/tenant.service';
 
-export const authGuard: CanActivateFn = () => {
-  const authService = inject(AuthService);
+export const tenantGuard: CanActivateFn = () => {
+  const tenant = inject(TenantService);
   const router = inject(Router);
-
-  if (authService.isAuthenticated()) {
+  if (tenant.hasTenant) {
     return true;
   }
-
   return router.createUrlTree(['/login']);
 };
 
-export const guestGuard: CanActivateFn = () => {
-  const authService = inject(AuthService);
+export const marketingHomeGuard: CanActivateFn = () => {
   const tenant = inject(TenantService);
+  const auth = inject(AuthService);
   const router = inject(Router);
-
-  if (authService.isAuthenticated() && tenant.hasTenant) {
+  if (!tenant.hasTenant) {
+    return true;
+  }
+  if (auth.isAuthenticated()) {
     return router.createUrlTree(['/dashboard']);
   }
-
-  return true;
+  return router.createUrlTree(['/login']);
 };

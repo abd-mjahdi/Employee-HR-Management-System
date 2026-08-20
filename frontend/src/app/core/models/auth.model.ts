@@ -22,4 +22,6 @@ export interface LoginResponse {
   token: string | null;
   email: string | null;
   role: UserRole | null;
+  companySlug?: string | null;
+  companyName?: string | null;
 }

@@ -4,13 +4,27 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 
 ## Development server
 
-To start a local development server, run:
+The UI takes the company from the hostname (`acme.localhost` → `acme`) and calls the API on the **same hostname**, port `8080`.
 
-```bash
-ng serve
-```
+1. Add this line to your hosts file (`C:\Windows\System32\drivers\etc\hosts` on Windows, `/etc/hosts` on macOS/Linux):
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+   ```
+   127.0.0.1 acme.localhost globex.localhost
+   ```
+
+2. Start the Spring Boot API (listens on `8080`).
+3. From this `frontend` folder:
+
+   ```bash
+   npm start
+   ```
+
+4. Open [http://localhost:4200](http://localhost:4200), click **Log in**, enter company domain `acme` (or `globex`). You are sent to that company’s login page.
+
+   - Acme: [http://acme.localhost:4200/login](http://acme.localhost:4200/login) — `alice.morgan@company.com` / `password`
+   - Globex: [http://globex.localhost:4200/login](http://globex.localhost:4200/login) — `emma.frost@globex.com` / `password`
+
+Invite links must be opened on that company’s host, for example `http://acme.localhost:4200/invite?token=...`.
 
 ## Code scaffolding
 

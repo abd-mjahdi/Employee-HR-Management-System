@@ -82,6 +82,17 @@
         background: #eeeeee;
       }
     }
+
+    .input-suffix {
+      padding: 0 0.75rem;
+      border: 1px solid #111111;
+      background: #ffffff;
+      color: #111111;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
   }
 
   .field-error {
@@ -155,4 +166,45 @@
   code {
     font-weight: bold;
   }
+
+  a {
+    color: #111111;
+  }
+}
+
+.marketing-page {
+  min-height: 100vh;
+  background-color: #ffffff;
+}
+
+.marketing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #111111;
+
+  .brand {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111111;
+  }
+
+  .btn-header-login {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid #111111;
+    background: #111111;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    &:hover {
+      background: #333333;
+    }
+  }
+}
+
+.marketing-body {
+  min-height: calc(100vh - 57px);
 }

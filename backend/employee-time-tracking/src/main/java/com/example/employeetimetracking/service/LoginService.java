@@ -25,38 +25,55 @@ public class LoginService {
     private final CompanyMembershipRepository companyMembershipRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
     public LoginService(UserRepository userRepository,
                         CompanyMembershipRepository companyMembershipRepository,
                         JwtUtil jwtUtil,
-                        BCryptPasswordEncoder passwordEncoder) {
+                        BCryptPasswordEncoder passwordEncoder,
+                        LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.companyMembershipRepository = companyMembershipRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Transactional(readOnly = true)
-    public LoginResponseDto login(LoginRequestDto requestDto) {
+    public LoginResponseDto login(LoginRequestDto requestDto, String clientIp) {
         Long companyId = TenantContext.require().companyId();
+        loginAttemptService.assertNotLimited(companyId, clientIp);
 
         User user = userRepository.findByEmail(requestDto.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
+                .orElse(null);
+        if (user == null) {
+            loginAttemptService.recordFailure(companyId, clientIp, "unknown_user");
+            throw new InvalidCredentialsException(INVALID_CREDENTIALS);
+        }
 
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
+            loginAttemptService.recordFailure(companyId, clientIp, "bad_password");
             throw new InvalidCredentialsException(INVALID_CREDENTIALS);
         }
 
         CompanyMembership membership = companyMembershipRepository
                 .findByUserIdAndCompanyId(user.getId(), companyId)
-                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
+                .orElse(null);
+        if (membership == null) {
+            loginAttemptService.recordFailure(companyId, clientIp, "no_membership");
+            throw new InvalidCredentialsException(INVALID_CREDENTIALS);
+        }
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
+            loginAttemptService.recordFailure(companyId, clientIp, "inactive_user");
             throw new AccountDeactivatedException("Account deactivated");
         }
         if (membership.getStatus() != MembershipStatus.ACTIVE) {
+            loginAttemptService.recordFailure(companyId, clientIp, "inactive_membership");
             throw new MembershipInactiveException("Account deactivated");
         }
+
+        loginAttemptService.recordSuccess(companyId, clientIp);
 
         Company company = membership.getCompany();
         String token = jwtUtil.generateJwtToken(

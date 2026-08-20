@@ -5,6 +5,7 @@ import com.example.employeetimetracking.dto.response.LoginResponseDto;
 import com.example.employeetimetracking.exception.AccountDeactivatedException;
 import com.example.employeetimetracking.exception.InvalidCredentialsException;
 import com.example.employeetimetracking.exception.InvalidTenantException;
+import com.example.employeetimetracking.exception.LoginRateLimitedException;
 import com.example.employeetimetracking.exception.MembershipInactiveException;
 import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.CompanyMembership;
@@ -15,6 +16,7 @@ import com.example.employeetimetracking.model.enums.UserRole;
 import com.example.employeetimetracking.repository.CompanyMembershipRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.JwtUtil;
+import com.example.employeetimetracking.service.LoginAttemptService;
 import com.example.employeetimetracking.service.LoginService;
 import com.example.employeetimetracking.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -29,23 +31,26 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class LoginServiceTest {
 
-    @Mock
-    UserRepository userRepository;
-    @Mock
-    CompanyMembershipRepository companyMembershipRepository;
-    @Mock
-    JwtUtil jwtUtil;
-    @Mock
-    BCryptPasswordEncoder passwordEncoder;
+    private static final String IP = "127.0.0.1";
+
+    @Mock UserRepository userRepository;
+    @Mock CompanyMembershipRepository companyMembershipRepository;
+    @Mock JwtUtil jwtUtil;
+    @Mock BCryptPasswordEncoder passwordEncoder;
+    @Mock LoginAttemptService loginAttemptService;
 
     @InjectMocks
     LoginService loginService;
@@ -89,7 +94,7 @@ class LoginServiceTest {
         when(companyMembershipRepository.findByUserIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(membership));
         when(jwtUtil.generateJwtToken(user.getEmail(), 10L, 1L, 10L, UserRole.HR_ADMIN)).thenReturn("jwt");
 
-        LoginResponseDto response = loginService.login(new LoginRequestDto(user.getEmail(), "secret"));
+        LoginResponseDto response = loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP);
 
         assertTrue(response.isSuccess());
         assertEquals("jwt", response.getToken());
@@ -97,20 +102,24 @@ class LoginServiceTest {
         assertEquals("acme", response.getCompanySlug());
         assertEquals("Acme", response.getCompanyName());
         verify(jwtUtil).generateJwtToken(user.getEmail(), 10L, 1L, 10L, UserRole.HR_ADMIN);
+        verify(loginAttemptService).recordSuccess(1L, IP);
+        verify(loginAttemptService, never()).recordFailure(any(), any(), any());
     }
 
     @Test
     void login_withoutTenantContext_fails() {
         TenantContext.clear();
         assertThrows(InvalidTenantException.class,
-                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret")));
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP));
+        verify(loginAttemptService, never()).recordFailure(any(), any(), any());
     }
 
     @Test
     void login_unknownEmail_isInvalidCredentials() {
         when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
         assertThrows(InvalidCredentialsException.class,
-                () -> loginService.login(new LoginRequestDto("nope@x.com", "secret")));
+                () -> loginService.login(new LoginRequestDto("nope@x.com", "secret"), IP));
+        verify(loginAttemptService).recordFailure(1L, IP, "unknown_user");
     }
 
     @Test
@@ -118,7 +127,8 @@ class LoginServiceTest {
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("bad", "hash")).thenReturn(false);
         assertThrows(InvalidCredentialsException.class,
-                () -> loginService.login(new LoginRequestDto(user.getEmail(), "bad")));
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "bad"), IP));
+        verify(loginAttemptService).recordFailure(1L, IP, "bad_password");
     }
 
     @Test
@@ -127,7 +137,8 @@ class LoginServiceTest {
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
         when(companyMembershipRepository.findByUserIdAndCompanyId(10L, 1L)).thenReturn(Optional.empty());
         assertThrows(InvalidCredentialsException.class,
-                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret")));
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP));
+        verify(loginAttemptService).recordFailure(1L, IP, "no_membership");
     }
 
     @Test
@@ -137,7 +148,8 @@ class LoginServiceTest {
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
         when(companyMembershipRepository.findByUserIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(membership));
         assertThrows(AccountDeactivatedException.class,
-                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret")));
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP));
+        verify(loginAttemptService).recordFailure(1L, IP, "inactive_user");
     }
 
     @Test
@@ -147,6 +159,24 @@ class LoginServiceTest {
         when(passwordEncoder.matches("secret", "hash")).thenReturn(true);
         when(companyMembershipRepository.findByUserIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(membership));
         assertThrows(MembershipInactiveException.class,
-                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret")));
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP));
+        verify(loginAttemptService).recordFailure(eq(1L), eq(IP), eq("inactive_membership"));
+    }
+
+    @Test
+    void login_rateLimited_doesNotCheckPassword() {
+        doThrow(new LoginRateLimitedException("Too many login attempts"))
+                .when(loginAttemptService).assertNotLimited(1L, IP);
+
+        assertThrows(LoginRateLimitedException.class,
+                () -> loginService.login(new LoginRequestDto(user.getEmail(), "secret"), IP));
+        verify(userRepository, never()).findByEmail(any());
+    }
+
+    @Test
+    void loginRequestDto_toString_omitsPassword() {
+        String text = new LoginRequestDto(user.getEmail(), "super-secret").toString();
+        assertTrue(text.contains(user.getEmail()));
+        assertFalse(text.contains("super-secret"));
     }
 }

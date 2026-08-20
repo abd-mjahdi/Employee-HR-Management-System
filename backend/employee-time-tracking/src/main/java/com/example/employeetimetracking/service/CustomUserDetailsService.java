@@ -16,10 +16,14 @@ public class CustomUserDetailsService {
         this.companyMembershipRepository = companyMembershipRepository;
     }
 
+    /**
+     * Load the JWT membership in the Host-resolved company. Do not look up "any membership
+     * for this email in the current company" — that would accept a token issued for another slug.
+     */
     @Transactional(readOnly = true)
-    public CustomUserDetails loadForTenant(String email, Long companyId) {
+    public CustomUserDetails loadForTenant(Long membershipId, Long companyId, Long userId) {
         CompanyMembership membership = companyMembershipRepository
-                .findByCompanyIdAndUserEmail(companyId, email)
+                .findByIdAndCompanyIdAndUserId(membershipId, companyId, userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
         return new CustomUserDetails(membership);
     }

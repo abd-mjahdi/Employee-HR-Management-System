@@ -88,6 +88,19 @@ class TenantResolverTest {
     }
 
     @Test
+    void request_ignoresTenantCookies() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setServerName("acme.myhr.com");
+        request.setCookies(
+                new jakarta.servlet.http.Cookie("tenant", "globex"),
+                new jakarta.servlet.http.Cookie("slug", "globex"),
+                new jakarta.servlet.http.Cookie("companyId", "99")
+        );
+        request.addHeader("Cookie", "tenant=globex; slug=globex");
+        assertEquals("acme", resolver.resolveSlug(request));
+    }
+
+    @Test
     void forwardedHost_ignoredWhenNotTrusted() {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setServerName("acme.myhr.com");

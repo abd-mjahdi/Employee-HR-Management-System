@@ -38,6 +38,9 @@ app:
       - admin
       - mail
       - localhost
+  login:
+    max-failed-attempts: 10
+    window-ms: 900000
 
 logging:
   level:

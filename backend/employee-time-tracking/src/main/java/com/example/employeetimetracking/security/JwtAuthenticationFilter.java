@@ -7,6 +7,7 @@ import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.model.enums.MembershipStatus;
 import com.example.employeetimetracking.service.CustomUserDetailsService;
 import com.example.employeetimetracking.tenant.TenantContext;
+import com.example.employeetimetracking.tenant.TenantRequestPaths;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -39,6 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return TenantRequestPaths.skipTenantResolution(request);
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -63,8 +69,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 throw new TenantMismatchException("Unauthorized");
             }
 
-            CustomUserDetails userDetails = customUserDetailsService.loadForTenant(email, tenantCompanyId);
-            if (!Objects.equals(userDetails.getId(), jwtUserId)
+            CustomUserDetails userDetails = customUserDetailsService.loadForTenant(
+                    jwtMembershipId, tenantCompanyId, jwtUserId);
+            if (!email.equalsIgnoreCase(userDetails.getEmail())
+                    || !Objects.equals(userDetails.getId(), jwtUserId)
                     || !Objects.equals(userDetails.getCompanyId(), jwtCompanyId)
                     || !Objects.equals(userDetails.getMembershipId(), jwtMembershipId)) {
                 throw new TenantMismatchException("Unauthorized");

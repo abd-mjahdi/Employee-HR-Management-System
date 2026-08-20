@@ -1,5 +1,6 @@
 package com.example.employeetimetracking.unit.security;
 
+import com.example.employeetimetracking.exception.MembershipInactiveException;
 import com.example.employeetimetracking.exception.TenantMismatchException;
 import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.CompanyMembership;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -38,12 +40,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class JwtAuthenticationFilterTest {
 
-    @Mock
-    CustomUserDetailsService customUserDetailsService;
-    @Mock
-    HandlerExceptionResolver exceptionResolver;
-    @Mock
-    FilterChain filterChain;
+    @Mock CustomUserDetailsService customUserDetailsService;
+    @Mock HandlerExceptionResolver exceptionResolver;
+    @Mock FilterChain filterChain;
 
     private JwtUtil jwtUtil;
     private JwtAuthenticationFilter filter;
@@ -70,7 +69,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void noBearer_continuesWithoutAuthentication() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletRequest request = request("/users");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, filterChain);
@@ -80,30 +79,33 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void companyMismatch_isUnauthorizedAndDoesNotAuthenticate() throws Exception {
-        String token = jwtUtil.generateJwtToken("a@x.com", 10L, 2L, 10L, UserRole.HR_ADMIN);
-        MockHttpServletRequest request = new MockHttpServletRequest();
+    void tokenForOtherCompany_isUnauthorizedEvenIfUserHasMembershipThere() throws Exception {
+        String token = jwtUtil.generateJwtToken("a@x.com", 10L, 1L, 10L, UserRole.HR_ADMIN);
+        TenantContext.set(new TenantContext.TenantInfo(2L, "globex", CompanyStatus.ACTIVE));
+        MockHttpServletRequest request = request("/users");
         request.addHeader("Authorization", "Bearer " + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, filterChain);
 
+        verify(customUserDetailsService, never()).loadForTenant(anyLong(), anyLong(), anyLong());
         verify(exceptionResolver).resolveException(eq(request), eq(response), isNull(), any(TenantMismatchException.class));
         verify(filterChain, never()).doFilter(request, response);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void validToken_usesMembershipRoleFromDatabaseNotJwt() throws Exception {
+    void validToken_loadsMembershipByIdAndCompanyAndUser() throws Exception {
         String token = jwtUtil.generateJwtToken("a@x.com", 10L, 1L, 99L, UserRole.HR_ADMIN);
-        when(customUserDetailsService.loadForTenant("a@x.com", 1L)).thenReturn(details(UserRole.EMPLOYEE));
+        when(customUserDetailsService.loadForTenant(99L, 1L, 10L)).thenReturn(details(UserRole.EMPLOYEE, MembershipStatus.ACTIVE));
 
-        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletRequest request = request("/users");
         request.addHeader("Authorization", "Bearer " + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, filterChain);
 
+        verify(customUserDetailsService).loadForTenant(99L, 1L, 10L);
         verify(filterChain).doFilter(request, response);
         assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_EMPLOYEE")));
@@ -112,10 +114,41 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void deactivatedMembership_isForbidden() throws Exception {
+        String token = jwtUtil.generateJwtToken("a@x.com", 10L, 1L, 99L, UserRole.EMPLOYEE);
+        when(customUserDetailsService.loadForTenant(99L, 1L, 10L))
+                .thenReturn(details(UserRole.EMPLOYEE, MembershipStatus.DEACTIVATED));
+
+        MockHttpServletRequest request = request("/users");
+        request.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, filterChain);
+
+        verify(exceptionResolver).resolveException(
+                eq(request), eq(response), isNull(), any(MembershipInactiveException.class));
+        verify(filterChain, never()).doFilter(request, response);
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void swaggerDocs_skipJwtEvenWithBearerToken() throws Exception {
+        String token = jwtUtil.generateJwtToken("a@x.com", 10L, 1L, 99L, UserRole.HR_ADMIN);
+        MockHttpServletRequest request = request("/v3/api-docs");
+        request.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, filterChain);
+
+        verify(customUserDetailsService, never()).loadForTenant(anyLong(), anyLong(), anyLong());
+        verify(filterChain).doFilter(request, response);
+    }
+
+    @Test
     void expiredToken_returnsPlainUnauthorizedBody() throws Exception {
         ReflectionTestUtils.setField(jwtUtil, "expirationDuration", -3_600_000L);
         String token = jwtUtil.generateJwtToken("a@x.com", 10L, 1L, 99L, UserRole.EMPLOYEE);
-        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletRequest request = request("/users");
         request.addHeader("Authorization", "Bearer " + token);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -126,7 +159,13 @@ class JwtAuthenticationFilterTest {
         verify(filterChain, never()).doFilter(request, response);
     }
 
-    private static CustomUserDetails details(UserRole dbRole) {
+    private static MockHttpServletRequest request(String path) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        request.setRequestURI(path);
+        return request;
+    }
+
+    private static CustomUserDetails details(UserRole dbRole, MembershipStatus status) {
         User user = new User();
         user.setId(10L);
         user.setEmail("a@x.com");
@@ -141,7 +180,7 @@ class JwtAuthenticationFilterTest {
         membership.setUser(user);
         membership.setCompany(company);
         membership.setRole(dbRole);
-        membership.setStatus(MembershipStatus.ACTIVE);
+        membership.setStatus(status);
         return new CustomUserDetails(membership);
     }
 }

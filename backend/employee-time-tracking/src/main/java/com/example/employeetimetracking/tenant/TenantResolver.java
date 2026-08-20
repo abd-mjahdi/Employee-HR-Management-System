@@ -10,7 +10,9 @@ import java.util.regex.Pattern;
 
 /**
  * Tenant comes from Host (or X-Forwarded-Host only when trust-forwarded-host is enabled).
- * Never reads {@code X-Company-Id}, {@code companyId} query params, or JSON bodies.
+ * Never reads cookies, {@code X-Company-Id}, {@code companyId} query params, or JSON bodies.
+ * A client-editable cookie must not select the tenant; Host is re-checked on every request
+ * and JWT {@code company_id} must match that Host company.
  */
 @Component
 public class TenantResolver {

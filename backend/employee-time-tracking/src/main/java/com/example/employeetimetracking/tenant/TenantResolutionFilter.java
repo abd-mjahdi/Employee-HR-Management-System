@@ -21,6 +21,7 @@ import java.io.IOException;
  * → issue JWT with tenant claims → later requests re-resolve Host and compare to JWT.
  *
  * Runs before {@code JwtAuthenticationFilter}. {@code /auth/login} is never skipped.
+ * Tenant bypass is only for Swagger/OpenAPI, actuator, and first-company bootstrap.
  */
 @Component
 public class TenantResolutionFilter extends OncePerRequestFilter {
@@ -39,8 +40,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = pathWithinApplication(request);
-        return isSwaggerOrDocs(path) || isActuator(path) || isInternalBootstrap(path);
+        return TenantRequestPaths.skipTenantResolution(request);
     }
 
     @Override
@@ -61,34 +61,5 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
         } finally {
             TenantContext.clear();
         }
-    }
-
-    private static String pathWithinApplication(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        String context = request.getContextPath();
-        if (context != null && !context.isEmpty() && uri.startsWith(context)) {
-            return uri.substring(context.length());
-        }
-        return uri;
-    }
-
-    private static boolean isSwaggerOrDocs(String path) {
-        return path.equals("/swagger-ui.html")
-                || path.equals("/swagger-ui")
-                || path.startsWith("/swagger-ui/")
-                || path.equals("/v3/api-docs")
-                || path.startsWith("/v3/api-docs/");
-    }
-
-    private static boolean isActuator(String path) {
-        return path.equals("/actuator") || path.startsWith("/actuator/");
-    }
-
-    /**
-     * First-company bootstrap runs before any tenant exists; Host cannot be resolved.
-     * Protection is {@code X-Bootstrap-Key}, not JWT or tenant membership.
-     */
-    private static boolean isInternalBootstrap(String path) {
-        return path.equals("/internal/bootstrap/company");
     }
 }

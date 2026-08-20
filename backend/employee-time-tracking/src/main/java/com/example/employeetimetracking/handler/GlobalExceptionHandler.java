@@ -37,6 +37,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponseDto("Unauthorized"));
     }
 
+    @ExceptionHandler(LoginRateLimitedException.class)
+    public ResponseEntity<ErrorResponseDto> handleLoginRateLimited(LoginRateLimitedException ignored) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ErrorResponseDto("Too many login attempts"));
+    }
+
     @ExceptionHandler(BootstrapDisabledException.class)
     public ResponseEntity<ErrorResponseDto> handleBootstrapDisabled(BootstrapDisabledException ignored) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDto("Not found"));

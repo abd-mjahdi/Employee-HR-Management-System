@@ -19,10 +19,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
-    @ExceptionHandler(AccountDeactivatedException.class)
-    public ResponseEntity<LoginResponseDto> handleAccountDeactivation(AccountDeactivatedException exception) {
+    @ExceptionHandler({AccountDeactivatedException.class, MembershipInactiveException.class})
+    public ResponseEntity<LoginResponseDto> handleAccountDeactivation(RuntimeException exception) {
         LoginResponseDto response = new LoginResponseDto(exception.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    /**
+     * Unknown, inactive, and invalid tenant hosts share one 404 body so slugs cannot be enumerated.
+     */
+    @ExceptionHandler({InvalidTenantException.class, InactiveTenantException.class})
+    public ResponseEntity<ErrorResponseDto> handleUnknownTenant(RuntimeException ignored) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDto("Tenant not found"));
+    }
+
+    @ExceptionHandler(TenantMismatchException.class)
+    public ResponseEntity<ErrorResponseDto> handleTenantMismatch(TenantMismatchException ignored) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponseDto("Unauthorized"));
     }
 
     @ExceptionHandler(DepartmentNotFoundException.class)
@@ -57,7 +70,9 @@ public class GlobalExceptionHandler {
             InvalidLeaveRequestException.class,
             ProjectNotFoundException.class,
             InvalidTimeEntryException.class,
-            InvalidUserException.class
+            InvalidUserException.class,
+            InvitationExpiredException.class,
+            InvitationAlreadyUsedException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
@@ -69,7 +84,8 @@ public class GlobalExceptionHandler {
             LeavePolicyNotFoundException.class,
             LeaveBalanceNotFoundException.class,
             LeaveTypeNotFoundException.class,
-            LeaveRequestNotFoundException.class
+            LeaveRequestNotFoundException.class,
+            InvitationNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

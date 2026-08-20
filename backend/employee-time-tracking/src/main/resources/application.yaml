@@ -29,6 +29,20 @@ spring:
 holidays:
   dates:
 
+app:
+  tenant:
+    base-domain: myhr.com
+    local-dev-suffix: localhost
+    allow-apex: false
+    allow-www: false
+    reserved-slugs:
+      - www
+      - api
+      - app
+      - admin
+      - mail
+      - localhost
+
 logging:
   level:
     liquibase: info

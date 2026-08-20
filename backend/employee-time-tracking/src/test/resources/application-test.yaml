@@ -21,6 +21,20 @@ spring:
     secret: 0ef2d553cf17c6a144e82d71ca3d5d1f931f4b42d637a6d0b3ae645be2e1e67a
     expiration-ms: 3600000
 
+app:
+  tenant:
+    base-domain: myhr.com
+    local-dev-suffix: localhost
+    allow-apex: false
+    allow-www: false
+    reserved-slugs:
+      - www
+      - api
+      - app
+      - admin
+      - mail
+      - localhost
+
 logging:
   level:
     liquibase: info

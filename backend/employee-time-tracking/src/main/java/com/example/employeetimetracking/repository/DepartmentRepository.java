@@ -11,13 +11,15 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     List<Department> findAllByCompanyId(Long companyId);
 
-    Optional<Department> findByCompanyIdAndDepartmentCode(Long companyId, String departmentCode);
-
     List<Department> findByCompanyIdAndIsActive(Long companyId, Boolean isActive);
 
-    Optional<Department> findByDepartmentCode(String departmentCode);
+    Optional<Department> findByCompanyIdAndDepartmentCode(Long companyId, String departmentCode);
 
-    List<Department> findByIsActive(Boolean isActive);
+    boolean existsByCompanyIdAndDepartmentCode(Long companyId, String departmentCode);
 
-    Department findByDepartmentName(String departmentName);
+    boolean existsByCompanyIdAndDepartmentName(Long companyId, String departmentName);
+
+    boolean existsByCompanyIdAndDepartmentCodeAndIdNot(Long companyId, String departmentCode, Long id);
+
+    boolean existsByCompanyIdAndDepartmentNameAndIdNot(Long companyId, String departmentName, Long id);
 }

@@ -25,12 +25,14 @@ import com.example.employeetimetracking.repository.CompanyRepository;
 import com.example.employeetimetracking.repository.DepartmentRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
-import com.example.employeetimetracking.specification.UserSpecifications;
+import com.example.employeetimetracking.specification.MembershipSpecifications;
 import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -91,8 +93,11 @@ public class UserService {
         return userRepository.findById(id).orElseThrow(() -> new UserNotFoundException("User not found"));
     }
 
+    @Transactional
     public Page<UserResponseDto> getAll(Pageable p) {
-        return userRepository.findAll(p).map(userMapper::toDto);
+        Long companyId = TenantContext.require().companyId();
+        return companyMembershipRepository.findByCompanyId(companyId, membershipPageable(p))
+                .map(m -> userMapper.toDto(m.getUser(), m));
     }
 
     @Transactional
@@ -113,7 +118,8 @@ public class UserService {
             throw new InvalidUserException("Cannot deactivate the last active HR admin");
         }
         List<CompanyMembership> activeReports = companyMembershipRepository
-                .findByManagerMembershipIdAndStatus(membership.getId(), MembershipStatus.ACTIVE);
+                .findByCompanyIdAndManagerMembershipIdAndStatus(
+                        companyId, membership.getId(), MembershipStatus.ACTIVE);
         if (!activeReports.isEmpty()) {
             throw new InvalidUserException(
                     "Cannot deactivate user who still has active direct reports; reassign them first");
@@ -185,13 +191,15 @@ public class UserService {
         return userMapper.toDto(targetUser);
     }
 
+    @Transactional
     public List<UserResponseDto> getTeamMembers(Long id) {
         Long companyId = TenantContext.require().companyId();
         CompanyMembership managerMembership = companyMembershipRepository
                 .findByUserIdAndCompanyId(id, companyId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
         return companyMembershipRepository
-                .findByManagerMembershipIdAndStatus(managerMembership.getId(), MembershipStatus.ACTIVE)
+                .findByCompanyIdAndManagerMembershipIdAndStatus(
+                        companyId, managerMembership.getId(), MembershipStatus.ACTIVE)
                 .stream()
                 .map(m -> userMapper.toDto(m.getUser(), m))
                 .toList();
@@ -377,16 +385,20 @@ public class UserService {
         }
     }
 
+    @Transactional
     public List<UserResponseDto> searchUsers(Long departmentId, UserRole role, Boolean active, String name) {
         if (name != null && name.isBlank()) {
             name = null;
         }
-        Specification<User> spec = Specification
-                .where(UserSpecifications.hasDepartmentId(departmentId))
-                .and(UserSpecifications.hasRole(role))
-                .and(UserSpecifications.isActive(active))
-                .and(UserSpecifications.hasName(name));
-        return userRepository.findAll(spec).stream().map(userMapper::toDto).toList();
+        Specification<CompanyMembership> spec = Specification
+                .where(MembershipSpecifications.belongsToCurrentCompany())
+                .and(MembershipSpecifications.hasDepartmentId(departmentId))
+                .and(MembershipSpecifications.hasRole(role))
+                .and(MembershipSpecifications.isActive(active))
+                .and(MembershipSpecifications.hasName(name));
+        return companyMembershipRepository.findAll(spec).stream()
+                .map(m -> userMapper.toDto(m.getUser(), m))
+                .toList();
     }
 
     @Transactional
@@ -398,5 +410,25 @@ public class UserService {
         if (userUpdateDto.getLastName() != null) {
             user.setLastName(userUpdateDto.getLastName());
         }
+    }
+
+    private static Pageable membershipPageable(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            return pageable;
+        }
+        Sort mapped = Sort.by(pageable.getSort().stream()
+                .map(order -> new Sort.Order(order.getDirection(), mapMembershipSortProperty(order.getProperty())))
+                .toList());
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), mapped);
+    }
+
+    private static String mapMembershipSortProperty(String property) {
+        return switch (property) {
+            case "firstName", "lastName", "email", "username", "isActive" -> "user." + property;
+            case "id" -> "user.id";
+            case "userRole" -> "role";
+            case "departmentId" -> "department.id";
+            default -> property;
+        };
     }
 }

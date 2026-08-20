@@ -5,7 +5,9 @@ import com.example.employeetimetracking.model.enums.MembershipStatus;
 import com.example.employeetimetracking.model.enums.UserRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,7 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface CompanyMembershipRepository extends JpaRepository<CompanyMembership, Long> {
+public interface CompanyMembershipRepository extends JpaRepository<CompanyMembership, Long>, JpaSpecificationExecutor<CompanyMembership> {
     Optional<CompanyMembership> findByIdAndCompanyId(Long id, Long companyId);
 
     @Query("""
@@ -58,6 +60,17 @@ public interface CompanyMembershipRepository extends JpaRepository<CompanyMember
     @Query("""
             SELECT m FROM CompanyMembership m
             JOIN FETCH m.user u
+            WHERE m.company.id = :companyId AND m.status = :status
+            """)
+    List<CompanyMembership> findByCompanyIdAndStatusFetchUser(
+            @Param("companyId") Long companyId,
+            @Param("status") MembershipStatus status);
+
+    long countByCompanyIdAndStatus(Long companyId, MembershipStatus status);
+
+    @Query("""
+            SELECT m FROM CompanyMembership m
+            JOIN FETCH m.user u
             JOIN FETCH m.company c
             WHERE c.id = :companyId AND lower(u.email) = lower(:email)
             """)
@@ -69,6 +82,23 @@ public interface CompanyMembershipRepository extends JpaRepository<CompanyMember
 
     List<CompanyMembership> findByManagerMembershipIdAndStatus(Long managerMembershipId, MembershipStatus status);
 
+    @Query("""
+            SELECT m FROM CompanyMembership m
+            JOIN FETCH m.user u
+            JOIN FETCH m.company c
+            LEFT JOIN FETCH m.department
+            LEFT JOIN FETCH m.managerMembership mm
+            LEFT JOIN FETCH mm.user
+            WHERE c.id = :companyId
+              AND m.managerMembership.id = :managerMembershipId
+              AND m.status = :status
+            """)
+    List<CompanyMembership> findByCompanyIdAndManagerMembershipIdAndStatus(
+            @Param("companyId") Long companyId,
+            @Param("managerMembershipId") Long managerMembershipId,
+            @Param("status") MembershipStatus status);
+
+    @EntityGraph(attributePaths = {"user", "department", "managerMembership", "managerMembership.user"})
     Page<CompanyMembership> findByCompanyId(Long companyId, Pageable pageable);
 
     List<CompanyMembership> findByCompanyIdAndDepartmentIdAndStatus(

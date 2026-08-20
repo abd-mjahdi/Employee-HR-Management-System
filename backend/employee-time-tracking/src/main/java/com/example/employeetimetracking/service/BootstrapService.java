@@ -110,7 +110,6 @@ public class BootstrapService {
         companyMembershipRepository.save(membership);
 
         return new BootstrapCompanyResponseDto(
-                company.getId(),
                 company.getName(),
                 company.getSlug(),
                 admin.getEmail(),

@@ -2,12 +2,13 @@ package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.response.LeaveTypeDto;
 import com.example.employeetimetracking.exception.LeaveTypeNotFoundException;
-import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.mapper.LeaveTypeMapper;
 import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.repository.LeaveTypeRepository;
+import com.example.employeetimetracking.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -15,29 +16,35 @@ import java.util.List;
 public class LeaveTypeService {
     private final LeaveTypeRepository leaveTypeRepository;
     private final LeaveTypeMapper leaveTypeMapper;
+
     @Autowired
-    public LeaveTypeService(LeaveTypeRepository leaveTypeRepository, LeaveTypeMapper leaveTypeMapper){
+    public LeaveTypeService(LeaveTypeRepository leaveTypeRepository, LeaveTypeMapper leaveTypeMapper) {
         this.leaveTypeRepository = leaveTypeRepository;
         this.leaveTypeMapper = leaveTypeMapper;
     }
-    public List<LeaveType> getAll(){
-        return leaveTypeRepository.findAll();
-    }
-    public List<LeaveTypeDto> getAllActiveDto(){
-        return leaveTypeRepository.findByIsActive(true).stream().map(leaveTypeMapper::toDto).toList();
+
+    public List<LeaveType> getAll() {
+        return leaveTypeRepository.findAllByCompanyId(currentCompanyId());
     }
 
-    public LeaveType getById(Long Id){
-        return leaveTypeRepository.findByIdAndIsActive(Id, true)
-                .orElseThrow(()-> new LeaveTypeNotFoundException("Leave type Not Found or Inactive"));
+    @Transactional(readOnly = true)
+    public List<LeaveTypeDto> getAllActiveDto() {
+        return leaveTypeRepository.findByCompanyIdAndIsActive(currentCompanyId(), true).stream()
+                .map(leaveTypeMapper::toDto)
+                .toList();
     }
 
-    public List<LeaveType> getAllWithPolicy(){
-        return leaveTypeRepository.findAllWithPolicy();
+    public LeaveType getById(Long id) {
+        return leaveTypeRepository.findByIdAndCompanyIdAndIsActive(id, currentCompanyId(), true)
+                .orElseThrow(() -> new LeaveTypeNotFoundException("Leave type Not Found or Inactive"));
     }
 
-    public List<LeaveType> getAllWithPolicyByCompanyId(Long companyId) {
-        return leaveTypeRepository.findAllWithPolicyByCompanyId(companyId);
+    @Transactional(readOnly = true)
+    public List<LeaveType> getAllWithPolicy() {
+        return leaveTypeRepository.findAllWithPolicyByCompanyId(currentCompanyId());
     }
 
+    private static Long currentCompanyId() {
+        return TenantContext.require().companyId();
+    }
 }

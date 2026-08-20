@@ -51,15 +51,22 @@ public class LeaveBalanceService {
     @Transactional
     public void initializeLeaveBalances(User user){
         Long companyId = TenantContext.require().companyId();
-        List<LeaveType> leaveTypes = leaveTypeService.getAllWithPolicyByCompanyId(companyId);
+        List<LeaveType> leaveTypes = leaveTypeService.getAllWithPolicy();
+        short year = (short) LocalDate.now().getYear();
 
         for(LeaveType leaveType : leaveTypes){
+            if (leaveType.getCompany() == null || !companyId.equals(leaveType.getCompany().getId())) {
+                continue;
+            }
+            if (leaveBalanceRepository.findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(
+                    companyId, user.getId(), leaveType.getId(), year).isPresent()) {
+                continue;
+            }
             LeavePolicy policy = leaveType.getLeavePolicy();
             LeaveBalance balance = new LeaveBalance();
             balance.setCompany(leaveType.getCompany());
             balance.setUser(user);
             balance.setLeaveType(leaveType);
-            short year =(short) LocalDate.now().getYear();
             balance.setYear(year);
 
             if(policy.getAccrualMethod().equals(AccrualMethod.ANNUAL)){
@@ -100,8 +107,10 @@ public class LeaveBalanceService {
         }
 
         int nextYear = currentYear + 1;
+        Long companyId = currentYearBalance.getCompany().getId();
         boolean nextYearExists = leaveBalanceRepository
-                .findByUserIdAndLeaveTypeIdAndYear(
+                .findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(
+                        companyId,
                         currentYearBalance.getUser().getId(),
                         currentYearBalance.getLeaveType().getId(),
                         nextYear
@@ -126,6 +135,7 @@ public class LeaveBalanceService {
         }
 
         LeaveBalance nextYearBalance = new LeaveBalance();
+        nextYearBalance.setCompany(currentYearBalance.getCompany());
         nextYearBalance.setUser(currentYearBalance.getUser());
         nextYearBalance.setLeaveType(currentYearBalance.getLeaveType());
         nextYearBalance.setYear((short) nextYear);
@@ -136,8 +146,9 @@ public class LeaveBalanceService {
 
     private LeaveBalance getLeaveBalance(User user, LeaveRequest lr) {
         int year = (lr != null && lr.getStartDate() != null) ? lr.getStartDate().getYear() : LocalDate.now().getYear();
+        Long companyId = TenantContext.require().companyId();
         return leaveBalanceRepository
-                .findByUserIdAndLeaveTypeIdAndYear(user.getId(), lr.getLeaveType().getId(), year)
+                .findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(companyId, user.getId(), lr.getLeaveType().getId(), year)
                 .orElseThrow(() -> new LeaveBalanceNotFoundException(
                         "Leave balance not found for userId=" + user.getId() +
                                 ", leaveTypeId=" + lr.getLeaveType().getId() +
@@ -180,7 +191,8 @@ public class LeaveBalanceService {
     }
 
     public List<LeaveBalanceDto> getByUserIdAndYear(Long userId ,int year){
-        List<LeaveBalance> leaveBalances = leaveBalanceRepository.findByUserIdAndYear(userId,year);
+        List<LeaveBalance> leaveBalances = leaveBalanceRepository.findByCompanyIdAndUserIdAndYear(
+                TenantContext.require().companyId(), userId, year);
         return leaveBalances.stream().map(leaveBalanceMapper::toDto).toList();
     }
 
@@ -188,6 +200,8 @@ public class LeaveBalanceService {
         try {
             User target = userRepository.findById(userId)
                     .orElseThrow(() -> new UserNotFoundException("User not found with id: " + userId));
+            membershipAccess.find(userId, TenantContext.require().companyId())
+                    .orElseThrow(() -> new AccessDeniedException("You cannot access this resource"));
 
             Long managerId = membershipAccess.managerUserId(target.getId());
 
@@ -204,7 +218,8 @@ public class LeaveBalanceService {
     }
 
     public LeaveBalance getByUserIdAndLeaveTypeIdAndYear(Long userId, Long leaveTypeId ,int year){
-        return leaveBalanceRepository.findByUserIdAndLeaveTypeIdAndYear(userId, leaveTypeId, year)
+        return leaveBalanceRepository.findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(
+                        TenantContext.require().companyId(), userId, leaveTypeId, year)
                 .orElseThrow(()->new LeaveBalanceNotFoundException("Leave balance not found"));
     }
 

@@ -5,6 +5,7 @@ import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeavePolicyRepository;
+import com.example.employeetimetracking.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,8 +24,12 @@ public class LeavePolicyService {
         this.leaveBalanceRepository = leaveBalanceRepository;
     }
     public LeavePolicy getPolicyByLeaveTypeId(Long leaveTypeId) {
-        return leavePolicyRepository.findByLeaveTypeId(leaveTypeId)
+        return leavePolicyRepository.findByCompanyIdAndLeaveTypeId(currentCompanyId(), leaveTypeId)
                 .orElseThrow(() -> new LeavePolicyNotFoundException("Policy not found for leave type"));
+    }
+
+    private static Long currentCompanyId() {
+        return TenantContext.require().companyId();
     }
 
     public BigDecimal calculateAccruedBalance(User user, LeaveType leaveType, LocalDate asOfDate) {

@@ -12,6 +12,7 @@ import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.service.ReportService;
 import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -156,16 +157,16 @@ public class ReportController {
         if (targetUserId == null) {
             throw new AccessDeniedException("Invalid userId");
         }
+        membershipAccess.find(targetUserId, TenantContext.require().companyId())
+                .orElseThrow(() -> new AccessDeniedException("You cannot access this user's report"));
         if (targetUserId.equals(caller.getId())) {
             return;
         }
         if (caller.hasRole("HR_ADMIN")) {
             return;
         }
-        if (caller.hasRole("MANAGER")) {
-            if (membershipAccess.isDirectManagerOf(caller.getId(), targetUserId)) {
-                return;
-            }
+        if (caller.hasRole("MANAGER") && membershipAccess.isDirectManagerOf(caller.getId(), targetUserId)) {
+            return;
         }
         throw new AccessDeniedException("You cannot access this user's report");
     }

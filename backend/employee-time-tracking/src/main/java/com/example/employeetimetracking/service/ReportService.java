@@ -29,12 +29,13 @@ import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.LeaveType;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
+import com.example.employeetimetracking.model.enums.MembershipStatus;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.repository.CompanyMembershipRepository;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
-import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.repository.LeaveTypeRepository;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
 import com.example.employeetimetracking.tenant.MembershipAccess;
@@ -65,9 +66,9 @@ public class ReportService {
     private final TimeEntryRepository timeEntryRepository;
     private final LeaveRequestRepository leaveRequestRepository;
     private final LeaveBalanceRepository leaveBalanceRepository;
-    private final UserRepository userRepository;
     private final LeaveTypeRepository leaveTypeRepository;
     private final TimeEntryBreakRepository timeEntryBreakRepository;
+    private final CompanyMembershipRepository companyMembershipRepository;
     private final MembershipAccess membershipAccess;
 
     @Value("${reports.payroll.overtime.daily-hours:8.0}")
@@ -86,16 +87,16 @@ public class ReportService {
     public ReportService(TimeEntryRepository timeEntryRepository,
                          LeaveRequestRepository leaveRequestRepository,
                          LeaveBalanceRepository leaveBalanceRepository,
-                         UserRepository userRepository,
                          LeaveTypeRepository leaveTypeRepository,
                          TimeEntryBreakRepository timeEntryBreakRepository,
+                         CompanyMembershipRepository companyMembershipRepository,
                          MembershipAccess membershipAccess) {
         this.timeEntryRepository = timeEntryRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveBalanceRepository = leaveBalanceRepository;
-        this.userRepository = userRepository;
         this.leaveTypeRepository = leaveTypeRepository;
         this.timeEntryBreakRepository = timeEntryBreakRepository;
+        this.companyMembershipRepository = companyMembershipRepository;
         this.membershipAccess = membershipAccess;
     }
 
@@ -110,8 +111,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<TimeEntry> entries = timeEntryRepository.findByUserIdAndEntryDateBetweenAndStatus(
-                userId, startDate, endDate, Status.APPROVED
+        List<TimeEntry> entries = timeEntryRepository.findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                currentCompanyId(), userId, startDate, endDate, Status.APPROVED
         );
 
         BigDecimal totalHours = entries.stream()
@@ -172,8 +173,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlap(
-                managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
+        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlapForCompany(
+                managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate, currentCompanyId()
         );
 
         BigDecimal totalDays = requests.stream()
@@ -219,7 +220,8 @@ public class ReportService {
                 .toList();
 
         List<TeamLeaveRequestItemDto> upcoming = leaveRequestRepository
-                .findByUserManagerIdAndStatusInAndStartDateAfterOrderByStartDateAsc(managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), LocalDate.now())
+                .findByUserManagerIdAndStatusInAndStartDateAfterOrderByStartDateAscForCompany(
+                        managerId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), LocalDate.now(), currentCompanyId())
                 .stream()
                 .limit(10)
                 .map(lr -> new TeamLeaveRequestItemDto(
@@ -260,10 +262,9 @@ public class ReportService {
             throw new InvalidTimeEntryException("Weekly overtime threshold must be >= 0");
         }
 
-        Specification<TimeEntry> spec = Specification
-                .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
+        Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
                 .and(TimeEntrySpecification.afterDate(startDate))
-                .and(TimeEntrySpecification.beforeDate(endDate));
+                .and(TimeEntrySpecification.beforeDate(endDate)));
 
         List<TimeEntry> entries = timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "user.id", "entryDate", "id"));
 
@@ -363,8 +364,9 @@ public class ReportService {
         }
 
         List<LeaveBalance> balances = departmentId == null
-                ? leaveBalanceRepository.findAllLeaveBalancesForYear(y)
-                : leaveBalanceRepository.findLeaveBalancesForYearAndDepartment(y, departmentId);
+                ? leaveBalanceRepository.findAllLeaveBalancesForYearAndCompany(y, currentCompanyId())
+                : leaveBalanceRepository.findLeaveBalancesForYearAndDepartmentAndCompany(
+                        y, departmentId, currentCompanyId());
 
         Map<Long, CompanyMembership> memberships = membershipsFor(balances.stream()
                 .map(lb -> lb.getUser() == null ? null : lb.getUser().getId())
@@ -452,7 +454,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<TimeEntry> entries = timeEntryRepository.findForDepartmentUtilization(Status.APPROVED, startDate, endDate);
+        List<TimeEntry> entries = timeEntryRepository.findForDepartmentUtilizationByCompany(
+                currentCompanyId(), Status.APPROVED, startDate, endDate);
         Map<Long, CompanyMembership> memberships = membershipsFor(entries.stream()
                 .map(te -> te.getUser() == null ? null : te.getUser().getId())
                 .filter(Objects::nonNull)
@@ -545,8 +548,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlapAll(
-                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
+        List<LeaveRequest> requests = leaveRequestRepository.findByStatusInAndDateRangeOverlapAllForCompany(
+                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate, currentCompanyId()
         );
 
         Map<Long, List<LeaveRequest>> byUser = requests.stream()
@@ -705,7 +708,8 @@ public class ReportService {
             throw new InvalidTimeEntryException("startDate cannot be after endDate");
         }
 
-        List<TimeEntry> entries = timeEntryRepository.findForProjectHours(Status.APPROVED, startDate, endDate);
+        List<TimeEntry> entries = timeEntryRepository.findForProjectHoursByCompany(
+                currentCompanyId(), Status.APPROVED, startDate, endDate);
 
         Map<Long, List<TimeEntry>> byProjectId = entries.stream()
                 .filter(te -> te.getProject() != null && te.getProject().getId() != null)
@@ -804,8 +808,8 @@ public class ReportService {
         }
 
         // Leave granted
-        List<LeaveRequest> leaveGranted = leaveRequestRepository.findByStatusInAndDateRangeOverlapAll(
-                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate
+        List<LeaveRequest> leaveGranted = leaveRequestRepository.findByStatusInAndDateRangeOverlapAllForCompany(
+                List.of(Status.APPROVED, Status.CANCELLATION_PENDING), startDate, endDate, currentCompanyId()
         );
 
         BigDecimal totalLeaveDaysGranted = leaveGranted.stream()
@@ -834,9 +838,15 @@ public class ReportService {
 
         // Entitlements (consistency check): every active user should have a leave balance record
         // for each active leave type for this year.
-        List<User> activeUsers = userRepository.findByIsActive(true);
-        List<LeaveType> activeLeaveTypes = leaveTypeRepository.findByIsActive(true);
-        List<LeaveBalance> yearBalances = leaveBalanceRepository.findAllLeaveBalancesForYear(year);
+        Long companyId = currentCompanyId();
+        List<User> activeUsers = companyMembershipRepository
+                .findByCompanyIdAndStatusFetchUser(companyId, MembershipStatus.ACTIVE)
+                .stream()
+                .map(CompanyMembership::getUser)
+                .filter(u -> u != null && Boolean.TRUE.equals(u.getIsActive()))
+                .toList();
+        List<LeaveType> activeLeaveTypes = leaveTypeRepository.findByCompanyIdAndIsActive(companyId, true);
+        List<LeaveBalance> yearBalances = leaveBalanceRepository.findAllLeaveBalancesForYearAndCompany(year, companyId);
 
         Map<String, LeaveBalance> balanceByKey = yearBalances.stream()
                 .filter(lb -> lb.getUser() != null && lb.getUser().getId() != null && lb.getLeaveType() != null && lb.getLeaveType().getId() != null)
@@ -881,10 +891,9 @@ public class ReportService {
 
     private List<ComplianceBreakIssueDto> computeBreakIssues(LocalDate startDate, LocalDate endDate) {
         // We reuse the approved time entry query and load breaks in bulk.
-        Specification<TimeEntry> spec = Specification
-                .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
+        Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
                 .and(TimeEntrySpecification.afterDate(startDate))
-                .and(TimeEntrySpecification.beforeDate(endDate));
+                .and(TimeEntrySpecification.beforeDate(endDate)));
         List<TimeEntry> entries = timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "entryDate", "id"));
 
         List<Long> ids = entries.stream()
@@ -932,7 +941,7 @@ public class ReportService {
     }
 
     private Map<Long, CompanyMembership> membershipsFor(java.util.Collection<Long> userIds) {
-        return membershipAccess.mapByUserId(TenantContext.getCompanyId(), userIds);
+        return membershipAccess.mapByUserId(currentCompanyId(), userIds);
     }
 
     private Department departmentOf(User user, Map<Long, CompanyMembership> memberships) {
@@ -941,6 +950,14 @@ public class ReportService {
         }
         CompanyMembership membership = memberships.get(user.getId());
         return membership == null ? null : membership.getDepartment();
+    }
+
+    private static Long currentCompanyId() {
+        return TenantContext.require().companyId();
+    }
+
+    private static Specification<TimeEntry> scoped(Specification<TimeEntry> extra) {
+        return Specification.where(TimeEntrySpecification.belongsToCurrentCompany()).and(extra);
     }
 }
 

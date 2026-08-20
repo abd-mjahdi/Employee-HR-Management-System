@@ -36,6 +36,7 @@ public interface LeaveTypeRepository extends JpaRepository<LeaveType, Long> {
     SELECT DISTINCT lt
     FROM LeaveType lt
     JOIN FETCH lt.leavePolicy
+    JOIN FETCH lt.company
     WHERE lt.company.id = :companyId
     """)
     List<LeaveType> findAllWithPolicyByCompanyId(@Param("companyId") Long companyId);

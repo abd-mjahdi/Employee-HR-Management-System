@@ -48,7 +48,25 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
             @Param("managerId") Long managerId,
             @Param("status") Status status);
 
+    Integer countByCompanyIdAndUserIdAndStatus(Long companyId, Long userId, Status status);
+
     Integer countByUserIdAndStatus(Long userId, Status status);
+
+    @Query("""
+    SELECT COUNT(te) FROM TimeEntry te
+    JOIN te.user u
+    JOIN u.memberships om
+    JOIN om.managerMembership mm
+    JOIN mm.user managerUser
+    WHERE managerUser.id = :managerId
+      AND om.company.id = :companyId
+      AND te.company.id = :companyId
+      AND te.status = :status
+    """)
+    Integer countByUserManagerIdAndStatusForCompany(
+            @Param("managerId") Long managerId,
+            @Param("status") Status status,
+            @Param("companyId") Long companyId);
 
     @Query("""
     SELECT COUNT(te) FROM TimeEntry te

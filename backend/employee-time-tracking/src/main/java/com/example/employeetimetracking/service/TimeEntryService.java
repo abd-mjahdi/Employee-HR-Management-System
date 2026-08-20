@@ -8,17 +8,21 @@ import com.example.employeetimetracking.dto.response.TimeEntryDto;
 import com.example.employeetimetracking.dto.response.TimeEntryBreakDto;
 import com.example.employeetimetracking.dto.response.TimeSummaryItemDto;
 import com.example.employeetimetracking.exception.InvalidTimeEntryException;
+import com.example.employeetimetracking.exception.InvalidTenantException;
 import com.example.employeetimetracking.mapper.TimeEntryMapper;
+import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.Project;
 import com.example.employeetimetracking.model.entities.TimeEntry;
 import com.example.employeetimetracking.model.entities.TimeEntryBreak;
 import com.example.employeetimetracking.model.entities.User;
 import com.example.employeetimetracking.model.enums.Status;
+import com.example.employeetimetracking.repository.CompanyRepository;
 import com.example.employeetimetracking.repository.TimeEntryBreakRepository;
 import com.example.employeetimetracking.repository.TimeEntryRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.TimeEntrySpecification;
 import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -56,6 +60,7 @@ public class TimeEntryService {
     private final UserService userService;
     private final LeaveRequestService leaveRequestService;
     private final MembershipAccess membershipAccess;
+    private final CompanyRepository companyRepository;
 
     @Autowired
     public TimeEntryService(
@@ -65,7 +70,8 @@ public class TimeEntryService {
                             ProjectService projectService,
                             UserService userService,
                             LeaveRequestService leaveRequestService,
-                            MembershipAccess membershipAccess
+                            MembershipAccess membershipAccess,
+                            CompanyRepository companyRepository
     ) {
         this.timeEntryRepository = timeEntryRepository;
         this.timeEntryBreakRepository = timeEntryBreakRepository;
@@ -74,11 +80,13 @@ public class TimeEntryService {
         this.userService = userService;
         this.leaveRequestService = leaveRequestService;
         this.membershipAccess = membershipAccess;
+        this.companyRepository = companyRepository;
     }
 
     public List<TimeEntryDto> getRecentTimeEntries(User user) {
         Pageable limit = PageRequest.of(0, 8);
-        List<TimeEntry> recentTimeEntries = timeEntryRepository.findByUserIdOrderByEntryDateDesc(user.getId(), limit);
+        List<TimeEntry> recentTimeEntries = timeEntryRepository.findByCompanyIdAndUserIdOrderByEntryDateDesc(
+                currentCompanyId(), user.getId(), limit);
         return toDtos(recentTimeEntries);
     }
 
@@ -87,7 +95,8 @@ public class TimeEntryService {
         LocalDate startOfWeek = today.with(WeekFields.of(Locale.getDefault()).dayOfWeek(), 1);
 
         List<TimeEntry> timeEntriesThisWeek = timeEntryRepository
-                .findByUserIdAndEntryDateBetweenAndStatus(userId, startOfWeek, today, Status.APPROVED);
+                .findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                        currentCompanyId(), userId, startOfWeek, today, Status.APPROVED);
 
         BigDecimal hoursThisWeek = BigDecimal.ZERO;
         for (TimeEntry timeEntry : timeEntriesThisWeek) {
@@ -101,7 +110,8 @@ public class TimeEntryService {
         LocalDate startOfMonth = today.withDayOfMonth(1);
 
         List<TimeEntry> timeEntriesThisMonth = timeEntryRepository
-                .findByUserIdAndEntryDateBetweenAndStatus(userId, startOfMonth, today, Status.APPROVED);
+                .findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                        currentCompanyId(), userId, startOfMonth, today, Status.APPROVED);
 
         BigDecimal hoursThisMonth = BigDecimal.ZERO;
         for (TimeEntry te : timeEntriesThisMonth) {
@@ -116,7 +126,8 @@ public class TimeEntryService {
 
         BigDecimal totalHoursThisWeek = getHoursThisWeek(userId);
         List<TimeEntry> monthEntries = timeEntryRepository
-                .findByUserIdAndEntryDateBetweenAndStatus(userId, startOfMonth, today, Status.APPROVED);
+                .findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                        currentCompanyId(), userId, startOfMonth, today, Status.APPROVED);
 
         BigDecimal monthTotalHours = monthEntries.stream()
                 .map(TimeEntry::getTotalHours)
@@ -158,11 +169,11 @@ public class TimeEntryService {
     }
 
     public Integer getUserPendingCount(Long userId) {
-        return timeEntryRepository.countByUserIdAndStatus(userId, Status.PENDING);
+        return timeEntryRepository.countByCompanyIdAndUserIdAndStatus(currentCompanyId(), userId, Status.PENDING);
     }
 
     public Integer getPendingTimeApprovalsCount(Long userId) {
-        return timeEntryRepository.countByUserManagerIdAndStatus(userId, Status.PENDING);
+        return timeEntryRepository.countByUserManagerIdAndStatusForCompany(userId, Status.PENDING, currentCompanyId());
     }
 
     public TimeEntry createTimeEntryEntity(CreateTimeEntryDto request, User user, Project project) {
@@ -192,7 +203,8 @@ public class TimeEntryService {
     }
 
     private void assertNoTimeOverlap(User user, LocalDate date, LocalTime in, LocalTime out, Long excludeId) {
-        List<TimeEntry> onDay = timeEntryRepository.findByUserIdAndEntryDate(user.getId(), date);
+        List<TimeEntry> onDay = timeEntryRepository.findByCompanyIdAndUserIdAndEntryDate(
+                currentCompanyId(), user.getId(), date);
         for (TimeEntry other : onDay) {
             if (excludeId != null && other.getId() != null && other.getId().equals(excludeId)) {
                 continue;
@@ -413,7 +425,7 @@ public class TimeEntryService {
     }
 
     private TimeEntry getById(Long id) {
-        return timeEntryRepository.findById(id)
+        return timeEntryRepository.findByIdAndCompanyId(id, currentCompanyId())
                 .orElseThrow(() -> new InvalidTimeEntryException("Time entry not found with id: " + id));
     }
 
@@ -460,13 +472,16 @@ public class TimeEntryService {
     public TimeEntryDto create(CreateTimeEntryDto request, Long userId) {
         User user = userService.getById(userId);
         Project project = projectService.getById(request.getProjectId());
+        Company company = companyRepository.findById(currentCompanyId())
+                .orElseThrow(() -> new InvalidTenantException("Tenant not found"));
         TimeEntry te = createTimeEntryEntity(request, user, project);
+        te.setCompany(company);
         validateTimeEntry(te);
         return toDto(timeEntryRepository.save(te));
     }
 
     public List<TimeEntryDto> getByUserId(Long userId, Status status, LocalDate startDate, LocalDate endDate) {
-        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatus(status)
+        Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(status)
                 .and(TimeEntrySpecification.hasUserId(userId))
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate)));
@@ -481,7 +496,7 @@ public class TimeEntryService {
             LocalDate endDate,
             String name
     ) {
-        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatus(status)
+        Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(status)
                 .and(TimeEntrySpecification.afterDate(startDate))
                 .and(TimeEntrySpecification.beforeDate(endDate))
                 .and(TimeEntrySpecification.hasName(name)));
@@ -659,7 +674,7 @@ public class TimeEntryService {
     @Transactional
     public List<TimeEntryDto> getPendingApprovalQueue(Long actorId, boolean hrAdmin) {
         List<Status> queueStatuses = List.of(Status.PENDING, Status.PENDING_CORRECTION);
-        Specification<TimeEntry> spec = Specification.where(TimeEntrySpecification.hasStatusIn(queueStatuses));
+        Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatusIn(queueStatuses));
         if (!hrAdmin) {
             spec = spec.and(TimeEntrySpecification.hasManagerId(actorId));
         }
@@ -708,22 +723,20 @@ public class TimeEntryService {
             if (!isHrAdmin && !isDirectSupervisorOf(userService.getById(actorId), target)) {
                 throw new InvalidTimeEntryException("You cannot access this user's time entries for export");
             }
-            return timeEntryRepository.findByUserIdAndEntryDateBetweenAndStatus(
-                    userId, startDate, endDate, Status.APPROVED);
+            return timeEntryRepository.findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                    currentCompanyId(), userId, startDate, endDate, Status.APPROVED);
         }
         if (isHrAdmin) {
-            Specification<TimeEntry> spec = Specification
-                    .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
+            Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
                     .and(TimeEntrySpecification.afterDate(startDate))
-                    .and(TimeEntrySpecification.beforeDate(endDate));
+                    .and(TimeEntrySpecification.beforeDate(endDate)));
             return timeEntryRepository.findAll(spec, Sort.by(Sort.Direction.ASC, "entryDate", "id"));
         }
         return timeEntryRepository.findAll(
-                Specification
-                        .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
+                scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
                         .and(TimeEntrySpecification.hasManagerId(actorId))
                         .and(TimeEntrySpecification.afterDate(startDate))
-                        .and(TimeEntrySpecification.beforeDate(endDate)),
+                        .and(TimeEntrySpecification.beforeDate(endDate))),
                 Sort.by(Sort.Direction.ASC, "entryDate", "id")
         );
     }
@@ -805,19 +818,18 @@ public class TimeEntryService {
             if (!isHrAdmin && !isDirectSupervisorOf(userService.getById(actorId), target)) {
                 throw new InvalidTimeEntryException("You cannot access this user's summary");
             }
-            entries = timeEntryRepository.findByUserIdAndEntryDateBetweenAndStatus(userId, startDate, endDate, Status.APPROVED);
+            entries = timeEntryRepository.findByCompanyIdAndUserIdAndEntryDateBetweenAndStatus(
+                    currentCompanyId(), userId, startDate, endDate, Status.APPROVED);
         } else if (isHrAdmin) {
-            Specification<TimeEntry> spec = Specification
-                    .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
-                    .and(TimeEntrySpecification.afterDate(startDate))
-                    .and(TimeEntrySpecification.beforeDate(endDate));
-            entries = timeEntryRepository.findAll(spec);
-        } else {
-            entries = timeEntryRepository.findAll(Specification
-                    .where(TimeEntrySpecification.hasStatus(Status.APPROVED))
-                    .and(TimeEntrySpecification.hasManagerId(actorId))
+            Specification<TimeEntry> spec = scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
                     .and(TimeEntrySpecification.afterDate(startDate))
                     .and(TimeEntrySpecification.beforeDate(endDate)));
+            entries = timeEntryRepository.findAll(spec);
+        } else {
+            entries = timeEntryRepository.findAll(scoped(TimeEntrySpecification.hasStatus(Status.APPROVED)
+                    .and(TimeEntrySpecification.hasManagerId(actorId))
+                    .and(TimeEntrySpecification.afterDate(startDate))
+                    .and(TimeEntrySpecification.beforeDate(endDate))));
         }
 
         BigDecimal totalHours = entries.stream()
@@ -844,5 +856,13 @@ public class TimeEntryService {
                 .map(e -> new TimeSummaryItemDto(e.getKey(), e.getValue()))
                 .sorted(Comparator.comparing(TimeSummaryItemDto::getKey))
                 .toList();
+    }
+
+    private static Long currentCompanyId() {
+        return TenantContext.require().companyId();
+    }
+
+    private static Specification<TimeEntry> scoped(Specification<TimeEntry> extra) {
+        return Specification.where(TimeEntrySpecification.belongsToCurrentCompany()).and(extra);
     }
 }

@@ -31,6 +31,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Collections;
@@ -256,7 +261,7 @@ class UserServiceTest {
     void deactivate_withActiveReports_rejected() {
         when(userRepository.findById(2L)).thenReturn(Optional.of(manager));
         when(companyMembershipRepository.findByUserIdAndCompanyId(2L, 1L)).thenReturn(Optional.of(managerMembership));
-        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE))
+        when(companyMembershipRepository.findByCompanyIdAndManagerMembershipIdAndStatus(1L, 2L, MembershipStatus.ACTIVE))
                 .thenReturn(List.of(employeeMembership));
 
         assertThrows(InvalidUserException.class, () -> userService.deactivateUserById(2L, 1L));
@@ -266,7 +271,7 @@ class UserServiceTest {
     void deactivate_okWhenNoReports() {
         when(userRepository.findById(3L)).thenReturn(Optional.of(employee));
         when(companyMembershipRepository.findByUserIdAndCompanyId(3L, 1L)).thenReturn(Optional.of(employeeMembership));
-        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(3L, MembershipStatus.ACTIVE))
+        when(companyMembershipRepository.findByCompanyIdAndManagerMembershipIdAndStatus(1L, 3L, MembershipStatus.ACTIVE))
                 .thenReturn(Collections.emptyList());
 
         userService.deactivateUserById(3L, 1L);
@@ -278,14 +283,46 @@ class UserServiceTest {
     @Test
     void getTeamMembers_returnsOnlyActiveReports() {
         when(companyMembershipRepository.findByUserIdAndCompanyId(2L, 1L)).thenReturn(Optional.of(managerMembership));
-        when(companyMembershipRepository.findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE))
+        when(companyMembershipRepository.findByCompanyIdAndManagerMembershipIdAndStatus(1L, 2L, MembershipStatus.ACTIVE))
                 .thenReturn(List.of(employeeMembership));
         when(userMapper.toDto(employee, employeeMembership)).thenReturn(new UserResponseDto());
 
         List<UserResponseDto> team = userService.getTeamMembers(2L);
 
         assertEquals(1, team.size());
-        verify(companyMembershipRepository).findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE);
+        verify(companyMembershipRepository).findByCompanyIdAndManagerMembershipIdAndStatus(
+                1L, 2L, MembershipStatus.ACTIVE);
+        verify(companyMembershipRepository, never()).findByManagerMembershipIdAndStatus(2L, MembershipStatus.ACTIVE);
+    }
+
+    @Test
+    void getAll_listsCurrentCompanyMembershipsOnly() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(companyMembershipRepository.findByCompanyId(1L, pageable))
+                .thenReturn(new PageImpl<>(List.of(employeeMembership, managerMembership)));
+        when(userMapper.toDto(employee, employeeMembership)).thenReturn(new UserResponseDto());
+        when(userMapper.toDto(manager, managerMembership)).thenReturn(new UserResponseDto());
+
+        Page<UserResponseDto> result = userService.getAll(pageable);
+
+        assertEquals(2, result.getContent().size());
+        verify(companyMembershipRepository).findByCompanyId(1L, pageable);
+        verify(userRepository, never()).findAll(pageable);
+        verify(userRepository, never()).findAll();
+    }
+
+    @Test
+    void searchUsers_queriesMembershipsInCurrentCompany() {
+        when(companyMembershipRepository.findAll(any(Specification.class)))
+                .thenReturn(List.of(employeeMembership));
+        when(userMapper.toDto(employee, employeeMembership)).thenReturn(new UserResponseDto());
+
+        List<UserResponseDto> result = userService.searchUsers(1L, UserRole.EMPLOYEE, true, "emp");
+
+        assertEquals(1, result.size());
+        verify(companyMembershipRepository).findAll(any(Specification.class));
+        verify(userRepository, never()).findAll(any(Specification.class));
+        verify(userRepository, never()).findAll();
     }
 
     private CompanyMembership membership(Long id, User user, UserRole role, CompanyMembership manager) {

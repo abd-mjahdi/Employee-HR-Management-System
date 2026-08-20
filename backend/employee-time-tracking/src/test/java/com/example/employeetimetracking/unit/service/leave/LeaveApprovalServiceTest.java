@@ -5,6 +5,7 @@ import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.LeaveRequest;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.CompanyStatus;
 import com.example.employeetimetracking.model.enums.MembershipStatus;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.model.enums.UserRole;
@@ -14,12 +15,15 @@ import com.example.employeetimetracking.service.LeaveBalanceService;
 import com.example.employeetimetracking.service.LeaveRequestService;
 import com.example.employeetimetracking.service.NotificationService;
 import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Optional;
 
@@ -55,10 +59,12 @@ public class LeaveApprovalServiceTest {
     private LeaveRequest leaveRequest;
     private CompanyMembership ownerMembership;
     private CompanyMembership hrOwnerMembership;
+    private Company company;
 
     @BeforeEach
     void setUp() {
-        Company company = new Company();
+        TenantContext.set(new TenantContext.TenantInfo(1L, "acme", CompanyStatus.ACTIVE));
+        company = new Company();
         company.setId(1L);
 
         manager = user(10L, "manager@test.com");
@@ -78,8 +84,14 @@ public class LeaveApprovalServiceTest {
 
         leaveRequest = new LeaveRequest();
         leaveRequest.setId(100L);
+        leaveRequest.setCompany(company);
         leaveRequest.setUser(owner);
         leaveRequest.setStatus(Status.APPROVED);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     @Test
@@ -189,6 +201,19 @@ public class LeaveApprovalServiceTest {
 
         assertThrows(org.springframework.security.access.AccessDeniedException.class, () ->
                 leaveApprovalService.approve(100L, managerDetails, "ok"));
+    }
+
+    @Test
+    void testHrFromOtherCompanyCannotApprove() {
+        leaveRequest.setStatus(Status.PENDING);
+        leaveRequest.setManagerApprovalStatus(Status.PENDING);
+        when(leaveRequestService.getById(100L)).thenReturn(leaveRequest);
+        when(membershipAccess.findFor(peerHrDetails, owner.getId())).thenReturn(Optional.empty());
+
+        assertThrows(AccessDeniedException.class, () ->
+                leaveApprovalService.approve(100L, peerHrDetails, "ok"));
+        verify(leaveRequestService, never()).approve(any(), any(), any());
+        verify(leaveBalanceService, never()).deductLeaveBalance(any(), any());
     }
 
     private static User user(Long id, String email) {

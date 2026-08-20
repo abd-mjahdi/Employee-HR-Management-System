@@ -46,6 +46,7 @@ public class GlobalExceptionHandler {
             EmailAlreadyRegisteredException.class,
             UsernameAlreadyExists.class,
             ProjectCodeAlreadyExistsException.class,
+            DepartmentAlreadyExistsException.class,
             BootstrapAlreadyCompletedException.class
     })
     public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException exception) {
@@ -86,7 +87,8 @@ public class GlobalExceptionHandler {
             LeaveTypeNotFoundException.class,
             LeaveRequestNotFoundException.class,
             InvitationNotFoundException.class,
-            DepartmentNotFoundException.class
+            DepartmentNotFoundException.class,
+            AuditLogNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

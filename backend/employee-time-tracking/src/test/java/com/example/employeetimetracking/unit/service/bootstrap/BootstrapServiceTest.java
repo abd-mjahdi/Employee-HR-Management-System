@@ -90,7 +90,6 @@ class BootstrapServiceTest {
 
         BootstrapCompanyResponseDto response = bootstrapService.bootstrap(KEY, request("Northwind", "Northwind", "secret1"));
 
-        assertEquals(1L, response.getCompanyId());
         assertEquals("Northwind", response.getCompanyName());
         assertEquals("northwind", response.getSlug());
         assertEquals("hr@northwind.com", response.getAdminEmail());

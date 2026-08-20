@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.model.entities;
 
 import com.example.employeetimetracking.model.enums.ActionType;
+import com.example.employeetimetracking.tenant.AuditLogCompanyListener;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@EntityListeners(AuditLogCompanyListener.class)
 @Table(name="audit_logs")
 public class AuditLog {
     @Id

@@ -8,10 +8,12 @@ import com.example.employeetimetracking.mapper.LeaveRequestMapper;
 import com.example.employeetimetracking.model.entities.*;
 import com.example.employeetimetracking.model.enums.Status;
 import com.example.employeetimetracking.model.enums.UserRole;
+import com.example.employeetimetracking.repository.CompanyRepository;
 import com.example.employeetimetracking.repository.LeaveRequestRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.LeaveRequestSpecifications;
 import com.example.employeetimetracking.tenant.MembershipAccess;
+import com.example.employeetimetracking.tenant.TenantContext;
 import com.example.employeetimetracking.util.WorkingDaysCalculator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,7 @@ public class LeaveRequestService {
     private final UserService userService;
     private final WorkingDaysCalculator workingDaysCalculator;
     private final MembershipAccess membershipAccess;
+    private final CompanyRepository companyRepository;
 
     @Autowired
     public LeaveRequestService(LeaveRequestRepository leaveRequestRepository,
@@ -50,7 +53,8 @@ public class LeaveRequestService {
                                LeaveBalanceService leaveBalanceService,
                                UserService userService,
                                WorkingDaysCalculator workingDaysCalculator,
-                               MembershipAccess membershipAccess) {
+                               MembershipAccess membershipAccess,
+                               CompanyRepository companyRepository) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.leaveTypeService = leaveTypeService;
         this.leaveRequestMapper = leaveRequestMapper;
@@ -59,13 +63,16 @@ public class LeaveRequestService {
         this.userService = userService;
         this.workingDaysCalculator = workingDaysCalculator;
         this.membershipAccess = membershipAccess;
+        this.companyRepository = companyRepository;
     }
     public List<LeaveRequestDto> getByUserIdOrderByCreatedAtDesc(Long userId){
-        return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(leaveRequestMapper::toDto).toList();
+        return leaveRequestRepository.findByCompanyIdAndUserIdOrderByCreatedAtDesc(currentCompanyId(), userId)
+                .stream().map(leaveRequestMapper::toDto).toList();
     }
 
     public LeaveRequest getById(Long id){
-        return leaveRequestRepository.findById(id).orElseThrow(()-> new LeaveRequestNotFoundException("Leave request not found with the id :"+id));
+        return leaveRequestRepository.findByIdAndCompanyId(id, currentCompanyId())
+                .orElseThrow(()-> new LeaveRequestNotFoundException("Leave request not found with the id :"+id));
     }
 
     public LeaveRequestDto getIfAllowed(Long id, CustomUserDetails authenticatedUser) {
@@ -98,7 +105,8 @@ public class LeaveRequestService {
             );
         }
         Specification<LeaveRequest> spec = Specification
-                .where(LeaveRequestSpecifications.hasUserId(userId))
+                .where(LeaveRequestSpecifications.belongsToCurrentCompany())
+                .and(LeaveRequestSpecifications.hasUserId(userId))
                 .and(LeaveRequestSpecifications.hasStatus(status))
                 .and(LeaveRequestSpecifications.afterDate(startDate))
                 .and(LeaveRequestSpecifications.beforeDate(endDate));
@@ -115,7 +123,12 @@ public class LeaveRequestService {
         int safeLimit = Math.max(1, Math.min(limit, 50));
         Pageable pageable = PageRequest.of(0, safeLimit);
         return leaveRequestRepository
-                .findByUserIdAndStatusInAndStartDateAfterOrderByStartDateAsc(userId, List.of(Status.APPROVED, Status.CANCELLATION_PENDING), LocalDate.now(), pageable)
+                .findByCompanyIdAndUserIdAndStatusInAndStartDateAfterOrderByStartDateAsc(
+                        currentCompanyId(),
+                        userId,
+                        List.of(Status.APPROVED, Status.CANCELLATION_PENDING),
+                        LocalDate.now(),
+                        pageable)
                 .stream()
                 .map(leaveRequestMapper::toDto)
                 .toList();
@@ -124,7 +137,7 @@ public class LeaveRequestService {
     public List<LeaveRequestDto> getRecentLeaveRequests(Long userId, int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 50));
         Pageable pageable = PageRequest.of(0, safeLimit);
-        return leaveRequestRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+        return leaveRequestRepository.findByCompanyIdAndUserIdOrderByCreatedAtDesc(currentCompanyId(), userId, pageable)
                 .stream()
                 .map(leaveRequestMapper::toDto)
                 .toList();
@@ -132,7 +145,7 @@ public class LeaveRequestService {
 
     // Count of self pending leave requests
     public Integer getUserPendingCount(Long userId){
-        return leaveRequestRepository.countByUserIdAndStatus(userId ,Status.PENDING);
+        return leaveRequestRepository.countByCompanyIdAndUserIdAndStatus(currentCompanyId(), userId, Status.PENDING);
     }
     // Number of leave requests from their direct reports with manager_approval_status=PENDING waiting for the manager to approve
     public Integer getPendingLeaveApprovalsCount(Long actorId){
@@ -140,12 +153,13 @@ public class LeaveRequestService {
     }
 
     public Integer getPendingLeaveApprovalsCount(Long actorId, boolean hrAdmin){
-        int reports = nz(leaveRequestRepository.countByManagerIdAndStatus(actorId, Status.PENDING));
+        Long companyId = currentCompanyId();
+        int reports = nz(leaveRequestRepository.countByManagerIdAndStatusForCompany(actorId, Status.PENDING, companyId));
         if (!hrAdmin) {
             return reports;
         }
-        return reports + nz(leaveRequestRepository.countByUserUserRoleAndStatusAndUserIdNot(
-                UserRole.HR_ADMIN, Status.PENDING, actorId));
+        return reports + nz(leaveRequestRepository.countByUserUserRoleAndStatusAndUserIdNotForCompany(
+                UserRole.HR_ADMIN, Status.PENDING, actorId, companyId));
     }
 
     public List<LeaveRequestReviewDto> getDirectReportPendingRequests(Long actorId){
@@ -165,12 +179,13 @@ public class LeaveRequestService {
     }
 
     private List<LeaveRequestReviewDto> requestsForReviewer(Long actorId, boolean hrAdmin, Status status) {
+        Long companyId = currentCompanyId();
         List<LeaveRequest> requests = new ArrayList<>(
-                leaveRequestRepository.findByUserManagerIdAndStatus(actorId, status)
+                leaveRequestRepository.findByUserManagerIdAndStatusForCompany(actorId, status, companyId)
         );
         if (hrAdmin) {
-            requests.addAll(leaveRequestRepository.findByUserUserRoleAndStatusAndUserIdNot(
-                    UserRole.HR_ADMIN, status, actorId));
+            requests.addAll(leaveRequestRepository.findByUserUserRoleAndStatusAndUserIdNotForCompany(
+                    UserRole.HR_ADMIN, status, actorId, companyId));
         }
         return requests.stream().map(leaveRequestMapper::toLeaveRequestReviewDto).toList();
     }
@@ -181,7 +196,11 @@ public class LeaveRequestService {
     // Number of their direct reports who have approved leave for today's date
     public Integer getTeamMembersOnLeaveToday(Long managerId){
         LocalDate today = LocalDate.now();
-        return leaveRequestRepository.teamMembersOnLeaveTodayInStatuses(managerId , List.of(Status.APPROVED, Status.CANCELLATION_PENDING) , today);
+        return leaveRequestRepository.teamMembersOnLeaveTodayInStatusesForCompany(
+                managerId,
+                List.of(Status.APPROVED, Status.CANCELLATION_PENDING),
+                today,
+                currentCompanyId());
     }
 
     public void validateLeaveRequest(LeaveRequest lr, LeavePolicy policy, LeaveBalance balance){
@@ -201,7 +220,12 @@ public class LeaveRequestService {
             throw new InsufficientNoticePeriodException("Leave request does not meet minimum notice period requirement");
         }
 
-        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequests(lr.getUser().getId(), List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING), lr.getStartDate(), lr.getEndDate());
+        List<LeaveRequest> existingLeaveRequests = leaveRequestRepository.findOverlappingRequestsForCompany(
+                lr.getUser().getId(),
+                currentCompanyId(),
+                List.of(Status.PENDING, Status.APPROVED, Status.CANCELLATION_PENDING),
+                lr.getStartDate(),
+                lr.getEndDate());
         if(!existingLeaveRequests.isEmpty()){
             throw new OverlappingLeaveRequestException("Leave request overlaps with an existing request");
         }
@@ -221,7 +245,11 @@ public class LeaveRequestService {
         LeavePolicy policy = leavePolicyService.getPolicyByLeaveTypeId(request.getLeaveTypeId());
         LeaveBalance balance = leaveBalanceService.getByUserIdAndLeaveTypeIdAndYear(id, leaveType.getId(), request.getStartDate().getYear());
 
+        Company company = companyRepository.findById(currentCompanyId())
+                .orElseThrow(() -> new InvalidTenantException("Tenant not found"));
+
         LeaveRequest lr = new LeaveRequest();
+        lr.setCompany(company);
         lr.setUser(user);
         lr.setLeaveType(leaveType);
         lr.setStartDate(request.getStartDate());
@@ -257,7 +285,8 @@ public class LeaveRequestService {
             LocalDate endDate
     ){
         Specification<LeaveRequest> spec = Specification
-                .where(LeaveRequestSpecifications.hasManagerId(managerId))
+                .where(LeaveRequestSpecifications.belongsToCurrentCompany())
+                .and(LeaveRequestSpecifications.hasManagerId(managerId))
                 .and(LeaveRequestSpecifications.hasStatus(status))
                 .and(LeaveRequestSpecifications.afterDate(startDate))
                 .and(LeaveRequestSpecifications.beforeDate(endDate));
@@ -298,7 +327,12 @@ public class LeaveRequestService {
     }
 
     public boolean hasActiveLeaveRequestOnDate(User user, LocalDate entryDate, List<Status> statuses){
-        return leaveRequestRepository.countInRangeAndStatusForUser(user,entryDate,statuses)!=0;
+        return leaveRequestRepository.countInRangeAndStatusForUserAndCompany(
+                user, currentCompanyId(), entryDate, statuses) != 0;
+    }
+
+    private static Long currentCompanyId() {
+        return TenantContext.require().companyId();
     }
 
 }

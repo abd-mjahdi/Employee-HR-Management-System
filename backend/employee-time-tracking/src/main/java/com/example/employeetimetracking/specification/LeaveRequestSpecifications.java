@@ -11,20 +11,24 @@ import org.springframework.data.jpa.domain.Specification;
 import java.time.LocalDate;
 
 public class LeaveRequestSpecifications {
+    public static Specification<LeaveRequest> belongsToCurrentCompany() {
+        return (root, query, cb) ->
+                cb.equal(root.get("company").get("id"), TenantContext.require().companyId());
+    }
+
     public static Specification<LeaveRequest> hasManagerId(Long id){
         return (root, query, cb) -> {
             if (id == null) {
                 return cb.conjunction();
             }
+            Long companyId = TenantContext.require().companyId();
             Subquery<Long> sq = query.subquery(Long.class);
             Root<CompanyMembership> membership = sq.from(CompanyMembership.class);
-            var companyPred = TenantContext.getCompanyId() == null
-                    ? cb.equal(membership.get("company"), root.get("company"))
-                    : cb.equal(membership.get("company").get("id"), TenantContext.getCompanyId());
             sq.select(membership.get("id")).where(
                     cb.equal(membership.get("user"), root.get("user")),
                     cb.equal(membership.get("managerMembership").get("user").get("id"), id),
-                    companyPred
+                    cb.equal(membership.get("company").get("id"), companyId),
+                    cb.equal(root.get("company").get("id"), companyId)
             );
             return cb.exists(sq);
         };

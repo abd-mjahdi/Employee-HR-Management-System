@@ -1,6 +1,7 @@
 package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.request.CreateProjectDto;
+import com.example.employeetimetracking.dto.request.UpdateProjectDto;
 import com.example.employeetimetracking.dto.response.ProjectDto;
 import com.example.employeetimetracking.service.ProjectService;
 import jakarta.validation.Valid;
@@ -11,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,5 +43,12 @@ public class ProjectController {
     @PostMapping
     public ResponseEntity<ProjectDto> create(@Valid @RequestBody CreateProjectDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(projectService.create(request));
+    }
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<ProjectDto> update(@PathVariable Long id,
+                                             @Valid @RequestBody UpdateProjectDto request) {
+        return ResponseEntity.ok(projectService.update(id, request));
     }
 }

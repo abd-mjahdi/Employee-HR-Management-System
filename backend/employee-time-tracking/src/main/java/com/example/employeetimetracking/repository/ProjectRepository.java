@@ -17,9 +17,5 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     boolean existsByCompanyIdAndProjectCode(Long companyId, String projectCode);
 
-    Optional<Project> findByProjectCode(String projectCode);
-
-    List<Project> findByIsActive(Boolean isActive);
-
-    boolean existsByProjectCode(String projectCode);
+    boolean existsByCompanyIdAndProjectCodeAndIdNot(Long companyId, String projectCode, Long id);
 }

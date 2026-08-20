@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 @Component
 public class TenantResolver {
 
-    private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$");
+    public static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$");
 
     static final String UNKNOWN_TENANT = "Tenant not found";
 

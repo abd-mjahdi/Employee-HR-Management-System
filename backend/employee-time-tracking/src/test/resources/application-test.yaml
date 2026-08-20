@@ -22,6 +22,8 @@ spring:
     expiration-ms: 3600000
 
 app:
+  bootstrap:
+    key: ${BOOTSTRAP_KEY:}
   tenant:
     base-domain: myhr.com
     local-dev-suffix: localhost

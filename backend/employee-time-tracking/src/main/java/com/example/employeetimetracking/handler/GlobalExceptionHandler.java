@@ -2,7 +2,6 @@ package com.example.employeetimetracking.handler;
 
 import com.example.employeetimetracking.dto.response.ErrorResponseDto;
 import com.example.employeetimetracking.dto.response.LoginResponseDto;
-import com.example.employeetimetracking.dto.response.RegisterResponseDto;
 import com.example.employeetimetracking.exception.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,21 +32,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDto("Tenant not found"));
     }
 
-    @ExceptionHandler(TenantMismatchException.class)
-    public ResponseEntity<ErrorResponseDto> handleTenantMismatch(TenantMismatchException ignored) {
+    @ExceptionHandler({TenantMismatchException.class, InvalidBootstrapKeyException.class})
+    public ResponseEntity<ErrorResponseDto> handleUnauthorized(RuntimeException ignored) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponseDto("Unauthorized"));
     }
 
-    @ExceptionHandler(DepartmentNotFoundException.class)
-    public ResponseEntity<RegisterResponseDto> handleDepartmentNotFound(DepartmentNotFoundException exception) {
-        RegisterResponseDto response = new RegisterResponseDto(exception.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    @ExceptionHandler(BootstrapDisabledException.class)
+    public ResponseEntity<ErrorResponseDto> handleBootstrapDisabled(BootstrapDisabledException ignored) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDto("Not found"));
     }
 
     @ExceptionHandler({
             EmailAlreadyRegisteredException.class,
             UsernameAlreadyExists.class,
-            ProjectCodeAlreadyExistsException.class
+            ProjectCodeAlreadyExistsException.class,
+            BootstrapAlreadyCompletedException.class
     })
     public ResponseEntity<ErrorResponseDto> handleConflict(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
@@ -72,7 +71,8 @@ public class GlobalExceptionHandler {
             InvalidTimeEntryException.class,
             InvalidUserException.class,
             InvitationExpiredException.class,
-            InvitationAlreadyUsedException.class
+            InvitationAlreadyUsedException.class,
+            InvalidSlugException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
@@ -85,7 +85,8 @@ public class GlobalExceptionHandler {
             LeaveBalanceNotFoundException.class,
             LeaveTypeNotFoundException.class,
             LeaveRequestNotFoundException.class,
-            InvitationNotFoundException.class
+            InvitationNotFoundException.class,
+            DepartmentNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

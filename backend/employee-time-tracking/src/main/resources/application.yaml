@@ -21,15 +21,19 @@ spring:
     secret: ${JWT_SECRET}
     expiration-ms: 3600000
 
-  liquibase:
+    liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
-    contexts: seed
+    # Default includes demo tenants. For a true first-run bootstrap, recreate the DB with LIQUIBASE_CONTEXTS empty.
+    contexts: ${LIQUIBASE_CONTEXTS:seed}
 
 holidays:
   dates:
 
 app:
+  bootstrap:
+    # Empty disables POST /internal/bootstrap/company. Set BOOTSTRAP_KEY for first-run only.
+    key: ${BOOTSTRAP_KEY:}
   tenant:
     base-domain: myhr.com
     local-dev-suffix: localhost

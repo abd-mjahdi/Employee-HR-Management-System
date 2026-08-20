@@ -40,7 +40,7 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = pathWithinApplication(request);
-        return isSwaggerOrDocs(path) || isActuator(path);
+        return isSwaggerOrDocs(path) || isActuator(path) || isInternalBootstrap(path);
     }
 
     @Override
@@ -82,5 +82,13 @@ public class TenantResolutionFilter extends OncePerRequestFilter {
 
     private static boolean isActuator(String path) {
         return path.equals("/actuator") || path.startsWith("/actuator/");
+    }
+
+    /**
+     * First-company bootstrap runs before any tenant exists; Host cannot be resolved.
+     * Protection is {@code X-Bootstrap-Key}, not JWT or tenant membership.
+     */
+    private static boolean isInternalBootstrap(String path) {
+        return path.equals("/internal/bootstrap/company");
     }
 }

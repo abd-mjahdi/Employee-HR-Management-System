@@ -10,6 +10,7 @@ import com.example.employeetimetracking.model.enums.AccrualMethod;
 import com.example.employeetimetracking.repository.LeaveBalanceRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -45,11 +46,13 @@ public class LeaveBalanceService {
 
     @Transactional
     public void initializeLeaveBalances(User user){
-        List<LeaveType> leaveTypes = leaveTypeService.getAllWithPolicy();
+        Long companyId = TenantContext.require().companyId();
+        List<LeaveType> leaveTypes = leaveTypeService.getAllWithPolicyByCompanyId(companyId);
 
         for(LeaveType leaveType : leaveTypes){
             LeavePolicy policy = leaveType.getLeavePolicy();
             LeaveBalance balance = new LeaveBalance();
+            balance.setCompany(leaveType.getCompany());
             balance.setUser(user);
             balance.setLeaveType(leaveType);
             short year =(short) LocalDate.now().getYear();

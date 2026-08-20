@@ -5,18 +5,28 @@ import com.example.employeetimetracking.dto.request.UserRequestDto;
 import com.example.employeetimetracking.dto.request.UserUpdateDto;
 import com.example.employeetimetracking.dto.response.UserCreatedResponse;
 import com.example.employeetimetracking.dto.response.UserResponseDto;
+import com.example.employeetimetracking.exception.DepartmentNotFoundException;
 import com.example.employeetimetracking.exception.EmailAlreadyRegisteredException;
 import com.example.employeetimetracking.exception.InvalidEmployeeManagerException;
 import com.example.employeetimetracking.exception.InvalidManagerSupervisorException;
+import com.example.employeetimetracking.exception.InvalidTenantException;
 import com.example.employeetimetracking.exception.InvalidUserException;
 import com.example.employeetimetracking.exception.UserNotFoundException;
 import com.example.employeetimetracking.exception.UsernameAlreadyExists;
 import com.example.employeetimetracking.mapper.UserMapper;
+import com.example.employeetimetracking.model.entities.Company;
+import com.example.employeetimetracking.model.entities.CompanyMembership;
+import com.example.employeetimetracking.model.entities.Department;
 import com.example.employeetimetracking.model.entities.User;
+import com.example.employeetimetracking.model.enums.MembershipStatus;
 import com.example.employeetimetracking.model.enums.UserRole;
+import com.example.employeetimetracking.repository.CompanyMembershipRepository;
+import com.example.employeetimetracking.repository.CompanyRepository;
+import com.example.employeetimetracking.repository.DepartmentRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.specification.UserSpecifications;
+import com.example.employeetimetracking.tenant.TenantContext;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,7 +38,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,16 +50,25 @@ public class UserService {
     private final BCryptPasswordEncoder encoder;
     private final UserRepository userRepository;
     private final DepartmentService departmentService;
+    private final DepartmentRepository departmentRepository;
+    private final CompanyRepository companyRepository;
+    private final CompanyMembershipRepository companyMembershipRepository;
     private final LeaveBalanceService leaveBalanceService;
 
     @Autowired
     public UserService(UserRepository userRepository,
                        DepartmentService departmentService,
+                       DepartmentRepository departmentRepository,
+                       CompanyRepository companyRepository,
+                       CompanyMembershipRepository companyMembershipRepository,
                        BCryptPasswordEncoder encoder,
                        UserMapper userMapper,
                        LeaveBalanceService leaveBalanceService) {
         this.userRepository = userRepository;
         this.departmentService = departmentService;
+        this.departmentRepository = departmentRepository;
+        this.companyRepository = companyRepository;
+        this.companyMembershipRepository = companyMembershipRepository;
         this.encoder = encoder;
         this.userMapper = userMapper;
         this.leaveBalanceService = leaveBalanceService;
@@ -190,12 +211,127 @@ public class UserService {
 
     @Transactional
     public UserCreatedResponse createUser(CreateUserRequestDto requestDto) {
-        validateNewUserData(requestDto);
-        String tempPassword = generateTemporaryPassword();
-        User user = createUserEntity(requestDto, tempPassword);
-        User savedUser = userRepository.save(user);
-        leaveBalanceService.initializeLeaveBalances(savedUser);
-        return new UserCreatedResponse(userMapper.toDto(savedUser), tempPassword);
+        Long companyId = TenantContext.require().companyId();
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new InvalidTenantException("Tenant not found"));
+
+        String email = requestDto.getEmail().trim().toLowerCase(Locale.ROOT);
+        Department department = departmentRepository.findByIdAndCompanyId(requestDto.getDepartmentId(), companyId)
+                .orElseThrow(() -> new DepartmentNotFoundException("Department does not exist"));
+        CompanyMembership managerMembership = resolveManagerMembership(
+                requestDto.getManagerMembershipId(), requestDto.getUserRole(), companyId, null);
+
+        Optional<User> existing = userRepository.findByEmail(email);
+        boolean createdNewUser = existing.isEmpty();
+        String tempPassword = null;
+        User user;
+
+        if (createdNewUser) {
+            if (userRepository.existsByUsername(requestDto.getUsername())) {
+                throw new UsernameAlreadyExists("username unavailable");
+            }
+            tempPassword = generateTemporaryPassword();
+            user = new User();
+            user.setUsername(requestDto.getUsername());
+            user.setEmail(email);
+            user.setPasswordHash(encoder.encode(tempPassword));
+            user.setFirstName(requestDto.getFirstName());
+            user.setLastName(requestDto.getLastName());
+            user.setIsActive(true);
+        } else {
+            user = existing.get();
+            if (companyMembershipRepository.findByUserIdAndCompanyId(user.getId(), companyId).isPresent()) {
+                throw new EmailAlreadyRegisteredException("User already belongs to this company");
+            }
+        }
+
+        dualWriteUser(user, requestDto.getUserRole(), department, managerMembership);
+        user = userRepository.save(user);
+
+        CompanyMembership membership = new CompanyMembership();
+        membership.setUser(user);
+        membership.setCompany(company);
+        membership.setRole(requestDto.getUserRole());
+        membership.setStatus(MembershipStatus.ACTIVE);
+        membership.setDepartment(department);
+        membership.setManagerMembership(managerMembership);
+        companyMembershipRepository.save(membership);
+
+        leaveBalanceService.initializeLeaveBalances(user);
+        return new UserCreatedResponse(userMapper.toDto(user), tempPassword);
+    }
+
+    private void dualWriteUser(User user,
+                               UserRole role,
+                               Department department,
+                               CompanyMembership managerMembership) {
+        user.setUserRole(role);
+        user.setDepartment(department);
+        user.setManager(managerMembership == null ? null : managerMembership.getUser());
+    }
+
+    public CompanyMembership requireManagerMembership(Long managerMembershipId, UserRole userRole, Long companyId) {
+        return resolveManagerMembership(managerMembershipId, userRole, companyId, null);
+    }
+
+    private CompanyMembership resolveManagerMembership(Long managerMembershipId,
+                                                       UserRole userRole,
+                                                       Long companyId,
+                                                       Long userId) {
+        if (userRole == UserRole.HR_ADMIN) {
+            if (managerMembershipId != null) {
+                throw new InvalidUserException("HR admin accounts cannot have a manager");
+            }
+            return null;
+        }
+
+        if (managerMembershipId == null) {
+            if (userRole == UserRole.EMPLOYEE) {
+                throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
+            }
+            throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
+        }
+
+        CompanyMembership managerMembership = companyMembershipRepository
+                .findByIdAndCompanyId(managerMembershipId, companyId)
+                .orElseThrow(() -> invalidManager(userRole));
+
+        if (managerMembership.getStatus() != MembershipStatus.ACTIVE
+                || !Boolean.TRUE.equals(managerMembership.getUser().getIsActive())) {
+            throw new InvalidUserException("Assigned manager must be an active user");
+        }
+        if (userId != null && Objects.equals(userId, managerMembership.getUser().getId())) {
+            throw new InvalidUserException("A user cannot be their own manager");
+        }
+        if (userRole == UserRole.EMPLOYEE && managerMembership.getRole() != UserRole.MANAGER) {
+            throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
+        }
+        if (userRole == UserRole.MANAGER && managerMembership.getRole() != UserRole.HR_ADMIN) {
+            throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
+        }
+        assertNoMembershipCycle(userId, managerMembership);
+        return managerMembership;
+    }
+
+    private static RuntimeException invalidManager(UserRole userRole) {
+        if (userRole == UserRole.EMPLOYEE) {
+            return new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
+        }
+        return new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
+    }
+
+    private void assertNoMembershipCycle(Long userId, CompanyMembership managerMembership) {
+        Set<Long> seen = new HashSet<>();
+        CompanyMembership current = managerMembership;
+        while (current != null) {
+            if (!seen.add(current.getId())) {
+                throw new InvalidUserException("Manager hierarchy contains a cycle");
+            }
+            if (userId != null && Objects.equals(current.getUser().getId(), userId)) {
+                throw new InvalidUserException("Manager assignment would create a cycle");
+            }
+            current = current.getManagerMembership();
+        }
     }
 
     /**
@@ -251,45 +387,6 @@ public class UserService {
                 throw new InvalidUserException("Manager assignment would create a cycle");
             }
             current = current.getManager();
-        }
-    }
-
-    private User createUserEntity(CreateUserRequestDto requestDto, String tempPassword) {
-        User user = new User();
-        user.setUsername(requestDto.getUsername());
-        user.setEmail(requestDto.getEmail());
-        user.setPasswordHash(encoder.encode(tempPassword));
-        user.setFirstName(requestDto.getFirstName());
-        user.setLastName(requestDto.getLastName());
-        user.setUserRole(requestDto.getUserRole());
-        user.setDepartment(departmentService.getById(requestDto.getDepartmentId()));
-        user.setIsActive(true);
-
-        if (requestDto.getUserRole() == UserRole.HR_ADMIN) {
-            if (requestDto.getManagerId() != null) {
-                throw new InvalidUserException("HR admin accounts cannot have a manager");
-            }
-            user.setManager(null);
-        } else {
-            if (requestDto.getManagerId() == null) {
-                if (requestDto.getUserRole() == UserRole.EMPLOYEE) {
-                    throw new InvalidEmployeeManagerException("Employee must have a manager with role MANAGER");
-                }
-                throw new InvalidManagerSupervisorException("Manager must have a supervisor with role HR_ADMIN");
-            }
-            User manager = getById(requestDto.getManagerId());
-            assertManagerAssignmentValid(null, requestDto.getUserRole(), manager);
-            user.setManager(manager);
-        }
-        return user;
-    }
-
-    private void validateNewUserData(CreateUserRequestDto requestDto) {
-        if (userRepository.existsByEmail(requestDto.getEmail())) {
-            throw new EmailAlreadyRegisteredException("user already exists with that email");
-        }
-        if (userRepository.existsByUsername(requestDto.getUsername())) {
-            throw new UsernameAlreadyExists("username unavailable");
         }
     }
 

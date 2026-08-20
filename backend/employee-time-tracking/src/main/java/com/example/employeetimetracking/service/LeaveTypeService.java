@@ -36,4 +36,8 @@ public class LeaveTypeService {
         return leaveTypeRepository.findAllWithPolicy();
     }
 
+    public List<LeaveType> getAllWithPolicyByCompanyId(Long companyId) {
+        return leaveTypeRepository.findAllWithPolicyByCompanyId(companyId);
+    }
+
 }

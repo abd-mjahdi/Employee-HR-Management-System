@@ -9,26 +9,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Setter
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateUserRequestDto {
-    @NotBlank
-    private String username;
-
+public class CreateInvitationRequestDto {
     @NotBlank
     @Email
     private String email;
 
-    @NotBlank
-    private String firstName;
-
-    @NotBlank
-    private String lastName;
-
     @NotNull
-    private UserRole userRole;
+    private UserRole role;
 
     @NotNull
     private Long departmentId;

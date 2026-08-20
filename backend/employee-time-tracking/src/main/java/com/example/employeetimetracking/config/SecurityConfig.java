@@ -45,6 +45,7 @@ public class SecurityConfig {
                 auth
                         .requestMatchers(
                                 "/auth/login",
+                                "/auth/invitations/accept",
                                 "/internal/bootstrap/company",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

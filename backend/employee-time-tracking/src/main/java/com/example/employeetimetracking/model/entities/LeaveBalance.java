@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name="leave_balances" , uniqueConstraints = @UniqueConstraint(columnNames ={"user_id", "leave_type_id", "year"} ))
+@Table(name="leave_balances")
 public class LeaveBalance {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

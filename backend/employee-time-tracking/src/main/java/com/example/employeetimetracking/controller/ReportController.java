@@ -2,10 +2,8 @@ package com.example.employeetimetracking.controller;
 
 import com.example.employeetimetracking.dto.response.DepartmentUtilizationReportDto;
 import com.example.employeetimetracking.dto.response.EmployeeTimeReportDto;
-import com.example.employeetimetracking.dto.response.AbsencePatternsReportDto;
 import com.example.employeetimetracking.dto.response.ComplianceReportDto;
 import com.example.employeetimetracking.dto.response.LeaveBalanceReportDto;
-import com.example.employeetimetracking.dto.response.OvertimeSummaryReportDto;
 import com.example.employeetimetracking.dto.response.PayrollReportDto;
 import com.example.employeetimetracking.dto.response.ProjectHoursReportDto;
 import com.example.employeetimetracking.dto.response.TeamLeaveReportDto;
@@ -40,7 +38,6 @@ public class ReportController {
         this.membershipAccess = membershipAccess;
     }
 
-    // Task 135
     @GetMapping("/employee-time")
     public ResponseEntity<EmployeeTimeReportDto> employeeTime(
             @RequestParam(required = false) Long userId,
@@ -53,7 +50,6 @@ public class ReportController {
         return ResponseEntity.ok(reportService.generateEmployeeTimeReport(targetUserId, startDate, endDate));
     }
 
-    // Task 136
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @GetMapping("/team-leave")
     public ResponseEntity<TeamLeaveReportDto> teamLeave(
@@ -61,27 +57,34 @@ public class ReportController {
             @RequestParam LocalDate endDate,
             @AuthenticationPrincipal CustomUserDetails authenticatedUser
     ) {
-        // report is always for the caller's team
-        return ResponseEntity.ok(reportService.generateTeamLeaveReport(authenticatedUser.getId(), startDate, endDate));
+        boolean hr = authenticatedUser.hasRole("HR_ADMIN");
+        return ResponseEntity.ok(reportService.generateTeamLeaveReport(
+                authenticatedUser.getId(), hr, startDate, endDate));
     }
 
-    // Task 137
     @PreAuthorize("hasRole('HR_ADMIN')")
     @GetMapping("/payroll")
-    public ResponseEntity<?> payroll(
+    public ResponseEntity<PayrollReportDto> payroll(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate,
             @RequestParam(required = false, defaultValue = "json") String format
     ) {
+        requirePayrollJsonFormat(format);
+        return ResponseEntity.ok(reportService.generatePayrollReport(startDate, endDate));
+    }
+
+    @PreAuthorize("hasRole('HR_ADMIN')")
+    @GetMapping(value = "/payroll", params = "format=csv")
+    public ResponseEntity<byte[]> payrollCsv(
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
         PayrollReportDto report = reportService.generatePayrollReport(startDate, endDate);
-        if ("csv".equalsIgnoreCase(format)) {
-            byte[] csv = payrollToCsv(report);
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"payroll.csv\"")
-                    .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-                    .body(csv);
-        }
-        return ResponseEntity.ok(report);
+        byte[] csv = payrollToCsv(report);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"payroll.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv);
     }
 
     @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
@@ -96,15 +99,19 @@ public class ReportController {
             Long myDeptId = membershipAccess.findFor(authenticatedUser, authenticatedUser.getId())
                     .map(m -> m.getDepartment() == null ? null : m.getDepartment().getId())
                     .orElse(null);
-            if (departmentId != null && myDeptId != null && !departmentId.equals(myDeptId)) {
+            if (myDeptId == null) {
                 throw new AccessDeniedException("You can only access leave balances for your department");
             }
-            departmentId = myDeptId; // managers default to their own department
+            if (departmentId != null && !departmentId.equals(myDeptId)) {
+                throw new AccessDeniedException("You can only access leave balances for your department");
+            }
+            departmentId = myDeptId;
         }
         return ResponseEntity.ok(reportService.generateLeaveBalanceReport(year, departmentId));
     }
 
-    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
+    // Managers use GET /time-entries/team and GET /time-entries/summary.
+    @PreAuthorize("hasRole('HR_ADMIN')")
     @GetMapping("/department-utilization")
     public ResponseEntity<DepartmentUtilizationReportDto> departmentUtilization(
             @RequestParam LocalDate startDate,
@@ -113,28 +120,8 @@ public class ReportController {
         return ResponseEntity.ok(reportService.generateDepartmentUtilizationReport(startDate, endDate));
     }
 
-    // Task 140
+    // Managers use GET /time-entries/team and GET /time-entries/summary.
     @PreAuthorize("hasRole('HR_ADMIN')")
-    @GetMapping("/absence-patterns")
-    public ResponseEntity<AbsencePatternsReportDto> absencePatterns(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate
-    ) {
-        return ResponseEntity.ok(reportService.generateAbsencePatternsReport(startDate, endDate));
-    }
-
-    // Task 141
-    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
-    @GetMapping("/overtime-summary")
-    public ResponseEntity<OvertimeSummaryReportDto> overtimeSummary(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate
-    ) {
-        return ResponseEntity.ok(reportService.generateOvertimeSummary(startDate, endDate));
-    }
-
-    // Task 142
-    @PreAuthorize("hasAnyRole('MANAGER','HR_ADMIN')")
     @GetMapping("/project-hours")
     public ResponseEntity<ProjectHoursReportDto> projectHours(
             @RequestParam LocalDate startDate,
@@ -143,7 +130,6 @@ public class ReportController {
         return ResponseEntity.ok(reportService.generateProjectHours(startDate, endDate));
     }
 
-    // Task 147
     @PreAuthorize("hasRole('HR_ADMIN')")
     @GetMapping("/compliance")
     public ResponseEntity<ComplianceReportDto> compliance(
@@ -192,6 +178,14 @@ public class ReportController {
             return "\"" + s.replace("\"", "\"\"") + "\"";
         }
         return s;
+    }
+
+    private static void requirePayrollJsonFormat(String format) {
+        String f = format == null ? "json" : format.trim();
+        if ("json".equalsIgnoreCase(f)) {
+            return;
+        }
+        throw new IllegalArgumentException("format must be json or csv");
     }
 }
 

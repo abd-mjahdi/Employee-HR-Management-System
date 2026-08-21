@@ -79,7 +79,8 @@ public class GlobalExceptionHandler {
             InvalidUserException.class,
             InvitationExpiredException.class,
             InvitationAlreadyUsedException.class,
-            InvalidSlugException.class
+            InvalidSlugException.class,
+            IllegalArgumentException.class
     })
     public ResponseEntity<ErrorResponseDto> handleBadRequest(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());

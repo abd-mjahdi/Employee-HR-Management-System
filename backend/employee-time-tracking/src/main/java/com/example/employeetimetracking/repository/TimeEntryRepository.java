@@ -29,7 +29,6 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
     List<TimeEntry> findByStatus(Status status);
     List<TimeEntry> findByApprovedById(Long approverId);
     List<TimeEntry> findByProjectId(Long projectId);
-    List<TimeEntry> findByUserIdAndEntryDateBetweenAndStatus(Long userId, LocalDate startDate, LocalDate endDate ,Status status);
     List<TimeEntry> findByUserIdOrderByEntryDateDesc(Long userId , Pageable limit);
     List<TimeEntry> findByUserIdAndEntryDate(Long userId, LocalDate entryDate);
 
@@ -79,34 +78,6 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long>, Jpa
       AND te.status = :status
     """)
     Integer countByUserManagerIdAndStatus(@Param("managerId") Long managerId, @Param("status") Status status);
-
-    @Query("""
-    SELECT DISTINCT te
-    FROM TimeEntry te
-    JOIN FETCH te.user u
-    JOIN FETCH te.project p
-    WHERE te.status = :status
-      AND te.entryDate BETWEEN :startDate AND :endDate
-    """)
-    List<TimeEntry> findForDepartmentUtilization(
-            @Param("status") Status status,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
-    );
-
-    @Query("""
-    SELECT DISTINCT te
-    FROM TimeEntry te
-    JOIN FETCH te.user u
-    JOIN FETCH te.project p
-    WHERE te.status = :status
-      AND te.entryDate BETWEEN :startDate AND :endDate
-    """)
-    List<TimeEntry> findForProjectHours(
-            @Param("status") Status status,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
-    );
 
     @Query("""
     SELECT DISTINCT te

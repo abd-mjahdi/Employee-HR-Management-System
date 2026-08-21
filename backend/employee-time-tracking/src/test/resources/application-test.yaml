@@ -42,6 +42,13 @@ app:
     max-failed-attempts: 0
     window-ms: 900000
 
+reports:
+  payroll:
+    overtime:
+      daily-hours: 8.0
+      weekly-hours: 40.0
+  max-range-days: 366
+
 logging:
   level:
     liquibase: info

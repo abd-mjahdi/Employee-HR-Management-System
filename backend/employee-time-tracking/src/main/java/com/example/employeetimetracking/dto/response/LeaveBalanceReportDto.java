@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -14,17 +13,10 @@ import java.util.List;
 @AllArgsConstructor
 public class LeaveBalanceReportDto {
     private Integer year;
-    private Long departmentId; // null = all departments
+    private Long departmentId;
 
     private Integer employeesCount;
     private Integer balancesCount;
 
     private List<LeaveBalanceReportItemDto> balances;
-
-    // Highlights (simple forecasting-style signals)
-    private List<LeaveBalanceReportItemDto> lowestBalances;  // lowest currentBalance
-    private List<LeaveBalanceReportItemDto> highestBalances; // highest currentBalance
-
-    private BigDecimal averageBalance; // across all balances returned
 }
-

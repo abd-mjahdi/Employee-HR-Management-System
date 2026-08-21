@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Getter
 @Setter
@@ -19,8 +18,4 @@ public class ProjectHoursItemDto {
 
     private BigDecimal totalHours;
     private Integer employeesCount;
-    private BigDecimal averageHoursPerEmployee;
-
-    private List<ProjectHoursTimelineItemDto> timeline; // daily totals
 }
-

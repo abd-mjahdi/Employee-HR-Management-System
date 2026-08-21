@@ -24,6 +24,5 @@ public class LeaveBalanceReportItemDto {
     private Integer year;
     private BigDecimal annualAllocation;
     private BigDecimal currentBalance;
-    private BigDecimal balancePctOfAllocation; // 0..100 (null when allocation missing)
 }
 

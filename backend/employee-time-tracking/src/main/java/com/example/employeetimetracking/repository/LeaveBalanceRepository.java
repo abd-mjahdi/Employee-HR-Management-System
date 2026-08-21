@@ -25,36 +25,6 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     List<LeaveBalance> findByYear(int year);
     Optional<LeaveBalance> findByUserIdAndLeaveTypeIdAndYear(Long userId, Long leaveTypeId, int year);
     List<LeaveBalance> findByLeaveTypeId(Long leaveTypeId);
-    @Query("""
-    SELECT DISTINCT lb
-    FROM LeaveBalance lb
-    JOIN FETCH lb.leaveType lt
-    JOIN FETCH lt.leavePolicy
-    """)
-    List<LeaveBalance> findAllLeaveBalances();
-
-    @Query("""
-    SELECT DISTINCT lb
-    FROM LeaveBalance lb
-    JOIN FETCH lb.user u
-    JOIN FETCH lb.leaveType lt
-    JOIN FETCH lt.leavePolicy
-    WHERE lb.year = :year
-    """)
-    List<LeaveBalance> findAllLeaveBalancesForYear(@Param("year") int year);
-
-    @Query("""
-    SELECT DISTINCT lb
-    FROM LeaveBalance lb
-    JOIN FETCH lb.user u
-    JOIN u.memberships m
-    JOIN FETCH lb.leaveType lt
-    JOIN FETCH lt.leavePolicy
-    WHERE lb.year = :year
-      AND m.company = lb.company
-      AND m.department.id = :departmentId
-    """)
-    List<LeaveBalance> findLeaveBalancesForYearAndDepartment(@Param("year") int year, @Param("departmentId") Long departmentId);
 
     @Query("""
     SELECT DISTINCT lb
@@ -78,6 +48,7 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
       AND m.department.id = :departmentId
       AND lb.company.id = :companyId
       AND m.company.id = :companyId
+      AND m.status = com.example.employeetimetracking.model.enums.MembershipStatus.ACTIVE
     """)
     List<LeaveBalance> findLeaveBalancesForYearAndDepartmentAndCompany(
             @Param("year") int year,

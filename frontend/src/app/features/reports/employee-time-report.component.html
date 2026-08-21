@@ -21,7 +21,7 @@
         id="reportUserId"
         type="number"
         [ngModel]="userIdRaw()"
-        (ngModelChange)="userIdRaw.set($event == null ? '' : String($event))"
+        (ngModelChange)="onUserIdChange($event)"
       />
     </div>
   }

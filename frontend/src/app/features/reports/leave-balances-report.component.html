@@ -13,7 +13,7 @@
       id="reportYear"
       type="number"
       [ngModel]="yearRaw()"
-      (ngModelChange)="yearRaw.set($event == null ? '' : String($event))"
+      (ngModelChange)="onYearChange($event)"
     />
   </div>
   @if (isHr) {
@@ -22,7 +22,7 @@
       <select
         id="reportDepartmentId"
         [ngModel]="departmentIdRaw()"
-        (ngModelChange)="departmentIdRaw.set($event == null ? '' : String($event))"
+        (ngModelChange)="onDepartmentChange($event)"
       >
         <option value="">All</option>
         @for (department of departments(); track department.id) {

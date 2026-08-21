@@ -39,6 +39,14 @@ export class LeaveBalancesReportComponent implements OnInit {
     });
   }
 
+  onYearChange(value: string | number | null): void {
+    this.yearRaw.set(value == null || value === '' ? '' : `${value}`);
+  }
+
+  onDepartmentChange(value: string | number | null): void {
+    this.departmentIdRaw.set(value == null || value === '' ? '' : `${value}`);
+  }
+
   onLoad(): void {
     this.loading.set(true);
     this.error.set(null);

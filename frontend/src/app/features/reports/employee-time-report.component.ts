@@ -28,6 +28,10 @@ export class EmployeeTimeReportComponent {
   readonly report = signal<EmployeeTimeReport | null>(null);
   readonly canPickUser = this.auth.hasAnyRole(['MANAGER', 'HR_ADMIN']);
 
+  onUserIdChange(value: string | number | null): void {
+    this.userIdRaw.set(value == null || value === '' ? '' : `${value}`);
+  }
+
   onLoad(): void {
     this.loading.set(true);
     this.error.set(null);

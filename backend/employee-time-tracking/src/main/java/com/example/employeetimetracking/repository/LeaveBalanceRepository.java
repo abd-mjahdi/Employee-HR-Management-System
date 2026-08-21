@@ -29,6 +29,23 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalance, Long
     @Query("""
     SELECT DISTINCT lb
     FROM LeaveBalance lb
+    JOIN FETCH lb.company c
+    JOIN FETCH lb.user u
+    JOIN FETCH lb.leaveType lt
+    JOIN FETCH lt.leavePolicy p
+    JOIN u.memberships m
+    WHERE lb.year = :year
+      AND c.status = com.example.employeetimetracking.model.enums.CompanyStatus.ACTIVE
+      AND u.isActive = true
+      AND m.company = c
+      AND m.status = com.example.employeetimetracking.model.enums.MembershipStatus.ACTIVE
+      AND lt.isActive = true
+    """)
+    List<LeaveBalance> findAccrualCandidatesForYear(@Param("year") int year);
+
+    @Query("""
+    SELECT DISTINCT lb
+    FROM LeaveBalance lb
     JOIN FETCH lb.user u
     JOIN FETCH lb.leaveType lt
     JOIN FETCH lt.leavePolicy

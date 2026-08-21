@@ -80,7 +80,13 @@ public class LeaveBalanceService {
     }
     @Transactional
     public void applyMonthlyAccrual(LeaveBalance lb) {
+        if (lb == null || lb.getLeaveType() == null || lb.getLeaveType().getLeavePolicy() == null) {
+            return;
+        }
         LeavePolicy policy = lb.getLeaveType().getLeavePolicy();
+        if (policy.getAccrualMethod() != AccrualMethod.MONTHLY || policy.getAnnualAllocation() == null) {
+            return;
+        }
         LocalDate today = LocalDate.now();
         if (lb.getYear() != today.getYear()) {
             return;
@@ -95,18 +101,29 @@ public class LeaveBalanceService {
         BigDecimal monthlyRate = policy.getAnnualAllocation()
                 .divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
 
-        lb.setCurrentBalance(lb.getCurrentBalance().add(monthlyRate));
+        BigDecimal current = lb.getCurrentBalance() == null ? BigDecimal.ZERO : lb.getCurrentBalance();
+        lb.setCurrentBalance(current.add(monthlyRate));
         lb.setLastAccrualDate(today);
     }
 
     @Transactional
     public void rolloverBalance(LeaveBalance currentYearBalance) {
-        int currentYear = LocalDate.now().getYear();
-        if (currentYearBalance.getYear() != currentYear) {
+        if (currentYearBalance == null
+                || currentYearBalance.getCompany() == null
+                || currentYearBalance.getUser() == null
+                || currentYearBalance.getLeaveType() == null
+                || currentYearBalance.getLeaveType().getLeavePolicy() == null) {
             return;
         }
 
-        int nextYear = currentYear + 1;
+        int sourceYear = currentYearBalance.getYear();
+        int nextYear = sourceYear + 1;
+        int nowYear = LocalDate.now().getYear();
+        // Dec 31 of sourceYear, or Jan 1 of nextYear if the job ran late.
+        if (nextYear != nowYear && nextYear != nowYear + 1) {
+            return;
+        }
+
         Long companyId = currentYearBalance.getCompany().getId();
         boolean nextYearExists = leaveBalanceRepository
                 .findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(
@@ -121,7 +138,9 @@ public class LeaveBalanceService {
         }
 
         LeavePolicy policy = currentYearBalance.getLeaveType().getLeavePolicy();
-        BigDecimal carry = currentYearBalance.getCurrentBalance();
+        BigDecimal carry = currentYearBalance.getCurrentBalance() == null
+                ? BigDecimal.ZERO
+                : currentYearBalance.getCurrentBalance();
         if (policy.getMaxRolloverDays() != null) {
             carry = carry.min(policy.getMaxRolloverDays());
         }
@@ -131,7 +150,8 @@ public class LeaveBalanceService {
 
         BigDecimal nextYearBalanceValue = carry;
         if (policy.getAccrualMethod() == AccrualMethod.ANNUAL) {
-            nextYearBalanceValue = nextYearBalanceValue.add(policy.getAnnualAllocation());
+            nextYearBalanceValue = nextYearBalanceValue.add(
+                    policy.getAnnualAllocation() == null ? BigDecimal.ZERO : policy.getAnnualAllocation());
         }
 
         LeaveBalance nextYearBalance = new LeaveBalance();

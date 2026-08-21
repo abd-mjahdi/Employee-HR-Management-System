@@ -190,6 +190,22 @@ class LeaveBalanceServiceTest {
         verify(leaveBalanceRepository, never()).findByUserIdAndLeaveTypeIdAndYear(anyLong(), anyLong(), anyInt());
     }
 
+    @Test
+    void rolloverBalance_acceptsPreviousCalendarYear() {
+        LeaveBalance current = existingBalance(vacationType(), new BigDecimal("5"));
+        current.setYear((short) (LocalDate.now().getYear() - 1));
+        int nextYear = LocalDate.now().getYear();
+        when(leaveBalanceRepository.findByCompanyIdAndUserIdAndLeaveTypeIdAndYear(
+                1L, 5L, 10L, nextYear)).thenReturn(Optional.empty());
+        when(leaveBalanceRepository.save(any(LeaveBalance.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        leaveBalanceService.rolloverBalance(current);
+
+        ArgumentCaptor<LeaveBalance> captor = ArgumentCaptor.forClass(LeaveBalance.class);
+        verify(leaveBalanceRepository).save(captor.capture());
+        assertEquals((short) nextYear, captor.getValue().getYear());
+    }
+
     private CustomUserDetails hrDetails() {
         CompanyMembership membership = new CompanyMembership();
         membership.setId(1L);

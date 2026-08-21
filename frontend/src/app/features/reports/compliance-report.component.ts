@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComplianceReport } from '../../core/models/report.model';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,7 +15,7 @@ import { hrAdminMayRequest } from './report-hr';
   templateUrl: './compliance-report.component.html',
   styleUrl: './report-results.scss'
 })
-export class ComplianceReportComponent {
+export class ComplianceReportComponent implements OnInit {
   private readonly reports = inject(ReportService);
   private readonly auth = inject(AuthService);
 
@@ -25,6 +25,10 @@ export class ComplianceReportComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly report = signal<ComplianceReport | null>(null);
+
+  ngOnInit(): void {
+    this.onLoad();
+  }
 
   onLoad(): void {
     if (!hrAdminMayRequest(this.auth, this.error)) {

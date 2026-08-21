@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { EmployeeTimeReport } from '../../core/models/report.model';
@@ -15,7 +15,7 @@ import { applyReportError } from './report-error';
   templateUrl: './employee-time-report.component.html',
   styleUrl: './report-results.scss'
 })
-export class EmployeeTimeReportComponent {
+export class EmployeeTimeReportComponent implements OnInit {
   private readonly reports = inject(ReportService);
   private readonly auth = inject(AuthService);
 
@@ -27,6 +27,10 @@ export class EmployeeTimeReportComponent {
   readonly error = signal<string | null>(null);
   readonly report = signal<EmployeeTimeReport | null>(null);
   readonly canPickUser = this.auth.hasAnyRole(['MANAGER', 'HR_ADMIN']);
+
+  ngOnInit(): void {
+    this.onLoad();
+  }
 
   onUserIdChange(value: string | number | null): void {
     this.userIdRaw.set(value == null || value === '' ? '' : `${value}`);

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamLeaveReport } from '../../core/models/report.model';
 import { ReportService } from '../../core/services/report.service';
@@ -13,7 +13,7 @@ import { applyReportError } from './report-error';
   templateUrl: './team-leave-report.component.html',
   styleUrl: './report-results.scss'
 })
-export class TeamLeaveReportComponent {
+export class TeamLeaveReportComponent implements OnInit {
   private readonly reports = inject(ReportService);
 
   private readonly defaults = currentMonthRange();
@@ -22,6 +22,10 @@ export class TeamLeaveReportComponent {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly report = signal<TeamLeaveReport | null>(null);
+
+  ngOnInit(): void {
+    this.onLoad();
+  }
 
   onLoad(): void {
     this.loading.set(true);

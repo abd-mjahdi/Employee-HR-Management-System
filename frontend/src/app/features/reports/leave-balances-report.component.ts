@@ -30,13 +30,13 @@ export class LeaveBalancesReportComponent implements OnInit {
   readonly isHr = this.auth.hasRole('HR_ADMIN');
 
   ngOnInit(): void {
-    if (!this.isHr) {
-      return;
+    if (this.isHr) {
+      this.departmentsApi.list().subscribe({
+        next: (departments) => this.departments.set(departments),
+        error: (err: HttpErrorResponse) => applyReportError(err, (message) => this.error.set(message))
+      });
     }
-    this.departmentsApi.list().subscribe({
-      next: (departments) => this.departments.set(departments),
-      error: (err: HttpErrorResponse) => applyReportError(err, (message) => this.error.set(message))
-    });
+    this.onLoad();
   }
 
   onYearChange(value: string | number | null): void {

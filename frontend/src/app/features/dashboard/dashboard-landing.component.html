@@ -1,24 +1,114 @@
-<div class="dashboard-container">
-  <header class="header">
-    <h2>Employee HR Portal · {{ tenant.slug }}</h2>
-    <div class="user-bar">
-      <span>{{ currentUser()?.email }} ({{ currentUser()?.role }})</span>
-      <button type="button" class="btn-logout" (click)="logout()">Sign Out</button>
-    </div>
-  </header>
-
-  <main class="main-content">
-    <h1>Welcome, {{ currentUser()?.email }}</h1>
-    <p>Authentication complete. JWT token is active.</p>
-
-    <div class="info-section">
-      <h3>Session Details</h3>
-      <ul>
-        <li><strong>Email:</strong> {{ currentUser()?.email }}</li>
-        <li><strong>Company:</strong> {{ tenant.slug }}</li>
-        <li><strong>Role:</strong> {{ currentUser()?.role }}</li>
-        <li><strong>Token Status:</strong> Active</li>
-      </ul>
-    </div>
-  </main>
+<div class="page-header">
+  <h1>Home</h1>
 </div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (dashboard(); as d) {
+  <ul class="stats-list">
+    @if (d.stats.hoursThisWeek != null) {
+      <li><span class="muted">Hours this week</span> {{ d.stats.hoursThisWeek }}</li>
+    }
+    @if (d.stats.hoursThisMonth != null) {
+      <li><span class="muted">Hours this month</span> {{ d.stats.hoursThisMonth }}</li>
+    }
+    @if (d.stats.pendingTimeEntriesCount != null) {
+      <li><span class="muted">Pending time entries</span> {{ d.stats.pendingTimeEntriesCount }}</li>
+    }
+    @if (d.stats.pendingLeaveRequestsCount != null) {
+      <li><span class="muted">Pending leave requests</span> {{ d.stats.pendingLeaveRequestsCount }}</li>
+    }
+    @if (d.stats.pendingTimeApprovalsCount != null) {
+      <li><span class="muted">Pending time approvals</span> {{ d.stats.pendingTimeApprovalsCount }}</li>
+    }
+    @if (d.stats.pendingLeaveApprovalsCount != null) {
+      <li><span class="muted">Pending leave approvals</span> {{ d.stats.pendingLeaveApprovalsCount }}</li>
+    }
+    @if (d.stats.teamMembersOnLeaveToday != null) {
+      <li><span class="muted">Team on leave today</span> {{ d.stats.teamMembersOnLeaveToday }}</li>
+    }
+    @if (d.stats.totalActiveEmployees != null) {
+      <li><span class="muted">Active employees</span> {{ d.stats.totalActiveEmployees }}</li>
+    }
+  </ul>
+
+  <h2>Recent time entries</h2>
+  @if (d.recentTimeEntries.length === 0) {
+    <p class="muted">No time entries.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Hours</th>
+          <th>Project</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of d.recentTimeEntries; track row.id) {
+          <tr>
+            <td>{{ row.entryDate }}</td>
+            <td>{{ row.totalHours }}</td>
+            <td>{{ row.projectCode || row.projectName }}</td>
+            <td>{{ row.status }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <h2>Recent leave requests</h2>
+  @if (d.recentLeaveRequests.length === 0) {
+    <p class="muted">No leave requests.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of d.recentLeaveRequests; track row.id) {
+          <tr>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }}</td>
+            <td>{{ row.endDate }}</td>
+            <td>{{ row.status }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <h2>Upcoming leave</h2>
+  @if (d.upcomingLeave.length === 0) {
+    <p class="muted">No upcoming leave.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Start</th>
+          <th>End</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of d.upcomingLeave; track row.id) {
+          <tr>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }}</td>
+            <td>{{ row.endDate }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

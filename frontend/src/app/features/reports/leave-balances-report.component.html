@@ -1,0 +1,72 @@
+<div class="page-header">
+  <h1>Leave balances</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter [showDates]="false" [loading]="loading()" (load)="onLoad()">
+  <div class="form-field">
+    <label for="reportYear">Year</label>
+    <input
+      id="reportYear"
+      type="number"
+      [ngModel]="yearRaw()"
+      (ngModelChange)="yearRaw.set($event == null ? '' : String($event))"
+    />
+  </div>
+  @if (isHr) {
+    <div class="form-field">
+      <label for="reportDepartmentId">Department</label>
+      <select
+        id="reportDepartmentId"
+        [ngModel]="departmentIdRaw()"
+        (ngModelChange)="departmentIdRaw.set($event == null ? '' : String($event))"
+      >
+        <option value="">All</option>
+        @for (department of departments(); track department.id) {
+          <option [value]="department.id">
+            {{ department.departmentCode }} {{ department.departmentName }}
+          </option>
+        }
+      </select>
+    </div>
+  }
+</app-report-date-filter>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Year {{ r.year }}</span>
+    <span>Employees {{ r.employeesCount }}</span>
+    <span>Balances {{ r.balancesCount }}</span>
+  </p>
+  @if (r.balances.length === 0) {
+    <p class="muted">No leave balances.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Department</th>
+          <th>Leave type</th>
+          <th>Allocation</th>
+          <th>Current balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.balances; track row.employeeId + '-' + row.leaveTypeId + '-' + row.year) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.departmentCode }} {{ row.departmentName }}</td>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.annualAllocation }}</td>
+            <td>{{ row.currentBalance }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

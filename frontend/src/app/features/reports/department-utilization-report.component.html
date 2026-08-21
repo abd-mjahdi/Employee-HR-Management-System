@@ -1,0 +1,50 @@
+<div class="page-header">
+  <h1>Department hours</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter
+  [startDate]="startDate()"
+  (startDateChange)="startDate.set($event)"
+  [endDate]="endDate()"
+  (endDateChange)="endDate.set($event)"
+  [loading]="loading()"
+  (load)="onLoad()"
+/>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Total hours {{ r.totalHours }}</span>
+    <span>Departments {{ r.departmentsCount }}</span>
+    <span>Employees {{ r.employeesCount }}</span>
+  </p>
+  @if (r.departments.length === 0) {
+    <p class="muted">No department hours.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Total hours</th>
+          <th>Employees</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.departments; track row.departmentId) {
+          <tr>
+            <td>{{ row.departmentCode }}</td>
+            <td>{{ row.departmentName }}</td>
+            <td>{{ row.totalHours }}</td>
+            <td>{{ row.employeesCount }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

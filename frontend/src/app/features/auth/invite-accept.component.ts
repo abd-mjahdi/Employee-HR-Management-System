@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { apiErrorMessage } from '../../core/http/api-error';
 import { TenantService } from '../../core/tenant/tenant.service';
 
 interface AcceptInvitationResponse {
@@ -65,7 +64,7 @@ export class InviteAcceptComponent {
       },
       error: (err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        this.error.set(apiErrorMessage(err));
+        this.error.set(this.messageFrom(err));
       }
     });
   }
@@ -76,5 +75,15 @@ export class InviteAcceptComponent {
 
   goToLogin(): void {
     this.router.navigate(['/login']);
+  }
+
+  private messageFrom(err: HttpErrorResponse): string {
+    if (err.status === 0) {
+      return 'Unable to connect to the backend on this company host (port 8080).';
+    }
+    if (err.error && typeof err.error === 'object' && err.error.message) {
+      return err.error.message;
+    }
+    return 'Could not accept this invitation.';
   }
 }

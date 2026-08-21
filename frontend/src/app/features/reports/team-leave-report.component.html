@@ -1,0 +1,51 @@
+<div class="page-header">
+  <h1>Team leave</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter
+  [startDate]="startDate()"
+  (startDateChange)="startDate.set($event)"
+  [endDate]="endDate()"
+  (endDateChange)="endDate.set($event)"
+  [loading]="loading()"
+  (load)="onLoad()"
+/>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Requests {{ r.requestsCount }}</span>
+    <span>Total leave days {{ r.totalLeaveDays }}</span>
+  </p>
+  @if (r.requests.length === 0) {
+    <p class="muted">No leave in this range.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Type</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.requests; track row.id) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.startDate }}</td>
+            <td>{{ row.endDate }}</td>
+            <td>{{ row.totalDays }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

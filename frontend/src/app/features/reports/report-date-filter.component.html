@@ -1,0 +1,29 @@
+<div class="filters">
+  @if (showDates()) {
+    <div class="form-field">
+      <label for="reportStartDate">Start date</label>
+      <input
+        id="reportStartDate"
+        type="date"
+        [ngModel]="startDate()"
+        (ngModelChange)="startDate.set($event)"
+      />
+    </div>
+    <div class="form-field">
+      <label for="reportEndDate">End date</label>
+      <input
+        id="reportEndDate"
+        type="date"
+        [ngModel]="endDate()"
+        (ngModelChange)="endDate.set($event)"
+      />
+    </div>
+  }
+  <ng-content />
+  <div class="filter-actions">
+    <button type="button" class="btn-primary" [disabled]="loading()" (click)="onLoad()">
+      Load
+    </button>
+    <ng-content select="[reportActions]" />
+  </div>
+</div>

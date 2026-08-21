@@ -42,7 +42,14 @@ export class AppLayoutComponent {
     { label: 'Invite', route: '/people/invite', roles: HR_ONLY, exact: true },
     { label: 'Departments', route: '/departments', roles: HR_ONLY, exact: true },
     { label: 'Projects', route: '/projects', roles: HR_ONLY, exact: true },
-    { label: 'All leave', route: '/leave/all', roles: HR_ONLY, exact: true }
+    { label: 'All leave', route: '/leave/all', roles: HR_ONLY, exact: true },
+    { label: 'Employee time', route: '/reports/employee-time', roles: ALL_ROLES, exact: true },
+    { label: 'Team leave', route: '/reports/team-leave', roles: MANAGER_PLUS, exact: true },
+    { label: 'Leave balances', route: '/reports/leave-balances', roles: MANAGER_PLUS, exact: true },
+    { label: 'Payroll', route: '/reports/payroll', roles: HR_ONLY, exact: true },
+    { label: 'Department hours', route: '/reports/department-utilization', roles: HR_ONLY, exact: true },
+    { label: 'Project hours', route: '/reports/project-hours', roles: HR_ONLY, exact: true },
+    { label: 'Compliance', route: '/reports/compliance', roles: HR_ONLY, exact: true }
   ];
 
   readonly visibleNav = computed(() =>

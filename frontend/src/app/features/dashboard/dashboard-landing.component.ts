@@ -1,32 +1,23 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
-import { apiErrorMessage } from '../../core/http/api-error';
-import { UserDashboard } from '../../core/models/dashboard.model';
-import { DashboardService } from '../../core/services/dashboard.service';
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../core/services/auth.service';
+import { TenantService } from '../../core/tenant/tenant.service';
 
 @Component({
   selector: 'app-dashboard-landing',
   standalone: true,
+  imports: [CommonModule],
   templateUrl: './dashboard-landing.component.html',
   styleUrl: './dashboard-landing.component.scss'
 })
-export class DashboardLandingComponent implements OnInit {
-  private readonly dashboardService = inject(DashboardService);
+export class DashboardLandingComponent {
+  private authService = inject(AuthService);
+  readonly tenant = inject(TenantService);
 
-  readonly dashboard = signal<UserDashboard | null>(null);
-  readonly error = signal<string | null>(null);
-  readonly loading = signal(true);
+  currentUser = this.authService.currentUser;
+  token = this.authService.token;
 
-  ngOnInit(): void {
-    this.dashboardService.getMine().subscribe({
-      next: (data) => {
-        this.dashboard.set(data);
-        this.loading.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.error.set(apiErrorMessage(err));
-        this.loading.set(false);
-      }
-    });
+  logout(): void {
+    this.authService.logout();
   }
 }

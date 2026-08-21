@@ -1,0 +1,77 @@
+<div class="page-header">
+  <h1>Employee time</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter
+  [startDate]="startDate()"
+  (startDateChange)="startDate.set($event)"
+  [endDate]="endDate()"
+  (endDateChange)="endDate.set($event)"
+  [loading]="loading()"
+  (load)="onLoad()"
+>
+  @if (canPickUser) {
+    <div class="form-field">
+      <label for="reportUserId">User id</label>
+      <input
+        id="reportUserId"
+        type="number"
+        [ngModel]="userIdRaw()"
+        (ngModelChange)="userIdRaw.set($event == null ? '' : String($event))"
+      />
+    </div>
+  }
+</app-report-date-filter>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Total hours {{ r.totalHours }}</span>
+    <span>Average per day {{ r.averageHoursPerDay }}</span>
+    <span>Days with entries {{ r.daysWithEntries }}</span>
+    <span>Entries {{ r.entriesCount }}</span>
+  </p>
+  @if (r.entriesCount === 0 && r.dailyHours.length === 0 && r.projectBreakdown.length === 0) {
+    <p class="muted">No approved time entries.</p>
+  } @else {
+    <h2>Daily hours</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.dailyHours; track row.key) {
+          <tr>
+            <td>{{ row.key }}</td>
+            <td>{{ row.totalHours }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <h2>Project breakdown</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Project</th>
+          <th>Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.projectBreakdown; track row.key) {
+          <tr>
+            <td>{{ row.key }}</td>
+            <td>{{ row.totalHours }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

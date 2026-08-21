@@ -1,0 +1,49 @@
+<div class="page-header">
+  <h1>Compliance</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter
+  [startDate]="startDate()"
+  (startDateChange)="startDate.set($event)"
+  [endDate]="endDate()"
+  (endDateChange)="endDate.set($event)"
+  [loading]="loading()"
+  (load)="onLoad()"
+/>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Year {{ r.year }}</span>
+    <span>Entitlement issues {{ r.entitlementIssuesCount }}</span>
+  </p>
+  @if (r.entitlementIssues.length === 0) {
+    <p class="muted">No entitlement issues.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Leave type</th>
+          <th>Year</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.entitlementIssues; track row.employeeId + '-' + row.leaveTypeId + '-' + row.year) {
+          <tr>
+            <td>{{ row.employeeName }}</td>
+            <td>{{ row.leaveTypeName }}</td>
+            <td>{{ row.year }}</td>
+            <td>{{ row.issue }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

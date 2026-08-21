@@ -2,7 +2,6 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, catchError, throwError, map } from 'rxjs';
-import { apiErrorMessage } from '../http/api-error';
 import { LoginRequest, LoginResponse, User, UserRole } from '../models/auth.model';
 import { TenantService } from '../tenant/tenant.service';
 
@@ -58,7 +57,7 @@ export class AuthService {
       }),
       catchError((err: HttpErrorResponse) => {
         this.isLoading.set(false);
-        const errorMsg = apiErrorMessage(err);
+        const errorMsg = this.messageFrom(err);
         this.authError.set(errorMsg);
         return throwError(() => new Error(errorMsg));
       })
@@ -88,12 +87,13 @@ export class AuthService {
   }
 
   hasRole(role: UserRole): boolean {
-    return this.currentUser()?.role === role;
+    const user = this.currentUser();
+    return user?.role === role;
   }
 
   hasAnyRole(roles: UserRole[]): boolean {
     const role = this.currentUser()?.role;
-    return !!role && roles.includes(role);
+    return role != null && roles.includes(role);
   }
 
   getToken(): string | null {
@@ -124,6 +124,25 @@ export class AuthService {
       departmentId: dto['departmentId'] as number | undefined,
       active: (dto['isActive'] as boolean | undefined) ?? (dto['active'] as boolean | undefined)
     };
+  }
+
+  private messageFrom(err: HttpErrorResponse): string {
+    if (err.status === 401) {
+      return 'Invalid email or password. Please check your credentials.';
+    }
+    if (err.status === 403) {
+      return 'Your account has been deactivated. Please contact your HR administrator.';
+    }
+    if (err.status === 404) {
+      return 'Company not found for this address.';
+    }
+    if (err.error && typeof err.error === 'object' && err.error.message) {
+      return err.error.message;
+    }
+    if (err.status === 0) {
+      return 'Unable to connect to the backend on this company host (port 8080).';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 
   private getStoredToken(): string | null {

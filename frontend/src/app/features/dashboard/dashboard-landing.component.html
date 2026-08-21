@@ -1,112 +1,24 @@
-<div class="page-header">
-  <h1>Home</h1>
+<div class="dashboard-container">
+  <header class="header">
+    <h2>Employee HR Portal · {{ tenant.slug }}</h2>
+    <div class="user-bar">
+      <span>{{ currentUser()?.email }} ({{ currentUser()?.role }})</span>
+      <button type="button" class="btn-logout" (click)="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <h1>Welcome, {{ currentUser()?.email }}</h1>
+    <p>Authentication complete. JWT token is active.</p>
+
+    <div class="info-section">
+      <h3>Session Details</h3>
+      <ul>
+        <li><strong>Email:</strong> {{ currentUser()?.email }}</li>
+        <li><strong>Company:</strong> {{ tenant.slug }}</li>
+        <li><strong>Role:</strong> {{ currentUser()?.role }}</li>
+        <li><strong>Token Status:</strong> Active</li>
+      </ul>
+    </div>
+  </main>
 </div>
-
-@if (error()) {
-  <div class="error-banner">{{ error() }}</div>
-}
-
-@if (loading()) {
-  <p class="muted">Loading.</p>
-}
-
-@if (dashboard(); as data) {
-  <ul class="stats-list">
-    @if (data.stats.hoursThisWeek != null) {
-      <li><span class="muted">Hours this week</span> {{ data.stats.hoursThisWeek }}</li>
-    }
-    @if (data.stats.hoursThisMonth != null) {
-      <li><span class="muted">Hours this month</span> {{ data.stats.hoursThisMonth }}</li>
-    }
-    @if (data.stats.pendingTimeEntriesCount != null) {
-      <li><span class="muted">Pending time entries</span> {{ data.stats.pendingTimeEntriesCount }}</li>
-    }
-    @if (data.stats.pendingLeaveRequestsCount != null) {
-      <li><span class="muted">Pending leave requests</span> {{ data.stats.pendingLeaveRequestsCount }}</li>
-    }
-    @if (data.stats.pendingTimeApprovalsCount != null) {
-      <li><span class="muted">Pending time approvals</span> {{ data.stats.pendingTimeApprovalsCount }}</li>
-    }
-    @if (data.stats.pendingLeaveApprovalsCount != null) {
-      <li><span class="muted">Pending leave approvals</span> {{ data.stats.pendingLeaveApprovalsCount }}</li>
-    }
-    @if (data.stats.teamMembersOnLeaveToday != null) {
-      <li><span class="muted">Team on leave today</span> {{ data.stats.teamMembersOnLeaveToday }}</li>
-    }
-    @if (data.stats.totalActiveEmployees != null) {
-      <li><span class="muted">Active employees</span> {{ data.stats.totalActiveEmployees }}</li>
-    }
-  </ul>
-
-  <h2>Recent time entries</h2>
-  @if (data.recentTimeEntries.length === 0) {
-    <p class="muted">No time entries.</p>
-  } @else {
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Hours</th>
-          <th>Project</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (entry of data.recentTimeEntries; track entry.id) {
-          <tr>
-            <td>{{ entry.entryDate }}</td>
-            <td>{{ entry.totalHours }}</td>
-            <td>{{ entry.projectCode || entry.projectName }}</td>
-            <td>{{ entry.status }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
-
-  <h2>Recent leave requests</h2>
-  @if (data.recentLeaveRequests.length === 0) {
-    <p class="muted">No leave requests.</p>
-  } @else {
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Dates</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (req of data.recentLeaveRequests; track req.id) {
-          <tr>
-            <td>{{ req.leaveTypeName }}</td>
-            <td>{{ req.startDate }} – {{ req.endDate }}</td>
-            <td>{{ req.status }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
-
-  <h2>Upcoming leave</h2>
-  @if (data.upcomingLeave.length === 0) {
-    <p class="muted">No upcoming leave.</p>
-  } @else {
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Dates</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (req of data.upcomingLeave; track req.id) {
-          <tr>
-            <td>{{ req.leaveTypeName }}</td>
-            <td>{{ req.startDate }} – {{ req.endDate }}</td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
-}

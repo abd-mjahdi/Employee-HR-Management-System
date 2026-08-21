@@ -1,0 +1,66 @@
+<div class="page-header">
+  <h1>Payroll</h1>
+</div>
+
+@if (error()) {
+  <div class="error-banner">{{ error() }}</div>
+}
+
+<app-report-date-filter
+  [startDate]="startDate()"
+  (startDateChange)="startDate.set($event)"
+  [endDate]="endDate()"
+  (endDateChange)="endDate.set($event)"
+  [loading]="loading()"
+  (load)="onLoad()"
+>
+  <button
+    reportActions
+    type="button"
+    class="btn-secondary"
+    [disabled]="loading()"
+    (click)="downloadCsv()"
+  >
+    Download CSV
+  </button>
+</app-report-date-filter>
+
+@if (loading()) {
+  <p class="muted">Loading.</p>
+} @else if (report(); as r) {
+  <p class="summary-line">
+    <span>Regular hours {{ r.totalRegularHours }}</span>
+    <span>Overtime hours {{ r.totalOvertimeHours }}</span>
+    <span>Total hours {{ r.totalHours }}</span>
+  </p>
+  <p class="summary-line muted">
+    <span>Daily overtime threshold {{ r.dailyOvertimeThresholdHours }}</span>
+    <span>Weekly overtime threshold {{ r.weeklyOvertimeThresholdHours }}</span>
+  </p>
+  @if (r.employees.length === 0) {
+    <p class="muted">No employees.</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Employee id</th>
+          <th>Name</th>
+          <th>Regular</th>
+          <th>Overtime</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of r.employees; track row.employeeId) {
+          <tr>
+            <td>{{ row.employeeId }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.regularHours }}</td>
+            <td>{{ row.overtimeHours }}</td>
+            <td>{{ row.totalHours }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+}

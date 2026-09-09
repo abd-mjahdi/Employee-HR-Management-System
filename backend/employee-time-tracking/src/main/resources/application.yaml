@@ -21,7 +21,7 @@ spring:
     secret: ${JWT_SECRET}
     expiration-ms: 3600000
 
-    liquibase:
+  liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
     # Default includes demo tenants. For a true first-run bootstrap, recreate the DB with LIQUIBASE_CONTEXTS empty.

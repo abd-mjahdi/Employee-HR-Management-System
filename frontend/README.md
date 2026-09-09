@@ -26,6 +26,17 @@ The UI takes the company from the hostname (`acme.localhost` → `acme`) and cal
 
 Invite links must be opened on that company’s host, for example `http://acme.localhost:4200/invite?token=...`.
 
+## Docker
+
+From the repo root (hosts file still required, same URLs and seed logins as above):
+
+```bash
+copy .env.example .env
+docker compose up --build
+```
+
+On macOS/Linux use `cp .env.example .env`. Postgres only: `docker compose up postgres`.
+
 ## Code scaffolding
 
 Angular CLI includes powerful code scaffolding tools. To generate a new component, run:

@@ -10,3 +10,5 @@ target/
 Thumbs.db
 
 backend/APP_CONTEXT.md
+
+.env

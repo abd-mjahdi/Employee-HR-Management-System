@@ -1,0 +1,74 @@
+# Full stack: Postgres + Spring Boot API + Angular (nginx).
+#
+#   copy .env.example to .env
+#   docker compose up --build
+#
+# Hosts (same as local npm/Java): 127.0.0.1 acme.localhost globex.localhost
+# UI  http://acme.localhost:4200   API  http://acme.localhost:8080
+#
+# Database only (run Java/Angular on the host):  docker compose up postgres
+
+name: employee-hr
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-employee_hr}
+      POSTGRES_USER: ${POSTGRES_USER:-hr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hr}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hr} -d ${POSTGRES_DB:-employee_hr}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend/employee-time-tracking
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-employee_hr}
+      DB_USERNAME: ${POSTGRES_USER:-hr}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-hr}
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-32-byte-or-longer-secret-key!!}
+      BOOTSTRAP_KEY: ${BOOTSTRAP_KEY:-}
+      SPRING_LIQUIBASE_CONTEXTS: ${LIQUIBASE_CONTEXTS:-seed}
+      TENANT_DEV_DEFAULT_SLUG: ${TENANT_DEV_DEFAULT_SLUG:-}
+      TZ: UTC
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

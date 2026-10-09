@@ -3,13 +3,18 @@ package com.example.employeetimetracking.integration;
 import com.example.employeetimetracking.dto.request.CreateInvitationRequestDto;
 import com.example.employeetimetracking.dto.response.InvitationCreatedResponseDto;
 import com.example.employeetimetracking.integration.persistence.AbstractPostgresIT;
+import com.example.employeetimetracking.model.entities.EmailOutbox;
+import com.example.employeetimetracking.model.enums.EmailOutboxStatus;
 import com.example.employeetimetracking.model.enums.UserRole;
+import com.example.employeetimetracking.repository.EmailOutboxRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -19,6 +24,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class InvitationTenantIT extends AbstractPostgresIT {
 
     private static final String INVITEE_EMAIL = "phase11.invitee@example.com";
+
+    @Autowired
+    EmailOutboxRepository emailOutboxRepository;
 
     @Test
     void inviteOnAcme_cannotAcceptOnGlobex_andCannotEscalateRoleOrCompany() throws Exception {
@@ -36,6 +44,14 @@ class InvitationTenantIT extends AbstractPostgresIT {
         InvitationCreatedResponseDto invitation = objectMapper.readValue(
                 created.getResponse().getContentAsString(), InvitationCreatedResponseDto.class);
         assertNotNull(invitation.getToken());
+
+        EmailOutbox outbox = emailOutboxRepository.findAll().stream()
+                .filter(row -> INVITEE_EMAIL.equals(row.getRecipient()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(EmailOutboxStatus.SENT, outbox.getStatus());
+        assertEquals("INVITATION_CREATED", outbox.getEventType());
+        assertFalse(outbox.getPayload().contains(invitation.getToken()));
 
         String acceptPayload = """
                 {

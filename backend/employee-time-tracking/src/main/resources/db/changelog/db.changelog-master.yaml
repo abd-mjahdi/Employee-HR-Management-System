@@ -19,3 +19,13 @@ databaseChangeLog:
             relativeToChangelogFile: false
             splitStatements: true
             stripComments: false
+
+  - changeSet:
+      id: 003-email-outbox
+      author: app
+      changes:
+        - sqlFile:
+            path: db/changelog/003-email-outbox.sql
+            relativeToChangelogFile: false
+            splitStatements: true
+            stripComments: true

@@ -22,6 +22,8 @@ import com.example.employeetimetracking.repository.DepartmentRepository;
 import com.example.employeetimetracking.repository.InvitationRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
+import com.example.employeetimetracking.dto.mail.InvitationEmailPayload;
+import com.example.employeetimetracking.service.EmailOutboxService;
 import com.example.employeetimetracking.service.InvitationService;
 import com.example.employeetimetracking.service.LeaveBalanceService;
 import com.example.employeetimetracking.service.UserService;
@@ -46,8 +48,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,6 +65,7 @@ class InvitationServiceTest {
     @Mock UserService userService;
     @Mock LeaveBalanceService leaveBalanceService;
     @Mock BCryptPasswordEncoder passwordEncoder;
+    @Mock EmailOutboxService emailOutboxService;
 
     @InjectMocks
     InvitationService invitationService;
@@ -78,6 +83,7 @@ class InvitationServiceTest {
         company = new Company();
         company.setId(1L);
         company.setSlug("acme");
+        company.setName("Acme");
         company.setStatus(CompanyStatus.ACTIVE);
 
         department = new Department();
@@ -140,6 +146,27 @@ class InvitationServiceTest {
         assertEquals("new@acme.com", saved.getEmail());
         assertEquals(InvitationStatus.PENDING, saved.getStatus());
         assertEquals(1L, saved.getCompany().getId());
+        ArgumentCaptor<InvitationEmailPayload> payloadCaptor = ArgumentCaptor.forClass(InvitationEmailPayload.class);
+        verify(emailOutboxService).enqueueInvitation(any(Company.class), eq(99L), payloadCaptor.capture());
+        assertEquals("new@acme.com", payloadCaptor.getValue().recipient());
+        assertEquals(response.getToken(), payloadCaptor.getValue().rawToken());
+    }
+
+    @Test
+    void create_doesNotEnqueueWhenInvitationSaveFails() {
+        when(companyRepository.findById(1L)).thenReturn(Optional.of(company));
+        when(companyMembershipRepository.findByIdAndCompanyId(1L, 1L)).thenReturn(Optional.of(hrMembership));
+        when(departmentRepository.findByIdAndCompanyId(10L, 1L)).thenReturn(Optional.of(department));
+        when(userService.requireManagerMembership(2L, UserRole.EMPLOYEE, 1L)).thenReturn(managerMembership);
+        when(userRepository.findByEmail("new@acme.com")).thenReturn(Optional.empty());
+        when(invitationRepository.findByCompanyIdAndEmailAndStatus(1L, "new@acme.com", InvitationStatus.PENDING))
+                .thenReturn(Collections.emptyList());
+        when(invitationRepository.save(any(Invitation.class))).thenThrow(new RuntimeException("db write failed"));
+
+        assertThrows(RuntimeException.class, () -> invitationService.create(
+                new CreateInvitationRequestDto("New@acme.com", UserRole.EMPLOYEE, 10L, 2L), actor));
+
+        verifyNoInteractions(emailOutboxService);
     }
 
     @Test

@@ -47,6 +47,10 @@ app:
     tenant-url-template: ${FRONTEND_TENANT_URL_TEMPLATE:http://{slug}.localhost:4200}
   mail:
     from: ${MAIL_FROM:noreply@hrapp.local}
+    outbox:
+      poll-interval-ms: ${MAIL_OUTBOX_POLL_INTERVAL_MS:10000}
+      batch-size: ${MAIL_OUTBOX_BATCH_SIZE:20}
+      max-attempts: ${MAIL_OUTBOX_MAX_ATTEMPTS:8}
   bootstrap:
     # Empty disables POST /internal/bootstrap/company. Set BOOTSTRAP_KEY for first-run only.
     key: ${BOOTSTRAP_KEY:}

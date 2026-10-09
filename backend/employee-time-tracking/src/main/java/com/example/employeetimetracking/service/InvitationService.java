@@ -2,9 +2,9 @@ package com.example.employeetimetracking.service;
 
 import com.example.employeetimetracking.dto.request.AcceptInvitationRequestDto;
 import com.example.employeetimetracking.dto.request.CreateInvitationRequestDto;
+import com.example.employeetimetracking.dto.mail.InvitationEmailPayload;
 import com.example.employeetimetracking.dto.response.InvitationAcceptedResponseDto;
 import com.example.employeetimetracking.dto.response.InvitationCreatedResponseDto;
-import com.example.employeetimetracking.event.InvitationCreatedEvent;
 import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.CompanyMembership;
@@ -20,8 +20,6 @@ import com.example.employeetimetracking.repository.InvitationRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.tenant.TenantContext;
-import jakarta.validation.constraints.Email;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -52,7 +50,7 @@ public class InvitationService {
     private final UserService userService;
     private final LeaveBalanceService leaveBalanceService;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final ApplicationEventPublisher eventPublisher;
+    private final EmailOutboxService emailOutboxService;
 
     public InvitationService(InvitationRepository invitationRepository,
                              CompanyRepository companyRepository,
@@ -62,7 +60,7 @@ public class InvitationService {
                              UserService userService,
                              LeaveBalanceService leaveBalanceService,
                              BCryptPasswordEncoder passwordEncoder,
-                             ApplicationEventPublisher eventPublisher) {
+                             EmailOutboxService emailOutboxService) {
         this.invitationRepository = invitationRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
@@ -71,7 +69,7 @@ public class InvitationService {
         this.userService = userService;
         this.leaveBalanceService = leaveBalanceService;
         this.passwordEncoder = passwordEncoder;
-        this.eventPublisher = eventPublisher;
+        this.emailOutboxService = emailOutboxService;
     }
 
     @Transactional
@@ -115,12 +113,15 @@ public class InvitationService {
         invitation.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(EXPIRY_HOURS));
         invitation = invitationRepository.save(invitation);
 
-        eventPublisher.publishEvent(
-                new InvitationCreatedEvent(
+        emailOutboxService.enqueueInvitation(
+                company,
+                invitation.getId(),
+                new InvitationEmailPayload(
                         company.getName(),
                         company.getSlug(),
                         email,
-                        rawToken
+                        rawToken,
+                        invitation.getExpiresAt().toString()
                 )
         );
 

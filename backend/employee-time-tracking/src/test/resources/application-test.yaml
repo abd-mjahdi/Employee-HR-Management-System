@@ -22,6 +22,14 @@ spring:
     expiration-ms: 3600000
 
 app:
+  frontend:
+    tenant-url-template: http://{slug}.localhost:4200
+  mail:
+    from: noreply@hrapp.local
+    outbox:
+      poll-interval-ms: 3600000
+      batch-size: 20
+      max-attempts: 8
   bootstrap:
     key: it-bootstrap-key
   tenant:

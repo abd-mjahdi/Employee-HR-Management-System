@@ -4,14 +4,8 @@ import com.example.employeetimetracking.dto.request.AcceptInvitationRequestDto;
 import com.example.employeetimetracking.dto.request.CreateInvitationRequestDto;
 import com.example.employeetimetracking.dto.response.InvitationAcceptedResponseDto;
 import com.example.employeetimetracking.dto.response.InvitationCreatedResponseDto;
-import com.example.employeetimetracking.exception.DepartmentNotFoundException;
-import com.example.employeetimetracking.exception.EmailAlreadyRegisteredException;
-import com.example.employeetimetracking.exception.InvitationAlreadyUsedException;
-import com.example.employeetimetracking.exception.InvitationExpiredException;
-import com.example.employeetimetracking.exception.InvitationNotFoundException;
-import com.example.employeetimetracking.exception.InvalidTenantException;
-import com.example.employeetimetracking.exception.InvalidUserException;
-import com.example.employeetimetracking.exception.WeakPasswordException;
+import com.example.employeetimetracking.event.InvitationCreatedEvent;
+import com.example.employeetimetracking.exception.*;
 import com.example.employeetimetracking.model.entities.Company;
 import com.example.employeetimetracking.model.entities.CompanyMembership;
 import com.example.employeetimetracking.model.entities.Department;
@@ -26,6 +20,8 @@ import com.example.employeetimetracking.repository.InvitationRepository;
 import com.example.employeetimetracking.repository.UserRepository;
 import com.example.employeetimetracking.security.CustomUserDetails;
 import com.example.employeetimetracking.tenant.TenantContext;
+import jakarta.validation.constraints.Email;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -56,6 +52,7 @@ public class InvitationService {
     private final UserService userService;
     private final LeaveBalanceService leaveBalanceService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
 
     public InvitationService(InvitationRepository invitationRepository,
                              CompanyRepository companyRepository,
@@ -64,7 +61,8 @@ public class InvitationService {
                              UserRepository userRepository,
                              UserService userService,
                              LeaveBalanceService leaveBalanceService,
-                             BCryptPasswordEncoder passwordEncoder) {
+                             BCryptPasswordEncoder passwordEncoder,
+                             ApplicationEventPublisher eventPublisher) {
         this.invitationRepository = invitationRepository;
         this.companyRepository = companyRepository;
         this.departmentRepository = departmentRepository;
@@ -73,6 +71,7 @@ public class InvitationService {
         this.userService = userService;
         this.leaveBalanceService = leaveBalanceService;
         this.passwordEncoder = passwordEncoder;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -115,6 +114,15 @@ public class InvitationService {
         invitation.setInvitedByMembership(inviter);
         invitation.setExpiresAt(LocalDateTime.now(ZoneOffset.UTC).plusHours(EXPIRY_HOURS));
         invitation = invitationRepository.save(invitation);
+
+        eventPublisher.publishEvent(
+                new InvitationCreatedEvent(
+                        company.getName(),
+                        company.getSlug(),
+                        email,
+                        rawToken
+                )
+        );
 
         return new InvitationCreatedResponseDto(
                 invitation.getId(),

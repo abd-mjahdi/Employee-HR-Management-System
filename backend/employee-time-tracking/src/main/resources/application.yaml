@@ -3,7 +3,7 @@ spring:
     name: EmployeeTimeTracking
   
   mail:
-    host: localhost
+    host: mailpit
     port: 1025
     username:
     password:
@@ -43,6 +43,10 @@ holidays:
   dates:
 
 app:
+  frontend:
+    tenant-url-template: ${FRONTEND_TENANT_URL_TEMPLATE:http://{slug}.localhost:4200}
+  mail:
+    from: ${MAIL_FROM:noreply@hrapp.local}
   bootstrap:
     # Empty disables POST /internal/bootstrap/company. Set BOOTSTRAP_KEY for first-run only.
     key: ${BOOTSTRAP_KEY:}

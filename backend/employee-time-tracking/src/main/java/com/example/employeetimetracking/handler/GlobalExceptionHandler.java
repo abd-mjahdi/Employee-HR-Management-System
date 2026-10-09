@@ -74,7 +74,6 @@ public class GlobalExceptionHandler {
             InsufficientLeaveBalanceException.class,
             LeaveApprovalException.class,
             InvalidLeaveRequestException.class,
-            ProjectNotFoundException.class,
             InvalidTimeEntryException.class,
             InvalidUserException.class,
             InvitationExpiredException.class,
@@ -95,7 +94,9 @@ public class GlobalExceptionHandler {
             LeaveRequestNotFoundException.class,
             InvitationNotFoundException.class,
             DepartmentNotFoundException.class,
-            AuditLogNotFoundException.class
+            AuditLogNotFoundException.class,
+            ProjectNotFoundException.class,
+            CompanyNotFoundException.class
     })
     public ResponseEntity<ErrorResponseDto> handleNotFound(RuntimeException exception) {
         ErrorResponseDto response = new ErrorResponseDto(exception.getMessage());
